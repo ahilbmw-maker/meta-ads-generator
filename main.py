@@ -1,3 +1,34 @@
+from flask import Flask, request, Response, send_from_directory
+import os
+
+app = Flask(__name__)
+
+USERNAME = "admin"
+PASSWORD = "mojegeslo"
+
+def check_auth(username, password):
+    return username == USERNAME and password == PASSWORD
+
+def authenticate():
+    return Response(
+        'Login required',
+        401,
+        {'WWW-Authenticate': 'Basic realm="Login Required"'}
+    )
+
+@app.before_request
+def require_login():
+    auth = request.authorization
+    if not auth or not check_auth(auth.username, auth.password):
+        return authenticate()
+
+@app.route('/')
+def index():
+    return send_from_directory('static', 'index.html')
+
+if __name__ == "__main__":
+    app.run()
+
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
