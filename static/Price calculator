@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalkulator cen</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f5f5f3;color:#1a1a1a;padding:1.5rem;}
+h1{font-size:16px;font-weight:500;color:#888;margin-bottom:1.25rem;letter-spacing:0.05em;text-transform:uppercase;}
+.card{background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;padding:1.25rem 1.5rem;max-width:720px;margin:0 auto;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+label{font-size:13px;color:#666;display:block;margin-bottom:4px;}
+input,select{width:100%;padding:8px 10px;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;font-size:14px;background:#fff;color:#1a1a1a;outline:none;}
+input:focus,select:focus{border-color:rgba(0,0,0,0.5);}
+.sec{font-size:11px;font-weight:500;color:#999;text-transform:uppercase;letter-spacing:0.06em;margin:1.25rem 0 0.6rem;}
+.result-card{background:#f5f5f3;border-radius:8px;padding:0.75rem 1rem;}
+.rl{font-size:12px;color:#666;margin:0 0 2px;}
+.rv{font-size:19px;font-weight:500;color:#1a1a1a;margin:0;}
+.rs{font-size:11px;color:#999;margin:2px 0 0;}
+.divider{border:none;border-top:0.5px solid rgba(0,0,0,0.1);margin:1.25rem 0;}
+.mode-btns{display:flex;gap:8px;margin-bottom:1.25rem;}
+.mode-btn{flex:1;padding:8px;font-size:13px;cursor:pointer;background:#f5f5f3;border:0.5px solid rgba(0,0,0,0.15);border-radius:8px;color:#666;}
+.mode-btn.active{background:#fff;border-color:rgba(0,0,0,0.4);color:#1a1a1a;font-weight:500;}
+.nova-box{background:#f5f5f3;border:1.5px solid rgba(0,0,0,0.35);border-radius:12px;padding:1rem 1.25rem;margin-top:1rem;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.nova-val{font-size:28px;font-weight:500;color:#1a1a1a;margin:0;line-height:1.1;}
+.nova-sub{font-size:12px;color:#666;margin:4px 0 0;}
+.copy-btn{padding:8px 16px;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;background:#fff;}
+.copy-btn:hover{background:#f5f5f3;}
+.copy-btn.ok{color:#2a7a2a;border-color:#2a7a2a;}
+.imode{display:flex;gap:0;margin-bottom:1rem;border:0.5px solid rgba(0,0,0,0.15);border-radius:8px;overflow:hidden;}
+.imode-btn{flex:1;padding:7px;font-size:13px;cursor:pointer;background:transparent;border:none;color:#666;}
+.imode-btn.active{background:#f5f5f3;color:#1a1a1a;font-weight:500;}
+.bump-btns{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:0.75rem;}
+.bump-btn{padding:4px 10px;font-size:12px;cursor:pointer;border-radius:8px;background:#f5f5f3;border:0.5px solid rgba(0,0,0,0.15);color:#1a1a1a;}
+.bump-btn:active{transform:scale(0.95);}
+.bump-btn.minus{color:#888;}
+.country-row{display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:0.5px solid rgba(0,0,0,0.08);align-items:stretch;}
+.country-row:last-child{border-bottom:none;}
+.cr-left{padding:10px 12px;display:flex;align-items:center;gap:10px;border-right:0.5px solid rgba(0,0,0,0.08);}
+.cr-label{font-size:13px;font-weight:500;color:#1a1a1a;}
+.cr-curr{font-size:11px;color:#999;}
+.cr-right{padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.cr-price{font-size:15px;font-weight:500;color:#1a1a1a;white-space:nowrap;}
+.cr-nova{font-size:11px;color:#666;white-space:nowrap;}
+.cr-nova span{color:#1a1a1a;font-weight:500;}
+.cr-copy{font-size:11px;padding:3px 8px;cursor:pointer;border-radius:4px;background:transparent;border:0.5px solid rgba(0,0,0,0.2);color:#666;white-space:nowrap;flex-shrink:0;}
+.cr-copy:hover{border-color:rgba(0,0,0,0.5);color:#1a1a1a;}
+.cr-copy.ok{color:#2a7a2a;border-color:#2a7a2a;}
+.cr-input{width:100%;font-size:13px;padding:5px 8px;background:transparent;border:none;border-bottom:0.5px solid rgba(0,0,0,0.1);border-radius:0;color:#1a1a1a;outline:none;}
+.cr-input:focus{border-bottom-color:rgba(0,0,0,0.5);}
+.cr-input::placeholder{color:#bbb;}
+.all-table{border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;overflow:hidden;margin-top:0.5rem;}
+.all-head{display:grid;grid-template-columns:1fr 1fr;border-bottom:0.5px solid rgba(0,0,0,0.15);}
+.all-head-cell{padding:7px 12px;font-size:11px;font-weight:500;color:#999;text-transform:uppercase;letter-spacing:0.05em;background:#f5f5f3;}
+.all-head-cell:first-child{border-right:0.5px solid rgba(0,0,0,0.08);}
+.cc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.round-btn{padding:7px 14px;font-size:13px;cursor:pointer;border-radius:8px;border:0.5px solid rgba(0,0,0,0.15);background:#f5f5f3;color:#666;white-space:nowrap;}
+.round-btn.active{background:#fff;border-color:rgba(0,0,0,0.4);color:#1a1a1a;font-weight:500;}
+.round-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#2a7a2a;margin-right:5px;vertical-align:middle;}
+</style>
+</head>
+<body>
+<div style="max-width:720px;margin:0 auto;">
+<h1>Kalkulator cen</h1>
+<div class="card">
+  <div class="mode-btns">
+    <button class="mode-btn active" onclick="setMode('single')" id="btn-single">Ena država</button>
+    <button class="mode-btn" onclick="setMode('all')" id="btn-all">Vse države</button>
+  </div>
+  <div class="grid2">
+    <div><label>Nabavna cena (NC) €</label><input type="number" id="nc" value="2.5" step="0.01" min="0" oninput="calc()"></div>
+    <div><label>Zaslužek (RVC) €</label><input type="number" id="rvc" value="6.3" step="0.1" min="0" oninput="calc()"></div>
+  </div>
+  <div id="single-section">
+    <div class="sec" style="margin-top:1.25rem;">Nastavitve</div>
+    <div class="grid2">
+      <div>
+        <label>Država</label>
+        <select id="country" onchange="onCountryChange()">
+          <option value="SLO">SLO — Slovenija (€)</option>
+          <option value="HR">HR — Hrvaška (€)</option>
+          <option value="RS">RS — Srbija (din)</option>
+          <option value="HU">HU — Madžarska (Ft)</option>
+          <option value="IT">IT — Italija (€)</option>
+          <option value="CZ">CZ — Češka (Kč)</option>
+          <option value="SK">SK — Slovaška (€)</option>
+          <option value="PL">PL — Poljska (zł)</option>
+          <option value="GR">GR — Grčija (€)</option>
+          <option value="RO">RO — Romunija (RON)</option>
+          <option value="BG">BG — Bolgarija (€)</option>
+        </select>
+      </div>
+      <div><label>Popust %</label><input type="number" id="discount" value="40" step="1" min="0" max="99" oninput="calc()"></div>
+    </div>
+    <div class="sec" style="margin-top:1.25rem;">Način vnosa</div>
+    <div class="imode">
+      <button class="imode-btn active" onclick="setInputMode('manual')" id="ibtn-manual">Vpiši željeno ceno</button>
+      <button class="imode-btn" onclick="setInputMode('auto')" id="ibtn-auto">Samodejni izračun</button>
+    </div>
+    <div id="manual-input">
+      <label>Željena končna cena <span id="manual-curr-label" style="color:#999;font-size:12px;"></span></label>
+      <input type="number" id="manual-price" step="0.01" min="0" placeholder="npr. 15.99" oninput="calc()" style="margin-bottom:8px;">
+      <div class="bump-btns" id="bump-btns"></div>
+    </div>
+    <div id="result-area"></div>
+  </div>
+  <div id="all-section" style="display:none;">
+    <div style="display:flex;align-items:center;gap:10px;margin-top:1rem;flex-wrap:wrap;">
+      <label style="white-space:nowrap;margin:0;">Popust %</label>
+      <input type="number" id="discount-all" value="40" step="1" min="0" max="99" oninput="calc()" style="max-width:90px;">
+      <button class="round-btn" id="round-btn" onclick="toggleRound()">Zaokroževanje</button>
+    </div>
+    <div class="sec" style="margin-top:1.25rem;">Cene po državah</div>
+    <div class="all-table">
+      <div class="all-head">
+        <div class="all-head-cell">Željena končna cena</div>
+        <div class="all-head-cell">NOVA za CMS</div>
+      </div>
+      <div id="all-rows"></div>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+const COUNTRIES={
+  SLO:{label:'SLO',curr:'€',  vat:1.22,exchg:1,   ship:3.5,dec:2,color:'#5DCAA5'},
+  HR: {label:'HR', curr:'€',  vat:1.25,exchg:1,   ship:3.5,dec:2,color:'#378ADD'},
+  RS: {label:'RS', curr:'din',vat:1.20,exchg:120, ship:2,  dec:0,color:'#D85A30'},
+  HU: {label:'HU', curr:'Ft', vat:1.22,exchg:400, ship:3,  dec:0,color:'#7F77DD'},
+  IT: {label:'IT', curr:'€',  vat:1.22,exchg:1,   ship:5.4,dec:2,color:'#D4537E'},
+  CZ: {label:'CZ', curr:'Kč', vat:1.22,exchg:25,  ship:4,  dec:0,color:'#EF9F27'},
+  SK: {label:'SK', curr:'€',  vat:1.22,exchg:1,   ship:4,  dec:2,color:'#888780'},
+  PL: {label:'PL', curr:'zł', vat:1.23,exchg:4.5, ship:4,  dec:2,color:'#E24B4A'},
+  GR: {label:'GR', curr:'€',  vat:1.24,exchg:1,   ship:3.6,dec:2,color:'#1D9E75'},
+  RO: {label:'RO', curr:'RON',vat:1.19,exchg:5,   ship:3.7,dec:2,color:'#BA7517'},
+  BG: {label:'BG', curr:'€',  vat:1.20,exchg:1,   ship:3.7,dec:2,color:'#534AB7'},
+};
+const BUMPS={
+  '€':  [{l:'+0.50€',v:.5},{l:'+1€',v:1},{l:'+2€',v:2},{l:'+5€',v:5},{l:'−1€',v:-1}],
+  'din':[{l:'+50',v:50},{l:'+100',v:100},{l:'+200',v:200},{l:'−100',v:-100}],
+  'Ft': [{l:'+200',v:200},{l:'+400',v:400},{l:'+1000',v:1000},{l:'−400',v:-400}],
+  'Kč': [{l:'+10',v:10},{l:'+25',v:25},{l:'+50',v:50},{l:'−25',v:-25}],
+  'zł': [{l:'+2',v:2},{l:'+5',v:5},{l:'+10',v:10},{l:'−5',v:-5}],
+  'RON':[{l:'+2',v:2},{l:'+5',v:5},{l:'+10',v:10},{l:'−5',v:-5}],
+};
+let mode='single',inputMode='manual',roundingOn=false;
+function marketRound(val,curr){
+  if(!roundingOn)return val;
+  if(curr==='din'){const base=Math.floor(val/100)*100+99;return base+100;}
+  if(curr==='€'||curr==='zł')return Math.floor(val)+0.99;
+  if(curr==='RON')return Math.round(val);
+  if(curr==='Kč')return Math.floor(val/10)*10+9;
+  if(curr==='Ft')return Math.floor(val/100)*100+99;
+  return val;
+}
+function toggleRound(){
+  roundingOn=!roundingOn;
+  const btn=document.getElementById('round-btn');
+  btn.className='round-btn'+(roundingOn?' active':'');
+  btn.innerHTML=roundingOn?'<span class="round-dot"></span>Zaokroževanje':'Zaokroževanje';
+  calc();
+}
+function setMode(m){
+  mode=m;
+  document.getElementById('single-section').style.display=m==='single'?'':'none';
+  document.getElementById('all-section').style.display=m==='all'?'':'none';
+  document.getElementById('btn-single').className='mode-btn'+(m==='single'?' active':'');
+  document.getElementById('btn-all').className='mode-btn'+(m==='all'?' active':'');
+  if(m==='all')buildAllRows();
+  calc();
+}
+function setInputMode(im){
+  inputMode=im;
+  document.getElementById('ibtn-auto').className='imode-btn'+(im==='auto'?' active':'');
+  document.getElementById('ibtn-manual').className='imode-btn'+(im==='manual'?' active':'');
+  document.getElementById('manual-input').style.display=im==='manual'?'block':'none';
+  calc();
+}
+function onCountryChange(){buildBumpBtns();calc();}
+function buildBumpBtns(){
+  const c=COUNTRIES[document.getElementById('country').value];
+  const bumps=BUMPS[c.curr]||BUMPS['€'];
+  document.getElementById('bump-btns').innerHTML=bumps.map(b=>`<button class="bump-btn${b.v<0?' minus':''}" onclick="bump(${b.v})">${b.l}</button>`).join('');
+  document.getElementById('manual-curr-label').textContent='('+c.curr+')';
+}
+function bump(val){
+  const inp=document.getElementById('manual-price');
+  const c=COUNTRIES[document.getElementById('country').value];
+  let v=Math.max(0,(parseFloat(inp.value)||0)+val);
+  inp.value=c.dec===0?Math.round(v):parseFloat(v.toFixed(2));
+  calc();
+}
+function fmt(val,dec,curr){
+  if(dec===0)return Math.round(val).toLocaleString('sl-SI')+' '+curr;
+  return val.toFixed(dec).replace('.',',')+' '+curr;
+}
+function doCopy(val,btnId){
+  navigator.clipboard.writeText(val.toFixed(2)).catch(()=>{});
+  const btn=document.getElementById(btnId);
+  if(!btn)return;
+  const orig=btn.textContent;
+  btn.textContent='ok';btn.classList.add('ok');
+  setTimeout(()=>{btn.textContent=orig;btn.classList.remove('ok');},1800);
+}
+function calc(){
+  const nc=parseFloat(document.getElementById('nc').value)||0;
+  const rvc=parseFloat(document.getElementById('rvc').value)||0;
+  if(mode==='single'){
+    const ckey=document.getElementById('country').value;
+    const disc=(parseFloat(document.getElementById('discount').value)||0)/100;
+    const c=COUNTRIES[ckey];
+    let fin,nova,cross;
+    if(inputMode==='manual'){
+      const mp=parseFloat(document.getElementById('manual-price').value);
+      if(!mp||mp<=0){document.getElementById('result-area').innerHTML='<p style="font-size:13px;color:#999;margin:0.75rem 0 0;">Vpiši željeno končno ceno zgoraj...</p>';return;}
+      fin=mp;nova=fin/c.vat/(1-disc);cross=fin/(1-disc);
+    }else{
+      nova=nc+rvc+c.ship;fin=nova*c.vat*(1-disc)*c.exchg;cross=nova*c.vat*c.exchg;
+    }
+    document.getElementById('result-area').innerHTML=`
+      <div class="divider"></div>
+      <div class="grid3">
+        <div class="result-card"><p class="rl">Končna cena</p><p class="rv">${fmt(fin,c.dec,c.curr)}</p><p class="rs">s popustom</p></div>
+        <div class="result-card"><p class="rl">Prečrtana cena</p><p class="rv">${fmt(cross,c.dec,c.curr)}</p><p class="rs">brez popusta</p></div>
+        <div class="result-card"><p class="rl">DDV faktor</p><p class="rv">${c.vat}×</p><p class="rs">${c.label}</p></div>
+      </div>
+      <div class="nova-box">
+        <div>
+          <p style="font-size:12px;color:#666;margin:0 0 2px;">NOVA cena — kopiraj v CMS</p>
+          <p class="nova-val">${nova.toFixed(2)}</p>
+          <p class="nova-sub">${nova.toFixed(2)} ÷ ${c.vat} ÷ (1−${Math.round(disc*100)}%) = ${fmt(fin,c.dec,c.curr)}</p>
+        </div>
+        <button class="copy-btn" id="copy-main" onclick="doCopy(${nova},'copy-main')">Kopiraj NOVA ↗</button>
+      </div>`;
+  }else{
+    const disc=(parseFloat(document.getElementById('discount-all').value)||0)/100;
+    for(const ckey of Object.keys(COUNTRIES)){
+      const c=COUNTRIES[ckey];
+      const inp=document.getElementById('inp-'+ckey);
+      let fin,nova;
+      if(inp&&inp.value&&parseFloat(inp.value)>0){
+        fin=parseFloat(inp.value);fin=marketRound(fin,c.curr);nova=fin/c.vat/(1-disc);
+      }else{
+        nova=nc+rvc+c.ship;fin=nova*c.vat*(1-disc)*c.exchg;fin=marketRound(fin,c.curr);nova=fin/c.vat/(1-disc);
+      }
+      const pEl=document.getElementById('res-price-'+ckey);
+      const nEl=document.getElementById('res-nova-'+ckey);
+      if(pEl)pEl.textContent=fmt(fin,c.dec,c.curr);
+      if(nEl)nEl.textContent=nova.toFixed(2);
+      const btn=document.getElementById('res-copy-'+ckey);
+      if(btn)btn.onclick=()=>doCopy(nova,'res-copy-'+ckey);
+    }
+  }
+}
+function buildAllRows(){
+  const container=document.getElementById('all-rows');
+  let html='';
+  for(const ckey of Object.keys(COUNTRIES)){
+    const c=COUNTRIES[ckey];
+    html+=`<div class="country-row">
+      <div class="cr-left">
+        <div class="cc-dot" style="background:${c.color};"></div>
+        <div style="min-width:28px;"><div class="cr-label">${c.label}</div><div class="cr-curr">${c.curr}</div></div>
+        <input class="cr-input" id="inp-${ckey}" type="number" step="${c.dec===0?1:0.01}" min="0" placeholder="samodejno" oninput="calc()">
+      </div>
+      <div class="cr-right">
+        <div><div class="cr-price" id="res-price-${ckey}">—</div><div class="cr-nova">NOVA: <span id="res-nova-${ckey}">—</span></div></div>
+        <button class="cr-copy" id="res-copy-${ckey}">kopiraj</button>
+      </div>
+    </div>`;
+  }
+  container.innerHTML=html;
+  calc();
+}
+buildBumpBtns();
+calc();
+</script>
+</body>
+</html>
