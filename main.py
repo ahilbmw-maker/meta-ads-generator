@@ -4,7 +4,7 @@ import re
 import asyncio
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 from urllib.parse import urlparse
 
 import httpx
@@ -24,73 +24,38 @@ client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 BRAND_DOMAINS = {
     "maaarket": {
-        "sl": "www.maaarket.si",
-        "hr": "www.maaarket.hr",
-        "rs": "www.maaarket.rs",
-        "hu": "www.maaarket.hu",
-        "cz": "www.maaarket.cz",
-        "sk": "www.maaarket.sk",
-        "pl": "www.maaarket.pl",
-        "gr": "www.maaarket.gr",
-        "ro": "www.maaarket.ro",
+        "sl": "www.maaarket.si", "hr": "www.maaarket.hr", "rs": "www.maaarket.rs",
+        "hu": "www.maaarket.hu", "cz": "www.maaarket.cz", "sk": "www.maaarket.sk",
+        "pl": "www.maaarket.pl", "gr": "www.maaarket.gr", "ro": "www.maaarket.ro",
         "bg": "www.maaarket.bg",
     },
     "fluxigo": {
-        "sl": "www.fluxigo.si",
-        "hr": "www.fluxigo.hr",
-        "rs": "www.fluxigo.rs",
-        "hu": "www.fluxigo.hu",
-        "cz": "www.fluxigo.cz",
-        "sk": "www.fluxigo.sk",
-        "pl": "www.fluxigo.pl",
-        "gr": "www.fluxigo.gr",
-        "ro": "www.fluxigo.ro",
+        "sl": "www.fluxigo.si", "hr": "www.fluxigo.hr", "rs": "www.fluxigo.rs",
+        "hu": "www.fluxigo.hu", "cz": "www.fluxigo.cz", "sk": "www.fluxigo.sk",
+        "pl": "www.fluxigo.pl", "gr": "www.fluxigo.gr", "ro": "www.fluxigo.ro",
         "bg": "www.fluxigo.bg",
     },
     "easyzo": {
-        "sl": "www.easyzo.si",
-        "hr": "www.easyzo.hr",
-        "rs": "www.easyzo.rs",
-        "hu": "www.easyzo.hu",
-        "cz": "www.easyzo.cz",
-        "sk": "www.easyzo.sk",
-        "pl": "www.easyzo.pl",
-        "gr": "www.easyzo.gr",
-        "ro": "www.easyzo.ro",
+        "sl": "www.easyzo.si", "hr": "www.easyzo.hr", "rs": "www.easyzo.rs",
+        "hu": "www.easyzo.hu", "cz": "www.easyzo.cz", "sk": "www.easyzo.sk",
+        "pl": "www.easyzo.pl", "gr": "www.easyzo.gr", "ro": "www.easyzo.ro",
         "bg": "www.easyzo.bg",
     },
     "zipply": {
-        "sl": "www.zipply.si",
-        "hr": "www.zipply.hr",
-        "rs": "www.zipply.rs",
-        "hu": "www.zipply.hu",
-        "cz": "www.zipply.cz",
-        "sk": "www.zipply.sk",
-        "pl": "www.zipply.pl",
-        "gr": "www.zipply.gr",
-        "ro": "www.zipply.ro",
+        "sl": "www.zipply.si", "hr": "www.zipply.hr", "rs": "www.zipply.rs",
+        "hu": "www.zipply.hu", "cz": "www.zipply.cz", "sk": "www.zipply.sk",
+        "pl": "www.zipply.pl", "gr": "www.zipply.gr", "ro": "www.zipply.ro",
         "bg": "www.zipply.bg",
     },
     "thundershop": {
-        "sl": "www.thundershop.si",
-        "hr": "www.thundershop.hr",
-        "rs": "www.thundershop.rs",
-        "hu": "www.thundershop.hu",
-        "cz": "www.thundershop.cz",
-        "sk": "www.thundershop.sk",
-        "gr": "www.thundershop.gr",
-        "ro": "www.thundershop.ro",
-        "bg": "www.thundershop.bg",
+        "sl": "www.thundershop.si", "hr": "www.thundershop.hr", "rs": "www.thundershop.rs",
+        "hu": "www.thundershop.hu", "cz": "www.thundershop.cz", "sk": "www.thundershop.sk",
+        "gr": "www.thundershop.gr", "ro": "www.thundershop.ro", "bg": "www.thundershop.bg",
     },
     "colibrishop": {
-        "sl": "www.colibrishop.si",
-        "hr": "www.colibrishop.hr",
-        "rs": "www.colibrishop.rs",
-        "cz": "www.colibrishop.cz",
-        "sk": "www.colibrishop.sk",
-        "gr": "www.colibrishop.gr",
-        "ro": "www.colibrishop.ro",
-        "bg": "www.colibrishop.bg",
+        "sl": "www.colibrishop.si", "hr": "www.colibrishop.hr", "rs": "www.colibrishop.rs",
+        "cz": "www.colibrishop.cz", "sk": "www.colibrishop.sk", "gr": "www.colibrishop.gr",
+        "ro": "www.colibrishop.ro", "bg": "www.colibrishop.bg",
     },
 }
 
@@ -108,14 +73,8 @@ MAAARKET_FEEDS = {
 }
 
 G = "http://base.google.com/ns/1.0"
-
-# ─── CACHE STRUCTURE ─────────────────────────────────────────────────────────
-# feed_by_lang:  { lang: { g_id: { url, path } } }   — lookup by g:id
-# slug_to_id:    { slug: g_id }                       — SL slug → g:id mapping
-
-feed_by_lang: dict = {}   # { lang: { g_id: { url, path } } }
-slug_to_id: dict = {}     # { slug: g_id } — built from SL feed
-
+feed_by_lang: dict = {}
+slug_to_id: dict = {}
 last_fetch: Optional[datetime] = None
 CACHE_TTL_HOURS = 24
 
@@ -125,18 +84,12 @@ def is_cache_stale() -> bool:
 
 
 def extract_slug(url: str) -> Optional[str]:
-    """Extract last path segment (product slug) from any product URL."""
     path = urlparse(url).path.rstrip('/')
     parts = [p for p in path.split('/') if p]
     return parts[-1].lower() if parts else None
 
 
 def parse_feed(xml_content: str) -> dict:
-    """
-    Parse Google Merchant XML.
-    Returns { g_id: { url, path } }
-    g:id is the numeric product ID (e.g. "23166").
-    """
     products = {}
     try:
         root = ET.fromstring(xml_content)
@@ -162,7 +115,6 @@ def parse_feed(xml_content: str) -> dict:
 async def fetch_all_feeds():
     global feed_by_lang, slug_to_id, last_fetch
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Fetching XML feeds...")
-
     async with httpx.AsyncClient(timeout=30.0) as hc:
         tasks = {lang: hc.get(url) for lang, url in MAAARKET_FEEDS.items()}
         new_cache = {}
@@ -174,25 +126,19 @@ async def fetch_all_feeds():
                     print(f"  ✓ {lang}: {len(new_cache[lang])} products")
                 else:
                     new_cache[lang] = {}
-                    print(f"  ✗ {lang}: HTTP {resp.status_code}")
             except Exception as e:
                 new_cache[lang] = {}
                 print(f"  ✗ {lang}: {e}")
-
     feed_by_lang = new_cache
-
-    # Build slug→g:id index from ALL language feeds
-    # This allows lookup regardless of which language URL is entered
     new_slug_to_id = {}
-    for lang, lang_feed in new_cache.items():
+    for lang, lang_feed in feed_by_lang.items():
         for g_id, data in lang_feed.items():
             slug = extract_slug(data["url"])
             if slug and slug not in new_slug_to_id:
                 new_slug_to_id[slug] = g_id
     slug_to_id = new_slug_to_id
-
     last_fetch = datetime.now()
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Done. Slug index: {len(slug_to_id)} entries across all langs.")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Done. Slug index: {len(slug_to_id)} entries.")
 
 
 async def ensure_cache_fresh():
@@ -212,37 +158,18 @@ def detect_brand(url: str) -> Optional[str]:
 
 
 def find_product_urls(source_url: Optional[str]) -> dict:
-    """
-    1. Extract slug from source_url
-    2. Look up slug in SL slug→g:id index → get g:id
-    3. For each lang: find g:id in that lang's feed → get local path
-    4. If satellite brand: replace maaarket domain with brand domain
-       (path stays the same since slugs are identical across brands)
-
-    Returns { lang: full_url }
-    """
     if not source_url:
         return {}
-
     brand = detect_brand(source_url) or "maaarket"
-
-    # Normalise: always look up slug against SL maaarket index
     slug = extract_slug(source_url)
     if not slug:
         return {}
-
-    # Step 1: slug → g:id (from SL feed)
     g_id = slug_to_id.get(slug)
     if not g_id:
-        print(f"  Slug '{slug}' not found in SL index.")
+        print(f"  Slug '{slug}' not found in index.")
         return {}
-
-    print(f"  Slug '{slug}' → g:id {g_id}")
-
     target_domains = BRAND_DOMAINS.get(brand, BRAND_DOMAINS["maaarket"])
     result = {}
-
-    # Step 2: for each lang find g:id → get path
     for lang, products in feed_by_lang.items():
         if lang not in target_domains:
             continue
@@ -250,7 +177,6 @@ def find_product_urls(source_url: Optional[str]) -> dict:
             continue
         path = products[g_id]["path"]
         result[lang] = f"https://{target_domains[lang]}{path}"
-
     return result
 
 
@@ -278,64 +204,20 @@ class AdRequest(BaseModel):
     source_url: Optional[str] = None
 
 
-# ─── ROUTES ──────────────────────────────────────────────────────────────────
-
-@app.get("/")
-def root():
-    return FileResponse("static/index.html")
-
-
-@app.get("/cache-status")
-async def cache_status():
-    return {
-        "last_fetch": last_fetch.isoformat() if last_fetch else None,
-        "stale": is_cache_stale(),
-        "products_per_lang": {lang: len(p) for lang, p in feed_by_lang.items()},
-        "sl_slug_index_size": len(slug_to_id),
-    }
+class MultiAdRequest(BaseModel):
+    products: List[dict]  # [{ "url": "...", "mode": "url" }]
+    pt_count: int = 1
+    hl_count: int = 1
 
 
-@app.post("/refresh-cache")
-async def refresh_cache():
-    await fetch_all_feeds()
-    return {"status": "ok", "last_fetch": last_fetch.isoformat()}
+# ─── HELPERS ─────────────────────────────────────────────────────────────────
 
+def build_prompt(user_msg: str, pt_count: int, hl_count: int) -> str:
+    pt_ph = ", ".join([f'"PT {i+1}"' for i in range(pt_count)])
+    hl_ph = ", ".join([f'"HL {i+1}"' for i in range(hl_count)])
+    return f"""{user_msg}
 
-@app.post("/lookup-debug")
-async def lookup_debug(data: dict):
-    """Debug: test URL lookup without generating ads."""
-    await ensure_cache_fresh()
-    source_url = data.get("source_url", "")
-    slug = extract_slug(source_url)
-    g_id = slug_to_id.get(slug) if slug else None
-    urls = find_product_urls(source_url)
-    return {
-        "source_url": source_url,
-        "brand": detect_brand(source_url),
-        "slug": slug,
-        "g_id": g_id,
-        "found_urls": urls,
-        "sl_index_sample": dict(list(slug_to_id.items())[:5]),
-    }
-
-
-@app.post("/generate")
-async def generate(req: AdRequest):
-    await ensure_cache_fresh()
-
-    product_urls = find_product_urls(req.source_url)
-
-    if req.mode == "url":
-        user_msg = f"Preberi to stran in ustvari Meta oglase: {req.input}"
-    else:
-        user_msg = f"Na podlagi tega opisa ustvari Meta oglase:\n\n{req.input}"
-
-    pt_ph = ", ".join([f'"PT {i+1}"' for i in range(req.pt_count)])
-    hl_ph = ", ".join([f'"HL {i+1}"' for i in range(req.hl_count)])
-
-    prompt = f"""{user_msg}
-
-OBVEZNO ustvari TOČNO {req.pt_count} Primary Text(ov) IN TOČNO {req.hl_count} Headline(ov) za VSAK jezik.
+OBVEZNO ustvari TOČNO {pt_count} Primary Text(ov) IN TOČNO {hl_count} Headline(ov) za VSAK jezik.
 
 Primary Text pravila:
 - 2-3 kratke vrstice, vsaj 2-3 emoji-jev, energičen prodajni ton, brez cen
@@ -362,27 +244,91 @@ Vrni SAMO veljaven JSON brez markdown:
   "bg": {{"pt": [{pt_ph}], "hl": [{hl_ph}]}}
 }}"""
 
-    tools = [{"type": "web_search_20250305", "name": "web_search"}] if req.mode == "url" else []
 
-    message = client.messages.create(
+async def generate_one(user_msg: str, mode: str, source_url: Optional[str],
+                       pt_count: int, hl_count: int) -> dict:
+    """Generate ads for a single product."""
+    product_urls = find_product_urls(source_url)
+    prompt = build_prompt(user_msg, pt_count, hl_count)
+    tools = [{"type": "web_search_20250305", "name": "web_search"}] if mode == "url" else []
+
+    loop = asyncio.get_event_loop()
+    message = await loop.run_in_executor(None, lambda: client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=8000,
         tools=tools if tools else anthropic.NOT_GIVEN,
         messages=[{"role": "user", "content": prompt}]
-    )
+    ))
 
     text = "".join(b.text for b in message.content if hasattr(b, "text"))
     text = re.sub(r"```json\s*", "", text)
     text = re.sub(r"```\s*", "", text).strip()
-
-    # Robust JSON extraction
     match = re.search(r'\{[\s\S]*\}', text)
     if not match:
-        return {"error": "Claude ni vrnil veljavnega JSON. Poskusi znova."}
-
+        return {"error": "Claude ni vrnil veljavnega JSON."}
     try:
         data = json.loads(match.group())
         data["product_urls"] = product_urls
         return data
     except json.JSONDecodeError as e:
         return {"error": f"JSON napaka: {str(e)}"}
+
+
+# ─── ROUTES ──────────────────────────────────────────────────────────────────
+
+@app.get("/")
+def root():
+    return FileResponse("static/index.html")
+
+
+@app.get("/cache-status")
+async def cache_status():
+    return {
+        "last_fetch": last_fetch.isoformat() if last_fetch else None,
+        "stale": is_cache_stale(),
+        "products_per_lang": {lang: len(p) for lang, p in feed_by_lang.items()},
+        "slug_index_size": len(slug_to_id),
+    }
+
+
+@app.post("/refresh-cache")
+async def refresh_cache():
+    await fetch_all_feeds()
+    return {"status": "ok", "last_fetch": last_fetch.isoformat()}
+
+
+@app.post("/generate")
+async def generate(req: AdRequest):
+    """Single product generation (backwards compatible)."""
+    await ensure_cache_fresh()
+    if req.mode == "url":
+        user_msg = f"Preberi to stran in ustvari Meta oglase: {req.input}"
+    else:
+        user_msg = f"Na podlagi tega opisa ustvari Meta oglase:\n\n{req.input}"
+    result = await generate_one(user_msg, req.mode, req.source_url, req.pt_count, req.hl_count)
+    return result
+
+
+@app.post("/generate-multi")
+async def generate_multi(req: MultiAdRequest):
+    """
+    Generate ads for multiple products in parallel.
+    Returns list of results in same order as input.
+    """
+    await ensure_cache_fresh()
+
+    async def process_product(p: dict) -> dict:
+        url = p.get("url", "").strip()
+        mode = p.get("mode", "url")
+        if not url:
+            return {"error": "Prazen URL"}
+        if mode == "url":
+            user_msg = f"Preberi to stran in ustvari Meta oglase: {url}"
+        else:
+            user_msg = f"Na podlagi tega opisa ustvari Meta oglase:\n\n{url}"
+        return await generate_one(user_msg, mode, url if mode == "url" else None,
+                                  req.pt_count, req.hl_count)
+
+    # Run all products in parallel
+    results = await asyncio.gather(*[process_product(p) for p in req.products])
+    return {"results": list(results)}
