@@ -227,6 +227,12 @@ input[type="text"].error { border-color: var(--red) !important; }
     Kalkulator
     <span class="nav-badge" style="background:#f0fff4;color:#276749">€</span>
   </div>
+
+  <div class="nav-item nav-forecast" id="nav-forecast" onclick="switchPage('forecast')">
+    <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Napoved
+    <span class="nav-badge" style="background:#fff7ed;color:#9a3412">📈</span>
+  </div>
 </nav>
 
 <!-- MAIN -->
@@ -379,9 +385,14 @@ input[type="text"].error { border-color: var(--red) !important; }
       </button>
     </div>
   </div>
+  <!-- ═══ FORECAST PAGE ═══ -->
+  <div class="page" id="page-forecast">
+    <iframe src="/static/revenue_forecast.html" style="width:100%;height:calc(100vh - 4rem);border:none;border-radius:var(--radius-lg)"></iframe>
+  </div>
+
   <!-- ═══ CALCULATOR PAGE ═══ -->
   <div class="page" id="page-calc">
-    <iframe src="/static/price_calculator.html" style="width:100%;height:calc(100vh - 4rem);border:none;border-radius:var(--radius-lg)"></iframe>
+    <iframe src="/static/Price_calculator.html" style="width:100%;height:calc(100vh - 4rem);border:none;border-radius:var(--radius-lg)"></iframe>
   </div>
 
 </div>
