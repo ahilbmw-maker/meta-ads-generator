@@ -28,7 +28,24 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   .hamburger { display: none !important; }
   .overlay { display: none !important; }
   .sidebar { display: none !important; }
-  .main { padding: 1rem 1rem 5rem; max-width: 100%; }
+  .main { padding: 0.75rem 0.75rem 5rem; max-width: 100%; overflow-x: hidden; }
+  body { display: block; }
+  #page-meta { max-width: 100%; overflow-x: hidden; }
+  input[type="text"] { max-width: 100%; min-width: 0; }
+  .url-wrap { min-width: 0; overflow: hidden; }
+  .url-row { min-width: 0; }
+  .hint { display: none; }
+  .card { padding: 1rem; }
+  .country-body { grid-template-columns: 1fr; }
+  .field-col:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+  .results-hdr { flex-direction: column; align-items: flex-start; }
+  .results-hdr-right { width: 100%; justify-content: flex-end; }
+  .prod-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+  .prod-tab { flex-shrink: 0; }
+  .country-url-link { max-width: 160px; }
+  .counters { gap: 1rem; }
+  .input-grid2 { grid-template-columns: 1fr; }
+  .qbtn-sub { display: none; }
   .mobile-tabbar {
     display: flex;
     position: fixed;
@@ -36,8 +53,10 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     height: 58px;
     background: var(--surface);
     border-top: 1px solid var(--border);
-    z-index: 100;
+    z-index: 9999;
     align-items: stretch;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
   }
   .tab-item {
     flex: 1;
