@@ -372,24 +372,27 @@ async function regenerate(){
   if(!lastRequest) return;
   const btn=document.getElementById('regenBtn');
   btn.disabled=true;
-  document.getElementById('prodPanels').innerHTML='';
+
+  // Show loading inside results area directly
+  document.getElementById('prodPanels').innerHTML=`
+    <div style="text-align:center;padding:3rem 1rem">
+      <div class="spinner" style="margin:0 auto 1rem"></div>
+      <div style="font-size:13px;color:var(--text-tertiary)">Regeneriram oglase...</div>
+    </div>`;
   document.getElementById('prodTabs').innerHTML='';
-  document.getElementById('results').classList.remove('show');
-  document.getElementById('formSection').style.display='none';
-  document.getElementById('loadingText').textContent='Regeneriram oglase...';
-  document.getElementById('loadingProgress').innerHTML='';
-  document.getElementById('loading').classList.add('show');
+
   try{
-    const res=await fetch('/generate-multi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(lastRequest.reqBody)});
+    const res=await fetch('/generate-multi',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(lastRequest.reqBody)
+    });
     const data=await res.json();
-    if(data.error)throw new Error(data.error);
-    document.getElementById('loading').classList.remove('show');
+    if(data.error) throw new Error(data.error);
     saveH(data.results, lastRequest.urls, lastRequest.reqBody.pt_count, lastRequest.reqBody.hl_count);
     renderResults(data.results);
   }catch(e){
-    document.getElementById('loading').classList.remove('show');
-    document.getElementById('results').classList.add('show');
-    alert('Napaka: '+(e.message||'Poskusi znova.'));
+    document.getElementById('prodPanels').innerHTML=`<div style="padding:1rem;color:var(--red);font-size:13px">Napaka: ${esc(e.message||'Poskusi znova.')}</div>`;
   }
   btn.disabled=false;
 }
