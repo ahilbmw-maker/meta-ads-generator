@@ -766,6 +766,9 @@ function cpIco(){return`<svg viewBox="0 0 24 24" style="width:11px;height:11px;s
 function flash(id){const el=document.getElementById(id);if(!el)return;el.style.borderColor='var(--red)';el.focus();setTimeout(()=>el.style.borderColor='',1500);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
+updateMeta();renderH();
+</script>
+
 <!-- MOBILE BOTTOM TAB BAR -->
 <nav class="mobile-tabbar">
   <button class="tab-item active" id="tab-meta" onclick="switchPage('meta')">
