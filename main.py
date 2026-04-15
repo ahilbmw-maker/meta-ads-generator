@@ -330,4 +330,7 @@ async def generate_multi(req: MultiAdRequest):
         result = await generate_one(user_msg, mode, url if mode == "url" else None,
                                     req.pt_count, req.hl_count)
         results.append(result)
+        # Wait between calls to stay within rate limits (30k tokens/min)
+        if p != req.products[-1]:
+            await asyncio.sleep(15)
     return {"results": results}
