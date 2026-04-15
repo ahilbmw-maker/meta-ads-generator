@@ -25,31 +25,23 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .logo-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 12px; }
 .slabel { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; display: block; }
-.mode-row { display: flex; gap: 6px; margin-bottom: 1.25rem; background: var(--surface2); padding: 4px; border-radius: var(--radius); }
-.mode-btn { flex: 1; height: 34px; border-radius: 7px; border: none; background: transparent; color: var(--text-tertiary); font-size: 13px; font-family: 'DM Sans',sans-serif; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s; }
-.mode-btn:hover { color: var(--text-secondary); }
-.mode-btn.on { background: var(--surface); color: var(--text); border: 1px solid var(--border-hover); }
-.mode-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
-/* Two-column input grid */
-.input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-.input-grid.single { grid-template-columns: 1fr; }
-
-.ifield { display: flex; flex-direction: column; gap: 6px; }
-.ifield-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.8px; display: flex; align-items: center; gap: 6px; }
-.ifield-optional { font-size: 10px; font-weight: 400; color: var(--text-tertiary); text-transform: none; letter-spacing: 0; background: var(--surface2); padding: 1px 6px; border-radius: 4px; }
-.ifield-wrap { position: relative; display: flex; align-items: center; }
-.ifield-icon { position: absolute; left: 11px; pointer-events: none; display: flex; }
-.ifield-icon svg { width: 13px; height: 13px; stroke: var(--text-tertiary); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-input[type="text"] { width: 100%; height: 42px; padding: 0 12px 0 32px; font-size: 13.5px; font-family: 'DM Sans',sans-serif; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface2); color: var(--text); transition: all 0.15s; }
+/* URL inputs */
+.url-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.url-row { display: flex; align-items: center; gap: 8px; }
+.url-num { width: 22px; height: 22px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: 'DM Mono', monospace; }
+.url-wrap { flex: 1; position: relative; display: flex; align-items: center; }
+.url-icon { position: absolute; left: 11px; pointer-events: none; }
+.url-icon svg { width: 13px; height: 13px; stroke: var(--text-tertiary); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+input[type="text"] { width: 100%; height: 42px; padding: 0 12px 0 32px; font-size: 13.5px; font-family: 'DM Sans', sans-serif; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface2); color: var(--text); transition: all 0.15s; }
 input[type="text"]:focus { outline: none; border-color: var(--accent-border); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-dim); }
 input[type="text"]::placeholder { color: var(--text-tertiary); }
-input[type="text"].error { border-color: var(--red) !important; box-shadow: 0 0 0 3px rgba(224,48,48,0.1) !important; }
-textarea.input-area { width: 100%; min-height: 110px; padding: 11px 13px; font-size: 13.5px; font-family: 'DM Sans',sans-serif; line-height: 1.65; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface2); color: var(--text); resize: vertical; transition: all 0.15s; }
+input[type="text"].error { border-color: var(--red) !important; }
+textarea.input-area { width: 100%; min-height: 90px; padding: 11px 13px; font-size: 13.5px; font-family: 'DM Sans', sans-serif; line-height: 1.65; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface2); color: var(--text); resize: vertical; transition: all 0.15s; }
 textarea.input-area:focus { outline: none; border-color: var(--accent-border); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-dim); }
 textarea.input-area::placeholder { color: var(--text-tertiary); }
 
-.btn-gen { width: 100%; height: 46px; border-radius: var(--radius); border: none; background: var(--accent); color: white; font-size: 14px; font-family: 'DM Sans',sans-serif; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all 0.15s; }
+.btn-gen { width: 100%; height: 46px; border-radius: var(--radius); border: none; background: var(--accent); color: white; font-size: 14px; font-family: 'DM Sans', sans-serif; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all 0.15s; }
 .btn-gen:hover { background: #2d5fee; }
 .btn-gen:active { transform: scale(0.98); }
 .btn-gen:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -58,10 +50,10 @@ textarea.input-area::placeholder { color: var(--text-tertiary); }
 .counters { display: flex; gap: 1.5rem; }
 .counter-group { flex: 1; }
 .counter-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.cnt-btn { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-secondary); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s; font-family: 'DM Mono',monospace; }
+.cnt-btn { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-secondary); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s; font-family: 'DM Mono', monospace; }
 .cnt-btn:hover { border-color: var(--border-hover); color: var(--text); }
 .cnt-btn:disabled { opacity: 0.25; cursor: not-allowed; }
-.cnt-val { font-size: 16px; font-weight: 600; min-width: 22px; text-align: center; font-family: 'DM Mono',monospace; }
+.cnt-val { font-size: 16px; font-weight: 600; min-width: 22px; text-align: center; font-family: 'DM Mono', monospace; }
 .cnt-max { font-size: 11px; color: var(--text-tertiary); }
 .chips { display: flex; gap: 3px; }
 .chip { height: 4px; flex: 1; border-radius: 2px; background: var(--chip-off); transition: background 0.2s; }
@@ -72,17 +64,24 @@ textarea.input-area::placeholder { color: var(--text-tertiary); }
 .hint-text { font-size: 12px; color: var(--text-tertiary); line-height: 1.6; }
 .error-msg { display: none; padding: 10px 14px; background: rgba(224,48,48,0.07); border: 1px solid rgba(224,48,48,0.2); border-radius: var(--radius); font-size: 13px; color: var(--red); margin-top: 10px; }
 .error-msg.show { display: block; }
+
+/* Loading */
 .loading { display: none; text-align: center; padding: 3rem 1rem; }
 .loading.show { display: block; }
 .spinner { width: 30px; height: 30px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 1rem; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-text { font-size: 13px; color: var(--text-tertiary); }
+.loading-progress { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+.prog-item { font-size: 11px; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text-tertiary); display: flex; align-items: center; gap: 5px; }
+.prog-item.done { color: var(--green); border-color: var(--green-border); background: var(--green-dim); }
+.prog-item.loading { color: var(--accent); border-color: var(--accent-border); background: var(--accent-dim); }
+.prog-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
 /* History */
 .history-section { margin-top: 1.5rem; }
 .history-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .history-title { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.8px; }
-.history-clear { font-size: 11px; color: var(--text-tertiary); background: none; border: none; cursor: pointer; font-family: 'DM Sans',sans-serif; }
+.history-clear { font-size: 11px; color: var(--text-tertiary); background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; }
 .history-clear:hover { color: var(--red); }
 .history-list { display: flex; flex-direction: column; gap: 6px; }
 .history-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.12s; }
@@ -92,37 +91,48 @@ textarea.input-area::placeholder { color: var(--text-tertiary); }
 .hi-body { flex: 1; min-width: 0; }
 .hi-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hi-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
-.hi-badge { font-size: 10px; font-weight: 600; color: var(--text-tertiary); background: var(--surface2); border-radius: 4px; padding: 2px 6px; white-space: nowrap; font-family: 'DM Mono',monospace; }
+.hi-badge { font-size: 10px; font-weight: 600; color: var(--text-tertiary); background: var(--surface2); border-radius: 4px; padding: 2px 6px; white-space: nowrap; font-family: 'DM Mono', monospace; }
 .history-empty { font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 1.5rem; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); }
 
 /* Results */
 .results { display: none; }
 .results.show { display: block; }
-.results-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
-.product-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text-secondary); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; }
-.back-btn { height: 36px; padding: 0 16px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); font-size: 13px; font-family: 'DM Sans',sans-serif; cursor: pointer; transition: all 0.12s; display: flex; align-items: center; gap: 6px; }
+.results-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 8px; }
+.results-hdr-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.results-hdr-right { display: flex; gap: 8px; }
+.back-btn { height: 34px; padding: 0 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.12s; display: flex; align-items: center; gap: 5px; }
 .back-btn:hover { border-color: var(--border-hover); color: var(--text); }
+.back-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .back-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Product tabs */
+.prod-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.prod-tab { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); font-size: 13px; font-weight: 500; cursor: pointer; background: var(--surface); color: var(--text-secondary); transition: all 0.12s; display: flex; align-items: center; gap: 6px; }
+.prod-tab:hover { border-color: var(--border-hover); color: var(--text); }
+.prod-tab.on { background: var(--accent); color: white; border-color: var(--accent); }
+.prod-tab .tab-num { width: 16px; height: 16px; border-radius: 50%; background: rgba(255,255,255,0.25); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; }
+.prod-tab:not(.on) .tab-num { background: var(--surface2); color: var(--text-tertiary); }
+.prod-panel { display: none; }
+.prod-panel.on { display: block; }
 
 /* Country sections */
 .country-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 10px; overflow: hidden; }
 .country-hdr { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.country-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px; font-family: 'DM Mono',monospace; letter-spacing: 0.3px; flex-shrink: 0; }
+.country-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px; font-family: 'DM Mono', monospace; letter-spacing: 0.3px; flex-shrink: 0; }
 .country-name { font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; }
 .country-url-row { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-.country-url-link { font-size: 11px; color: var(--accent); text-decoration: none; font-family: 'DM Mono',monospace; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.country-url-link { font-size: 11px; color: var(--accent); text-decoration: none; font-family: 'DM Mono', monospace; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .country-url-link:hover { text-decoration: underline; }
 .url-missing { font-size: 11px; color: var(--text-tertiary); font-style: italic; margin-left: auto; }
-.url-cp-btn { height: 22px; padding: 0 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-tertiary); font-size: 10px; cursor: pointer; font-family: 'DM Sans',sans-serif; transition: all 0.12s; display: flex; align-items: center; gap: 3px; white-space: nowrap; flex-shrink: 0; }
+.url-cp-btn { height: 22px; padding: 0 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-tertiary); font-size: 10px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; display: flex; align-items: center; gap: 3px; white-space: nowrap; flex-shrink: 0; }
 .url-cp-btn:hover { border-color: var(--accent-border); color: var(--accent); }
 .url-cp-btn.ok { color: var(--green); border-color: var(--green-border); background: var(--green-dim); }
-
 .country-body { display: grid; grid-template-columns: 1fr 1fr; }
 .field-col { padding: 12px 16px; }
 .field-col:first-child { border-right: 1px solid var(--border); }
 .field-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .field-lbl { font-size: 10px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.7px; }
-.cp-btn { height: 24px; padding: 0 10px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-secondary); font-size: 11px; font-weight: 500; cursor: pointer; font-family: 'DM Sans',sans-serif; transition: all 0.12s; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.cp-btn { height: 24px; padding: 0 10px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-secondary); font-size: 11px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
 .cp-btn:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface); }
 .cp-btn.ok { color: var(--green); border-color: var(--green-border); background: var(--green-dim); }
 .cp-btn svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
@@ -149,64 +159,41 @@ textarea.input-area::placeholder { color: var(--text-tertiary); }
     </div>
   </div>
 
+  <!-- FORM -->
   <div id="formSection">
     <div class="card">
-
-      <!-- Mode toggle -->
-      <span class="slabel">Način vnosa</span>
-      <div class="mode-row">
-        <button class="mode-btn on" id="mode-url" onclick="setMode('url')">
-          <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          URL izdelka
-        </button>
-        <button class="mode-btn" id="mode-txt" onclick="setMode('txt')">
-          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          Opis izdelka
-        </button>
-      </div>
-
-      <!-- URL mode -->
-      <div id="input-url-wrap">
-        <div class="ifield">
-          <div class="ifield-label">
-            <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            URL izdelka
+      <span class="slabel">URL izdelkov</span>
+      <div class="url-list" id="urlList">
+        <div class="url-row">
+          <div class="url-num">1</div>
+          <div class="url-wrap">
+            <span class="url-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+            <input type="text" class="url-input" placeholder="https://www.maaarket.si/izdelek/..." />
           </div>
-          <div class="ifield-wrap">
-            <span class="ifield-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
-            <input type="text" id="urlInput" placeholder="https://www.maaarket.si/izdelek/... ali katerakoli jezikovna varianta" />
+        </div>
+        <div class="url-row">
+          <div class="url-num">2</div>
+          <div class="url-wrap">
+            <span class="url-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+            <input type="text" class="url-input" placeholder="https://www.maaarket.si/izdelek/..." />
+          </div>
+        </div>
+        <div class="url-row">
+          <div class="url-num">3</div>
+          <div class="url-wrap">
+            <span class="url-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+            <input type="text" class="url-input" placeholder="https://www.maaarket.si/izdelek/..." />
           </div>
         </div>
       </div>
 
-      <!-- Text mode: description + URL + SKU -->
-      <!-- Text mode -->
-      <div id="input-txt-wrap" style="display:none">
-        <div class="ifield" style="margin-bottom:10px">
-          <div class="ifield-label">Opis izdelka</div>
-          <textarea class="input-area" id="txtInput" placeholder="Prilepi sem naziv, opis, lastnosti — karkoli iz strani izdelka..."></textarea>
-        </div>
-        <div class="ifield">
-          <div class="ifield-label">
-            <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            URL izdelka
-            <span class="ifield-optional">opcijsko — za prikaz URL-jev po državah</span>
-          </div>
-          <div class="ifield-wrap">
-            <span class="ifield-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
-            <input type="text" id="urlTxtInput" placeholder="https://www.maaarket.si/izdelek/..." />
-          </div>
-        </div>
-      </div>
-
-      <button class="btn-gen" id="btnGen" onclick="generate()" style="margin-top:10px">
+      <button class="btn-gen" id="btnGen" onclick="generate()">
         <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         Generiraj oglase
       </button>
       <div class="error-msg" id="errorMsg"></div>
 
       <div class="sep"></div>
-
       <div class="counters">
         <div class="counter-group">
           <span class="slabel">Primary Texts</span>
@@ -230,22 +217,23 @@ textarea.input-area::placeholder { color: var(--text-tertiary); }
           <div class="chips" id="hl-chips"></div>
         </div>
       </div>
-
       <div class="hint">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span class="hint-text" id="hintText">Generiram 1× Primary Text in 1× Headline v 10 jezikih.</span>
+        <span class="hint-text" id="hintText">Generiram 1× Primary Text in 1× Headline v 10 jezikih za vsak URL.</span>
       </div>
     </div>
 
     <div class="loading" id="loading">
       <div class="spinner"></div>
-      <div class="loading-text" id="loadingText">Generiram oglase...</div>
+      <div class="loading-text" id="loadingText">Generiram oglase vzporedno...</div>
+      <div class="loading-progress" id="loadingProgress"></div>
     </div>
 
+    <!-- History -->
     <div class="history-section">
       <div class="history-hdr">
         <span class="history-title">Zadnji vnosi</span>
-        <button class="history-clear" onclick="clearHistory()">Počisti zgodovino</button>
+        <button class="history-clear" onclick="clearHistory()">Počisti</button>
       </div>
       <div class="history-list" id="historyList"></div>
     </div>
@@ -254,27 +242,30 @@ textarea.input-area::placeholder { color: var(--text-tertiary); }
   <!-- RESULTS -->
   <div class="results" id="results">
     <div class="results-hdr">
-      <div class="product-badge" id="productBadge">Izdelek</div>
-      <div style="display:flex;gap:8px;">
+      <div class="results-hdr-left">
+        <div class="prod-tabs" id="prodTabs"></div>
+      </div>
+      <div class="results-hdr-right">
         <button class="back-btn" id="regenBtn" onclick="regenerate()">
           <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>
           Regeneriraj
         </button>
         <button class="back-btn" onclick="goBack()">
           <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-          Nov izdelek
+          Nov vnos
         </button>
       </div>
     </div>
-    <div id="countryList"></div>
+    <div id="prodPanels"></div>
   </div>
 
 </div>
 <script>
-const state = {pt:1,hl:1,mode:'url'};
-const MAX=5, HKEY='meta_ads_history', HMAX=8;
-let lastRequest = null; // Store last request for regenerate
-const LANGS=[
+const state = {pt:1, hl:1};
+const MAX=5, HKEY='meta_ads_history_v2', HMAX=8;
+let lastRequest = null;
+
+const LANGS = [
   {code:'sl',label:'SI SL',name:'Slovenščina'},{code:'hr',label:'HR HR',name:'Hrvaščina'},
   {code:'rs',label:'RS RS',name:'Srbščina'},{code:'hu',label:'HU HU',name:'Madžarščina'},
   {code:'cz',label:'CZ CZ',name:'Češčina'},{code:'sk',label:'SK SK',name:'Slovaščina'},
@@ -282,38 +273,34 @@ const LANGS=[
   {code:'ro',label:'RO RO',name:'Romunščina'},{code:'bg',label:'BG BG',name:'Bolgarščina'},
 ];
 
-// History
+// ── History ──
 function getH(){try{return JSON.parse(localStorage.getItem(HKEY)||'[]');}catch(e){return[];}}
-function saveH(data,label,pt,hl){
+function saveH(results, urls, pt, hl){
   const h=getH();
-  h.unshift({id:Date.now(),product:data.product||'Izdelek',label:label.substring(0,100),pt,hl,
-    date:new Date().toLocaleDateString('sl-SI',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),data});
+  const names = results.map(r=>r.product||'?').join(', ');
+  h.unshift({id:Date.now(), names, urls, pt, hl,
+    date:new Date().toLocaleDateString('sl-SI',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+    results});
   if(h.length>HMAX)h.splice(HMAX);
   localStorage.setItem(HKEY,JSON.stringify(h));
   renderH();
 }
 function renderH(){
-  const h=getH(),el=document.getElementById('historyList');
+  const h=getH(), el=document.getElementById('historyList');
   if(!h.length){el.innerHTML='<div class="history-empty">Še ni zgodovine.</div>';return;}
   el.innerHTML=h.map(e=>`<div class="history-item" onclick="loadH(${e.id})">
     <div class="hi-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-    <div class="hi-body"><div class="hi-name">🛍 ${esc(e.product)}</div><div class="hi-meta">${e.date} · ${esc((e.label||'').substring(0,60))}</div></div>
+    <div class="hi-body">
+      <div class="hi-name">🛍 ${esc(e.names)}</div>
+      <div class="hi-meta">${e.date} · ${e.urls.filter(Boolean).length} URL-jev</div>
+    </div>
     <span class="hi-badge">${e.pt}PT · ${e.hl}HL</span>
   </div>`).join('');
 }
-function loadH(id){const e=getH().find(x=>x.id===id);if(e)renderResults(e.data);}
+function loadH(id){const e=getH().find(x=>x.id===id);if(e)renderResults(e.results);}
 function clearHistory(){localStorage.removeItem(HKEY);renderH();}
 
-// Mode
-function setMode(m){
-  state.mode=m;
-  ['url','txt'].forEach(x=>{
-    document.getElementById('mode-'+x).classList.toggle('on',x===m);
-    document.getElementById('input-'+x+'-wrap').style.display=x===m?'block':'none';
-  });
-}
-
-// Counters
+// ── Counters ──
 function change(t,d){state[t]=Math.min(MAX,Math.max(1,state[t]+d));update();}
 function update(){
   ['pt','hl'].forEach(t=>{
@@ -324,43 +311,54 @@ function update(){
     for(let i=0;i<MAX;i++){const d=document.createElement('div');d.className='chip'+(i<state[t]?' on':'');c.appendChild(d);}
   });
   document.getElementById('hintText').textContent=
-    `Generiram ${state.pt}× Primary Text in ${state.hl}× Headline v 10 jezikih.`;
+    `Generiram ${state.pt}× Primary Text in ${state.hl}× Headline v 10 jezikih za vsak URL.`;
 }
 
-// Generate
+// ── Generate ──
 async function generate(){
-  let apiInput='', apiMode='url', sourceUrl='', label='';
-
-  if(state.mode==='url'){
-    const u=document.getElementById('urlInput').value.trim();
-    if(!u){flash('urlInput');return;}
-    apiInput=u; apiMode='url'; sourceUrl=u; label=u;
-  } else {
-    const txt=document.getElementById('txtInput').value.trim();
-    if(!txt){flash('txtInput');return;}
-    apiInput=txt; apiMode='text'; label=txt.substring(0,80);
-    sourceUrl=document.getElementById('urlTxtInput').value.trim();
+  const inputs = [...document.querySelectorAll('.url-input')].map(i=>i.value.trim()).filter(Boolean);
+  if(!inputs.length){
+    document.querySelectorAll('.url-input')[0].classList.add('error');
+    setTimeout(()=>document.querySelectorAll('.url-input')[0].classList.remove('error'),1500);
+    return;
   }
 
   const btn=document.getElementById('btnGen');
   btn.disabled=true;
   document.getElementById('errorMsg').classList.remove('show');
   document.getElementById('loading').classList.add('show');
-  document.getElementById('loadingText').textContent=`Generiram ${state.pt}× PT in ${state.hl}× HL...`;
 
-  const reqBody = {input:apiInput,mode:apiMode,pt_count:state.pt,hl_count:state.hl,source_url:sourceUrl||null};
-  lastRequest = {reqBody, label};
+  const products = inputs.map(url=>({url, mode:'url'}));
+  const reqBody = {products, pt_count:state.pt, hl_count:state.hl};
+  lastRequest = {reqBody, urls: inputs};
+
+  // Show progress indicators
+  const prog = document.getElementById('loadingProgress');
+  prog.innerHTML = inputs.map((url,i)=>{
+    const name = url.split('/').pop().substring(0,20)||`Izdelek ${i+1}`;
+    return `<div class="prog-item loading" id="prog-${i}"><div class="prog-dot"></div>${name}</div>`;
+  }).join('');
+  document.getElementById('loadingText').textContent = `Generiram ${inputs.length} izdelek(ov) vzporedno...`;
 
   try{
-    const res=await fetch('/generate',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(reqBody)
+    const res = await fetch('/generate-multi',{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(reqBody)
     });
-    const data=await res.json();
-    if(data.error)throw new Error(data.error);
-    saveH(data,label,state.pt,state.hl);
-    renderResults(data);
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+
+    // Mark all done
+    inputs.forEach((_,i)=>{
+      const el=document.getElementById('prog-'+i);
+      if(el){el.classList.remove('loading');el.classList.add('done');}
+    });
+
+    setTimeout(()=>{
+      document.getElementById('loading').classList.remove('show');
+      saveH(data.results, inputs, state.pt, state.hl);
+      renderResults(data.results);
+    }, 400);
+
   }catch(e){
     document.getElementById('loading').classList.remove('show');
     const err=document.getElementById('errorMsg');
@@ -370,138 +368,134 @@ async function generate(){
   }
 }
 
-// Render results
-function renderResults(data){
-  document.getElementById('loading').classList.remove('show');
-  document.getElementById('formSection').style.display='none';
-  document.getElementById('results').classList.add('show');
-  document.getElementById('productBadge').textContent='🛍 '+(data.product||'Izdelek');
-  const urls=data.product_urls||{};
-  const list=document.getElementById('countryList');
-  list.innerHTML='';
-
-  LANGS.forEach(lang=>{
-    const d=data[lang.code];if(!d)return;
-    const pts=Array.isArray(d.pt)?d.pt:[d.pt];
-    const hls=Array.isArray(d.hl)?d.hl:[d.hl];
-    const purl=urls[lang.code]||null;
-
-    const sec=document.createElement('div');
-    sec.className='country-section';
-
-    const urlHtml=purl
-      ?`<div class="country-url-row">
-          <a class="country-url-link" href="${esc(purl)}" target="_blank" title="${esc(purl)}">${esc(purl)}</a>
-          <button class="url-cp-btn" id="ucp-${lang.code}" onclick="cpUrl('ucp-${lang.code}','${esc(purl)}')">${cpIco()} URL</button>
-        </div>`
-      :`<span class="url-missing">URL ni najden</span>`;
-
-    sec.innerHTML=`<div class="country-hdr">
-      <span class="country-badge lang-${lang.code}">${lang.label}</span>
-      <span class="country-name">${lang.name}</span>
-      ${urlHtml}
-    </div>`;
-
-    const body=document.createElement('div');
-    body.className='country-body';
-
-    function makeCol(items,isHl){
-      const col=document.createElement('div');
-      col.className='field-col';
-      const lbl=isHl?'Headline':'Primary Text';
-      if(items.length===1){
-        const id=`f-${isHl?'hl':'pt'}-${lang.code}-0`;
-        col.innerHTML=`<div class="field-top"><span class="field-lbl">${lbl}</span><button class="cp-btn" id="${id}" onclick="doCopy('${id}')">${cpIco()} Kopiraj</button></div><div class="field-text${isHl?' is-hl':''}" id="txt-${id}">${esc(items[0])}</div>`;
-      }else{
-        col.innerHTML=`<div class="field-lbl" style="margin-bottom:10px">${lbl}s</div>`;
-        items.forEach((item,i)=>{
-          const id=`f-${isHl?'hl':'pt'}-${lang.code}-${i}`;
-          col.innerHTML+=`<div class="pt-item"><div class="field-top"><span class="field-lbl" style="opacity:0.6">#${i+1}</span><button class="cp-btn" id="${id}" onclick="doCopy('${id}')">${cpIco()} Kopiraj</button></div><div class="field-text${isHl?' is-hl':''}" id="txt-${id}">${esc(item)}</div></div>`;
-        });
-      }
-      return col;
-    }
-
-    body.appendChild(makeCol(pts,false));
-    body.appendChild(makeCol(hls,true));
-    sec.appendChild(body);
-    list.appendChild(sec);
-  });
-}
-
 async function regenerate(){
   if(!lastRequest) return;
   const btn=document.getElementById('regenBtn');
   btn.disabled=true;
-  btn.innerHTML=`<svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;animation:spin 0.7s linear infinite"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg> Generiram...`;
-  document.getElementById('countryList').innerHTML='';
-  document.getElementById('loadingText').textContent='Regeneriram oglase...';
-  document.getElementById('loading').classList.add('show');
+  document.getElementById('prodPanels').innerHTML='';
+  document.getElementById('prodTabs').innerHTML='';
   document.getElementById('results').classList.remove('show');
   document.getElementById('formSection').style.display='none';
-
+  document.getElementById('loadingText').textContent='Regeneriram oglase...';
+  document.getElementById('loadingProgress').innerHTML='';
+  document.getElementById('loading').classList.add('show');
   try{
-    const res=await fetch('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(lastRequest.reqBody)});
+    const res=await fetch('/generate-multi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(lastRequest.reqBody)});
     const data=await res.json();
     if(data.error)throw new Error(data.error);
-    saveH(data,lastRequest.label,lastRequest.reqBody.pt_count,lastRequest.reqBody.hl_count);
     document.getElementById('loading').classList.remove('show');
-    document.getElementById('results').classList.add('show');
-    renderResults(data);
+    saveH(data.results, lastRequest.urls, lastRequest.reqBody.pt_count, lastRequest.reqBody.hl_count);
+    renderResults(data.results);
   }catch(e){
     document.getElementById('loading').classList.remove('show');
     document.getElementById('results').classList.add('show');
     alert('Napaka: '+(e.message||'Poskusi znova.'));
   }
   btn.disabled=false;
-  btn.innerHTML=`<svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg> Regeneriraj`;
+}
+
+// ── Render results ──
+function renderResults(results){
+  document.getElementById('formSection').style.display='none';
+  document.getElementById('results').classList.add('show');
+  const tabs=document.getElementById('prodTabs');
+  const panels=document.getElementById('prodPanels');
+  tabs.innerHTML=''; panels.innerHTML='';
+
+  results.forEach((data,idx)=>{
+    if(!data||data.error) return;
+    const name = data.product || `Izdelek ${idx+1}`;
+
+    // Tab
+    const tab=document.createElement('div');
+    tab.className='prod-tab'+(idx===0?' on':'');
+    tab.id=`ptab-${idx}`;
+    tab.innerHTML=`<span class="tab-num">${idx+1}</span>${esc(name)}`;
+    tab.onclick=()=>swProd(idx);
+    tabs.appendChild(tab);
+
+    // Panel
+    const panel=document.createElement('div');
+    panel.className='prod-panel'+(idx===0?' on':'');
+    panel.id=`ppanel-${idx}`;
+    panel.innerHTML=renderProductPanel(data);
+    panels.appendChild(panel);
+  });
+}
+
+function swProd(idx){
+  document.querySelectorAll('.prod-tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.prod-panel').forEach(p=>p.classList.remove('on'));
+  document.getElementById('ptab-'+idx).classList.add('on');
+  document.getElementById('ppanel-'+idx).classList.add('on');
+}
+
+function renderProductPanel(data){
+  const urls=data.product_urls||{};
+  return LANGS.map(lang=>{
+    const d=data[lang.code]; if(!d)return '';
+    const pts=Array.isArray(d.pt)?d.pt:[d.pt];
+    const hls=Array.isArray(d.hl)?d.hl:[d.hl];
+    const purl=urls[lang.code]||null;
+    const urlHtml=purl
+      ?`<div class="country-url-row"><a class="country-url-link" href="${esc(purl)}" target="_blank">${esc(purl)}</a><button class="url-cp-btn" onclick="actualCopy('${esc(purl)}',this)">${cpIco()} URL</button></div>`
+      :`<span class="url-missing">URL ni najden</span>`;
+
+    const ptHtml = pts.length===1
+      ? `<div class="field-top"><span class="field-lbl">Primary Text</span><button class="cp-btn" onclick="doCopyEl(this,${JSON.stringify(pts[0])})">${cpIco()} Kopiraj</button></div><div class="field-text">${esc(pts[0])}</div>`
+      : `<div class="field-lbl" style="margin-bottom:8px">Primary Texts</div>`+pts.map((pt,i)=>`<div class="pt-item"><div class="field-top"><span class="field-lbl" style="opacity:.6">#${i+1}</span><button class="cp-btn" onclick="doCopyEl(this,${JSON.stringify(pt)})">${cpIco()} Kopiraj</button></div><div class="field-text">${esc(pt)}</div></div>`).join('');
+
+    const hlHtml = hls.length===1
+      ? `<div class="field-top"><span class="field-lbl">Headline</span><button class="cp-btn" onclick="doCopyEl(this,${JSON.stringify(hls[0])})">${cpIco()} Kopiraj</button></div><div class="field-text is-hl">${esc(hls[0])}</div>`
+      : `<div class="field-lbl" style="margin-bottom:8px">Headlines</div>`+hls.map((hl,i)=>`<div class="pt-item"><div class="field-top"><span class="field-lbl" style="opacity:.6">#${i+1}</span><button class="cp-btn" onclick="doCopyEl(this,${JSON.stringify(hl)})">${cpIco()} Kopiraj</button></div><div class="field-text is-hl">${esc(hl)}</div></div>`).join('');
+
+    return `<div class="country-section">
+      <div class="country-hdr">
+        <span class="country-badge lang-${lang.code}">${lang.label}</span>
+        <span class="country-name">${lang.name}</span>
+        ${urlHtml}
+      </div>
+      <div class="country-body">
+        <div class="field-col">${ptHtml}</div>
+        <div class="field-col">${hlHtml}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function goBack(){
   document.getElementById('results').classList.remove('show');
-  document.getElementById('countryList').innerHTML='';
+  document.getElementById('prodPanels').innerHTML='';
+  document.getElementById('prodTabs').innerHTML='';
   document.getElementById('formSection').style.display='block';
   document.getElementById('btnGen').disabled=false;
   document.getElementById('errorMsg').classList.remove('show');
 }
 
-// Copy
-function doCopy(id){
-  const txt=(document.getElementById('txt-'+id)||{}).innerText||'';
-  const btn=document.getElementById(id);
-  actualCopy(txt,btn,cpIco()+' Kopiraj');
-}
-function cpUrl(id,url){
-  const btn=document.getElementById(id);
-  actualCopy(url,btn,cpIco()+' URL');
-}
-function actualCopy(txt,btn,reset){
+// ── Copy ──
+function doCopyEl(btn, text){ actualCopy(text, btn); }
+function actualCopy(txt, btn){
   if(navigator.clipboard&&window.isSecureContext){
-    navigator.clipboard.writeText(txt).then(()=>showOk(btn,reset)).catch(()=>fbCopy(txt,btn,reset));
-  }else fbCopy(txt,btn,reset);
+    navigator.clipboard.writeText(txt).then(()=>showOk(btn)).catch(()=>fbCopy(txt,btn));
+  }else fbCopy(txt,btn);
 }
-function fbCopy(txt,btn,reset){
+function fbCopy(txt,btn){
   const ta=document.createElement('textarea');
   ta.value=txt;ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
   document.body.appendChild(ta);ta.focus();ta.select();ta.setSelectionRange(0,99999);
   try{document.execCommand('copy');}catch(e){}
-  document.body.removeChild(ta);showOk(btn,reset);
+  document.body.removeChild(ta);showOk(btn);
 }
-function showOk(btn,reset){
+function showOk(btn){
+  const orig=btn.innerHTML;
   btn.innerHTML=`<svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"><polyline points="20 6 9 17 4 12"/></svg> Kopirano`;
   btn.classList.add('ok');
-  setTimeout(()=>{btn.innerHTML=reset;btn.classList.remove('ok');},2000);
+  setTimeout(()=>{btn.innerHTML=orig;btn.classList.remove('ok');},2000);
 }
-function cpIco(){
-  return`<svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
-}
-function flash(id){
-  const el=document.getElementById(id);if(!el)return;
-  el.classList.add('error');el.focus();setTimeout(()=>el.classList.remove('error'),1500);
-}
+function cpIco(){return`<svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-update();renderH();
+update(); renderH();
 </script>
 </body>
 </html>
