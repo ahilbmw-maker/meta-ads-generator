@@ -15,42 +15,61 @@
   --blue:#3a6fff;--blue-dim:rgba(58,111,255,0.1);--blue-border:rgba(58,111,255,0.3);
   --radius:10px;--radius-lg:14px;
 }
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;justify-content:center;padding:2rem 1.5rem 4rem}
-.wrap{width:100%;max-width:700px}
-.hdr{margin-bottom:1.5rem}
-.hdr-title{font-size:20px;font-weight:600;letter-spacing:-0.3px}
-.hdr-sub{font-size:13px;color:var(--text3);margin-top:3px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;margin-bottom:12px}
-.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;justify-content:center;padding:1.5rem 1rem 4rem}
+.wrap{width:100%;max-width:600px}
+.hdr{margin-bottom:1.25rem}
+.hdr-title{font-size:18px;font-weight:600;letter-spacing:-0.3px}
+.hdr-sub{font-size:12px;color:var(--text3);margin-top:3px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:10px}
+
+/* Mode buttons */
+.mode-row{display:flex;gap:6px;margin-bottom:1.25rem}
+.mode-btn{flex:1;padding:10px 8px;font-size:12px;font-weight:500;cursor:pointer;border-radius:var(--radius);border:1.5px solid var(--border);background:var(--surface);color:var(--text2);font-family:'DM Sans',sans-serif;transition:all 0.15s;line-height:1.3}
+.mode-btn.on{border-color:var(--blue-border);background:var(--blue-dim);color:var(--blue)}
+
+/* Inputs */
 .flabel{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;display:block}
-input[type=number]{width:100%;height:42px;padding:0 12px;font-size:14px;font-family:'DM Sans',sans-serif;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text);transition:all 0.15s;text-align:center}
+.field{margin-bottom:12px}
+input[type=number]{width:100%;height:48px;padding:0 14px;font-size:16px;font-family:'DM Sans',sans-serif;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text);transition:all 0.15s;text-align:center;-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
 input[type=number]:focus{outline:none;border-color:var(--blue-border);background:var(--surface);box-shadow:0 0 0 3px var(--blue-dim)}
 input::placeholder{color:var(--text3)}
-.time-wrap{display:flex;align-items:center;gap:6px}
-.time-sep{font-size:20px;font-weight:500;color:var(--text3);flex-shrink:0}
-.time-hint{font-size:11px;color:var(--text3);margin-top:5px;text-align:center}
-.mode-row{display:flex;gap:6px;margin-bottom:1.25rem}
-.mode-btn{flex:1;padding:10px;font-size:13px;font-weight:500;cursor:pointer;border-radius:var(--radius);border:1.5px solid var(--border);background:var(--surface);color:var(--text2);font-family:'DM Sans',sans-serif;transition:all 0.15s}
-.mode-btn.on{border-color:var(--blue-border);background:var(--blue-dim);color:var(--blue)}
-.mode-btn:hover:not(.on){border-color:var(--border2);color:var(--text)}
-.sep{border:none;border-top:1px solid var(--border);margin:1.25rem 0}
-.highlight{background:var(--green-dim);border:1px solid var(--green-border);border-radius:var(--radius-lg);padding:1.5rem;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
-.hl-val{font-size:42px;font-weight:600;color:var(--green);letter-spacing:-1px}
-.hl-lbl{font-size:13px;color:var(--green);opacity:0.8;margin-top:4px}
-.prog-wrap{text-align:right;min-width:140px}
+
+/* Time row */
+.time-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-bottom:8px}
+.time-sep{font-size:22px;font-weight:500;color:var(--text3);text-align:center}
+.now-btn{width:100%;height:42px;border-radius:var(--radius);border:1px solid var(--blue-border);background:var(--blue-dim);color:var(--blue);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.now-btn:hover{background:var(--blue);color:white}
+.now-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.time-hint{font-size:11px;color:var(--text3);text-align:center;margin-top:4px}
+
+/* 2-col grid on desktop, 1-col on mobile */
+.fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:480px){.fields-grid{grid-template-columns:1fr}}
+
+/* Results */
+.highlight{background:var(--green-dim);border:1px solid var(--green-border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:10px}
+.hl-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.hl-val{font-size:38px;font-weight:600;color:var(--green);letter-spacing:-1px;line-height:1}
+.hl-lbl{font-size:12px;color:var(--green);opacity:0.8;margin-top:5px}
+.prog-wrap{text-align:right;min-width:120px}
 .prog-orders{font-size:14px;font-weight:600;color:var(--green)}
 .prog-sub{font-size:11px;color:var(--green);opacity:0.75;margin-top:2px}
 .prog-bar{height:5px;background:rgba(10,140,90,0.2);border-radius:3px;overflow:hidden;margin-top:8px}
 .prog-fill{height:100%;background:var(--green);border-radius:3px;transition:width 0.4s}
 .prog-pct{font-size:11px;color:var(--green);opacity:0.7;margin-top:5px}
-.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
-.metric{background:var(--surface2);border-radius:var(--radius);padding:1rem;text-align:center}
-.metric-val{font-size:22px;font-weight:500;color:var(--text)}
-.metric-lbl{font-size:11px;color:var(--text3);margin-top:4px;text-transform:uppercase;letter-spacing:0.5px}
-.metric-sub{font-size:11px;color:var(--text3);margin-top:3px}
+
+/* Metric cards */
+.metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+@media(max-width:400px){.metrics{grid-template-columns:1fr 1fr}}
+.metric{background:var(--surface2);border-radius:var(--radius);padding:0.875rem;text-align:center}
+.metric-val{font-size:20px;font-weight:500;color:var(--text)}
+.metric-lbl{font-size:10px;color:var(--text3);margin-top:4px;text-transform:uppercase;letter-spacing:0.4px;line-height:1.3}
+.metric-sub{font-size:10px;color:var(--text3);margin-top:3px}
+
 .info-box{background:var(--blue-dim);border:1px solid var(--blue-border);border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--blue);line-height:1.6}
-.empty{text-align:center;padding:3rem 1rem;color:var(--text3);font-size:13px}
+.empty{text-align:center;padding:2.5rem 1rem;color:var(--text3);font-size:13px}
 .footer{text-align:center;font-size:11px;color:var(--text3);margin-top:1.5rem}
 </style>
 </head>
@@ -64,32 +83,32 @@ input::placeholder{color:var(--text3)}
 
   <div class="card">
     <div class="mode-row">
-      <button class="mode-btn on" id="btn-linear" onclick="setMode('linear')">
-        📈 Linearni model
-      </button>
-      <button class="mode-btn" id="btn-weighted" onclick="setMode('weighted')">
-        ⏰ Uteženni model (po urah)
-      </button>
+      <button class="mode-btn on" id="btn-linear" onclick="setMode('linear')">📈 Linearni</button>
+      <button class="mode-btn" id="btn-weighted" onclick="setMode('weighted')">⏰ Po urah (priporočeno)</button>
     </div>
 
-    <div class="row3">
-      <div>
-        <span class="flabel">Čas od začetka dneva</span>
-        <div class="time-wrap">
-          <input type="number" id="hours" placeholder="hh" min="0" max="23" oninput="calc()">
-          <span class="time-sep">:</span>
-          <input type="number" id="mins" placeholder="mm" min="0" max="59" oninput="calc()">
-        </div>
-        <button onclick="useNow()" style="margin-top:6px;width:100%;height:30px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
-          ⏱ Uporabi trenutni čas (Ljubljana)
-        </button>
-        <div class="time-hint" id="time-hint"></div>
+    <!-- Time field -->
+    <div class="field">
+      <span class="flabel">Čas od začetka dneva</span>
+      <div class="time-row">
+        <input type="number" id="hours" placeholder="hh" min="0" max="23" oninput="calc()">
+        <span class="time-sep">:</span>
+        <input type="number" id="mins" placeholder="mm" min="0" max="59" oninput="calc()">
       </div>
-      <div>
+      <button class="now-btn" onclick="useNow()">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Uporabi trenutni čas (Ljubljana)
+      </button>
+      <div class="time-hint" id="time-hint"></div>
+    </div>
+
+    <!-- Orders + Revenue -->
+    <div class="fields-grid">
+      <div class="field" style="margin-bottom:0">
         <span class="flabel">Naročila do sedaj</span>
         <input type="number" id="orders" placeholder="npr. 150" min="0" oninput="calc()">
       </div>
-      <div>
+      <div class="field" style="margin-bottom:0">
         <span class="flabel">Promet do sedaj (€)</span>
         <input type="number" id="revenue" placeholder="npr. 2500" min="0" oninput="calc()">
       </div>
@@ -98,15 +117,17 @@ input::placeholder{color:var(--text3)}
 
   <div id="result" style="display:none">
     <div class="highlight">
-      <div>
-        <div class="hl-val" id="pred-promet">€0</div>
-        <div class="hl-lbl" id="hl-lbl">predviden dnevni promet</div>
-      </div>
-      <div class="prog-wrap">
-        <div class="prog-orders" id="pred-narocila">0 naročil</div>
-        <div class="prog-sub">predviden dnevni</div>
-        <div class="prog-bar"><div class="prog-fill" id="prog" style="width:0%"></div></div>
-        <div class="prog-pct" id="prog-pct">0% dneva preteklo</div>
+      <div class="hl-top">
+        <div>
+          <div class="hl-val" id="pred-promet">€0</div>
+          <div class="hl-lbl" id="hl-lbl">predviden dnevni promet</div>
+        </div>
+        <div class="prog-wrap">
+          <div class="prog-orders" id="pred-narocila">0 naročil</div>
+          <div class="prog-sub">predviden dnevni</div>
+          <div class="prog-bar"><div class="prog-fill" id="prog" style="width:0%"></div></div>
+          <div class="prog-pct" id="prog-pct">0% dneva preteklo</div>
+        </div>
       </div>
     </div>
 
@@ -121,125 +142,89 @@ input::placeholder{color:var(--text3)}
       </div>
       <div class="metric">
         <div class="metric-val" id="remaining">€0</div>
-        <div class="metric-lbl">preostali predviden promet</div>
+        <div class="metric-lbl">preostali promet</div>
         <div class="metric-sub" id="remaining-sub"></div>
       </div>
     </div>
 
     <div id="weighted-info" style="display:none" class="info-box">
-      Uteženni model upošteva da je zdaj <strong id="hour-label"></strong> — napoved je prilagojena glede na zgodovinski vzorec naročil po urah dneva.
+      Uteženni model upošteva da je zdaj <strong id="hour-label"></strong> — napoved je prilagojena glede na zgodovinski vzorec naročil.
     </div>
   </div>
 
   <div id="empty" class="empty">Vpiši čas, naročila in promet za napoved.</div>
-
-  <div class="footer">Model temelji na 7-dnevnem povprečju naročil po urah · 0 API klicev</div>
+  <div class="footer">Model temelji na 7-dnevnem povprečju · 0 API klicev</div>
 </div>
 
 <script>
-const HOURLY_WEIGHTS = [
-  1.1,1.1,1.1,1.1,1.1,1.1,1.1, // 0-6h noč
-  3.7,  // 7h
-  5.9,  // 8h
-  5.3,  // 9h
-  9.8,  // 10h
-  9.8,  // 11h
-  7.1,  // 12h
-  7.1,  // 13h
-  7.1,  // 14h
-  5.9,  // 15h
-  5.9,  // 16h
-  5.3,  // 17h
-  4.8,  // 18h
-  4.3,  // 19h
-  3.7,  // 20h
-  2.7,  // 21h
-  2.1,  // 22h
-  1.6,  // 23h
-];
-const W_TOTAL = HOURLY_WEIGHTS.reduce((a,b)=>a+b,0);
-const W_NORM = HOURLY_WEIGHTS.map(w=>w/W_TOTAL);
+const W = [1.1,1.1,1.1,1.1,1.1,1.1,1.1,3.7,5.9,5.3,9.8,9.8,7.1,7.1,7.1,5.9,5.9,5.3,4.8,4.3,3.7,2.7,2.1,1.6];
+const WT = W.reduce((a,b)=>a+b,0);
+const WN = W.map(w=>w/WT);
+const HNAMES = ['polnoč','1h','2h','3h','4h','5h','6h','7h zjutraj','8h zjutraj','9h zjutraj','10h','11h','12h (opoldne)','13h','14h','15h popoldne','16h','17h','18h večer','19h','20h','21h','22h','23h'];
 
-const HOUR_NAMES = ['polnoč','1h ponoči','2h ponoči','3h ponoči','4h zjutraj','5h zjutraj','6h zjutraj','7h zjutraj','8h zjutraj','9h zjutraj','10h','11h','12h (opoldne)','13h','14h','15h (popoldne)','16h popoldne','17h popoldne','18h (večer)','19h večer','20h večer','21h','22h','23h'];
+function cumW(h,m){let s=0;for(let i=0;i<h;i++)s+=WN[i];s+=WN[Math.min(h,23)]*(m/60);return s;}
 
-function cumWeight(h, m) {
-  let sum = 0;
-  for(let i=0;i<h;i++) sum += W_NORM[i];
-  sum += W_NORM[Math.min(h,23)] * (m/60);
-  return sum;
+let mode='linear';
+function setMode(m){
+  mode=m;
+  document.getElementById('btn-linear').classList.toggle('on',m==='linear');
+  document.getElementById('btn-weighted').classList.toggle('on',m==='weighted');
+  calc();
 }
 
-let mode = 'linear';
-function setMode(m){
-  mode = m;
-  document.getElementById('btn-linear').classList.toggle('on', m==='linear');
-  document.getElementById('btn-weighted').classList.toggle('on', m==='weighted');
+function useNow(){
+  const lj=new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Ljubljana'}));
+  document.getElementById('hours').value=lj.getHours();
+  document.getElementById('mins').value=lj.getMinutes();
   calc();
 }
 
 function fmt(n){return new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);}
 function fmtN(n){return new Intl.NumberFormat('sl-SI',{maximumFractionDigits:2}).format(n);}
 
-function useNow(){
-  // Ljubljana = UTC+1 (winter) / UTC+2 (summer DST)
-  const now = new Date();
-  const lj = new Date(now.toLocaleString('en-US', {timeZone: 'Europe/Ljubljana'}));
-  document.getElementById('hours').value = lj.getHours();
-  document.getElementById('mins').value = lj.getMinutes();
-  calc();
-}
-
 function calc(){
-  const h = parseInt(document.getElementById('hours').value)||0;
-  const m = parseInt(document.getElementById('mins').value)||0;
-  const totalMin = h*60+m;
-  const ord = parseFloat(document.getElementById('orders').value);
-  const rev = parseFloat(document.getElementById('revenue').value);
-
-  const hint = document.getElementById('time-hint');
-  hint.textContent = totalMin > 0 ? totalMin+' minut skupaj' : '';
-
+  const h=parseInt(document.getElementById('hours').value)||0;
+  const m=parseInt(document.getElementById('mins').value)||0;
+  const totalMin=h*60+m;
+  const ord=parseFloat(document.getElementById('orders').value);
+  const rev=parseFloat(document.getElementById('revenue').value);
+  const hint=document.getElementById('time-hint');
+  hint.textContent=totalMin>0?totalMin+' minut skupaj':'';
   if(!totalMin||!ord||!rev||totalMin<=0||ord<=0||rev<=0){
     document.getElementById('result').style.display='none';
     document.getElementById('empty').style.display='block';
     return;
   }
-
-  const TOTAL_MIN = 1440;
-  const avgOrder = rev/ord;
-  let predOrd, predRev;
-
+  const TMIN=1440;
+  const avg=rev/ord;
+  let predOrd,predRev;
   if(mode==='linear'){
-    const rate = ord/totalMin;
-    predOrd = Math.round(rate*TOTAL_MIN);
-    predRev = rate*TOTAL_MIN*avgOrder;
+    const rate=ord/totalMin;
+    predOrd=Math.round(rate*TMIN);
+    predRev=rate*TMIN*avg;
     document.getElementById('weighted-info').style.display='none';
     document.getElementById('hl-lbl').textContent='predviden dnevni promet (linearno)';
   } else {
-    const cw = cumWeight(h,m);
-    if(cw<=0) return;
-    predOrd = Math.round(ord/cw);
-    predRev = predOrd*avgOrder;
+    const cw=cumW(h,m);
+    if(cw<=0)return;
+    predOrd=Math.round(ord/cw);
+    predRev=predOrd*avg;
     document.getElementById('weighted-info').style.display='block';
-    document.getElementById('hour-label').textContent = HOUR_NAMES[Math.min(h,23)];
+    document.getElementById('hour-label').textContent=HNAMES[Math.min(h,23)];
     document.getElementById('hl-lbl').textContent='predviden dnevni promet (uteženni)';
   }
-
-  const ordPerMin = ord/totalMin;
-  const pct = Math.min(100,Math.round((totalMin/TOTAL_MIN)*100));
-  const remMin = TOTAL_MIN-totalMin;
-  const remH = Math.floor(remMin/60);
-  const remM = Math.round(remMin%60);
-
-  document.getElementById('pred-promet').textContent = fmt(predRev);
-  document.getElementById('pred-narocila').textContent = predOrd.toLocaleString('sl-SI')+' naročil';
-  document.getElementById('nmin').textContent = fmtN(ordPerMin);
-  document.getElementById('avg-order').textContent = fmt(avgOrder);
-  document.getElementById('remaining').textContent = fmt(Math.max(0,predRev-rev));
-  document.getElementById('remaining-sub').textContent = 'še '+remH+'h '+remM+'min dneva';
-  document.getElementById('prog').style.width = pct+'%';
-  document.getElementById('prog-pct').textContent = pct+'% dneva preteklo';
-
+  const pct=Math.min(100,Math.round((totalMin/TMIN)*100));
+  const remMin=TMIN-totalMin;
+  const remH=Math.floor(remMin/60);
+  const remM=Math.round(remMin%60);
+  document.getElementById('pred-promet').textContent=fmt(predRev);
+  document.getElementById('pred-narocila').textContent=predOrd.toLocaleString('sl-SI')+' naročil';
+  document.getElementById('nmin').textContent=fmtN(ord/totalMin);
+  document.getElementById('avg-order').textContent=fmt(avg);
+  document.getElementById('remaining').textContent=fmt(Math.max(0,predRev-rev));
+  document.getElementById('remaining-sub').textContent='še '+remH+'h '+remM+'min';
+  document.getElementById('prog').style.width=pct+'%';
+  document.getElementById('prog-pct').textContent=pct+'% dneva preteklo';
   document.getElementById('result').style.display='block';
   document.getElementById('empty').style.display='none';
 }
