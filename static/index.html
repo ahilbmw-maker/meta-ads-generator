@@ -332,13 +332,14 @@ async function generate(){
   const reqBody = {products, pt_count:state.pt, hl_count:state.hl};
   lastRequest = {reqBody, urls: inputs};
 
-  // Show progress indicators
+  // Show progress indicators — first is active, rest waiting
   const prog = document.getElementById('loadingProgress');
   prog.innerHTML = inputs.map((url,i)=>{
-    const name = url.split('/').pop().substring(0,20)||`Izdelek ${i+1}`;
-    return `<div class="prog-item loading" id="prog-${i}"><div class="prog-dot"></div>${name}</div>`;
+    const name = url.split('/').filter(Boolean).pop()?.substring(0,22)||`Izdelek ${i+1}`;
+    const cls = i===0 ? 'loading' : '';
+    return `<div class="prog-item ${cls}" id="prog-${i}"><div class="prog-dot"></div>${name}</div>`;
   }).join('');
-  document.getElementById('loadingText').textContent = `Generiram ${inputs.length} izdelek(ov) vzporedno...`;
+  document.getElementById('loadingText').textContent = `Generiram 1/${inputs.length}...`;
 
   try{
     const res = await fetch('/generate-multi',{
@@ -352,6 +353,7 @@ async function generate(){
       const el=document.getElementById('prog-'+i);
       if(el){el.classList.remove('loading');el.classList.add('done');}
     });
+    document.getElementById('loadingText').textContent='Končano!';
 
     setTimeout(()=>{
       document.getElementById('loading').classList.remove('show');
