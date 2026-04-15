@@ -430,6 +430,12 @@ function swProd(idx){
   document.getElementById('ppanel-'+idx).classList.add('on');
 }
 
+// Global text store — avoids JSON/quote escaping issues in onclick attributes
+const copyStore = {};
+let copyStoreId = 0;
+function storeText(txt){ const id='cs'+(++copyStoreId); copyStore[id]=txt; return id; }
+function copyById(id, btn){ actualCopy(copyStore[id]||'', btn); }
+
 function renderProductPanel(data){
   const urls=data.product_urls||{};
   return LANGS.map(lang=>{
@@ -437,17 +443,20 @@ function renderProductPanel(data){
     const pts=Array.isArray(d.pt)?d.pt:[d.pt];
     const hls=Array.isArray(d.hl)?d.hl:[d.hl];
     const purl=urls[lang.code]||null;
+
     const urlHtml=purl
-      ?`<div class="country-url-row"><a class="country-url-link" href="${esc(purl)}" target="_blank">${esc(purl)}</a><button class="url-cp-btn" onclick="actualCopy('${esc(purl)}',this)">${cpIco()} URL</button></div>`
+      ?`<div class="country-url-row"><a class="country-url-link" href="${esc(purl)}" target="_blank">${esc(purl)}</a><button class="url-cp-btn" onclick="copyById('${storeText(purl)}',this)">${cpIco()} URL</button></div>`
       :`<span class="url-missing">URL ni najden</span>`;
 
+    function makeCpBtn(txt){ return `<button class="cp-btn" onclick="copyById('${storeText(txt)}',this)">${cpIco()} Kopiraj</button>`; }
+
     const ptHtml = pts.length===1
-      ? `<div class="field-top"><span class="field-lbl">Primary Text</span><button class="cp-btn" onclick="doCopyEl(this,${JSON.stringify(pts[0])})">${cpIco()} Kopiraj</button></div><div class="field-text">${esc(pts[0])}</div>`
-      : `<div class="field-lbl" style="margin-bottom:8px">Primary Texts</div>`+pts.map((pt,i)=>`<div class="pt-item"><div class="field-top"><span class="field-lbl" style="opacity:.6">#${i+1}</span><button class="cp-btn" onclick="doCopyEl(this,${JSON.stringify(pt)})">${cpIco()} Kopiraj</button></div><div class="field-text">${esc(pt)}</div></div>`).join('');
+      ? `<div class="field-top"><span class="field-lbl">Primary Text</span>${makeCpBtn(pts[0])}</div><div class="field-text">${esc(pts[0])}</div>`
+      : `<div class="field-lbl" style="margin-bottom:8px">Primary Texts</div>`+pts.map((pt,i)=>`<div class="pt-item"><div class="field-top"><span class="field-lbl" style="opacity:.6">#${i+1}</span>${makeCpBtn(pt)}</div><div class="field-text">${esc(pt)}</div></div>`).join('');
 
     const hlHtml = hls.length===1
-      ? `<div class="field-top"><span class="field-lbl">Headline</span><button class="cp-btn" onclick="doCopyEl(this,${JSON.stringify(hls[0])})">${cpIco()} Kopiraj</button></div><div class="field-text is-hl">${esc(hls[0])}</div>`
-      : `<div class="field-lbl" style="margin-bottom:8px">Headlines</div>`+hls.map((hl,i)=>`<div class="pt-item"><div class="field-top"><span class="field-lbl" style="opacity:.6">#${i+1}</span><button class="cp-btn" onclick="doCopyEl(this,${JSON.stringify(hl)})">${cpIco()} Kopiraj</button></div><div class="field-text is-hl">${esc(hl)}</div></div>`).join('');
+      ? `<div class="field-top"><span class="field-lbl">Headline</span>${makeCpBtn(hls[0])}</div><div class="field-text is-hl">${esc(hls[0])}</div>`
+      : `<div class="field-lbl" style="margin-bottom:8px">Headlines</div>`+hls.map((hl,i)=>`<div class="pt-item"><div class="field-top"><span class="field-lbl" style="opacity:.6">#${i+1}</span>${makeCpBtn(hl)}</div><div class="field-text is-hl">${esc(hl)}</div></div>`).join('');
 
     return `<div class="country-section">
       <div class="country-hdr">
@@ -473,7 +482,6 @@ function goBack(){
 }
 
 // ── Copy ──
-function doCopyEl(btn, text){ actualCopy(text, btn); }
 function actualCopy(txt, btn){
   if(navigator.clipboard&&window.isSecureContext){
     navigator.clipboard.writeText(txt).then(()=>showOk(btn)).catch(()=>fbCopy(txt,btn));
