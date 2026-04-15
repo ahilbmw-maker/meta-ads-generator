@@ -16,24 +16,17 @@ from pydantic import BaseModel
 import anthropic
 
 app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-# ─── DOMAIN MAPPING ───────────────────────────────────────────────────────────
-# Maps: source domain → { lang: target domain }
-# Add more satellite site groups here as needed.
+# ─── BRAND DOMAIN MAPS ───────────────────────────────────────────────────────
+# For each brand: lang → domain
+# maaarket is the "master" brand — its XML feeds are the source of truth for slugs.
+# All other brands share the same slugs, just different domains.
 
-DOMAIN_GROUPS = [
-    {
+BRAND_DOMAINS = {
+    "maaarket": {
         "sl": "www.maaarket.si",
         "hr": "www.maaarket.hr",
         "rs": "www.maaarket.rs",
@@ -45,23 +38,68 @@ DOMAIN_GROUPS = [
         "ro": "www.maaarket.ro",
         "bg": "www.maaarket.bg",
     },
-    # Add more groups for satellite sites, e.g.:
-    # {
-    #     "sl": "www.thundershop.si",
-    #     "hr": "www.thundershop.hr",
-    #     ...
-    # },
-]
-
-# Path prefix per language (some shops use /izdelek/, others /product/ etc.)
-# If all domains use the same path, leave this empty.
-PATH_PREFIX_OVERRIDE = {
-    # "rs": "/proizvod/",  # example: RS uses different path prefix
+    "fluxigo": {
+        "sl": "www.fluxigo.si",
+        "hr": "www.fluxigo.hr",
+        "rs": "www.fluxigo.rs",
+        "hu": "www.fluxigo.hu",
+        "cz": "www.fluxigo.cz",
+        "sk": "www.fluxigo.sk",
+        "pl": "www.fluxigo.pl",
+        "gr": "www.fluxigo.gr",
+        "ro": "www.fluxigo.ro",
+        "bg": "www.fluxigo.bg",
+    },
+    "easyzo": {
+        "sl": "www.easyzo.si",
+        "hr": "www.easyzo.hr",
+        "rs": "www.easyzo.rs",
+        "hu": "www.easyzo.hu",
+        "cz": "www.easyzo.cz",
+        "sk": "www.easyzo.sk",
+        "pl": "www.easyzo.pl",
+        "gr": "www.easyzo.gr",
+        "ro": "www.easyzo.ro",
+        "bg": "www.easyzo.bg",
+    },
+    "zipply": {
+        "sl": "www.zipply.si",
+        "hr": "www.zipply.hr",
+        "rs": "www.zipply.rs",
+        "hu": "www.zipply.hu",
+        "cz": "www.zipply.cz",
+        "sk": "www.zipply.sk",
+        "pl": "www.zipply.pl",
+        "gr": "www.zipply.gr",
+        "ro": "www.zipply.ro",
+        "bg": "www.zipply.bg",
+    },
+    "thundershop": {
+        "sl": "www.thundershop.si",
+        "hr": "www.thundershop.hr",
+        "rs": "www.thundershop.rs",
+        "hu": "www.thundershop.hu",
+        "cz": "www.thundershop.cz",
+        "sk": "www.thundershop.sk",
+        "gr": "www.thundershop.gr",
+        "ro": "www.thundershop.ro",
+        "bg": "www.thundershop.bg",
+    },
+    "colibrishop": {
+        "sl": "www.colibrishop.si",
+        "hr": "www.colibrishop.hr",
+        "rs": "www.colibrishop.rs",
+        "cz": "www.colibrishop.cz",
+        "sk": "www.colibrishop.sk",
+        "gr": "www.colibrishop.gr",
+        "ro": "www.colibrishop.ro",
+        "bg": "www.colibrishop.bg",
+    },
 }
 
-# ─── XML FEED CONFIG ──────────────────────────────────────────────────────────
+# ─── MAAARKET XML FEEDS (master source) ──────────────────────────────────────
 
-FEEDS = {
+MAAARKET_FEEDS = {
     "sl": "https://api.maaarket.si/storage/exports/sl/google.xml",
     "hr": "https://api.maaarket.hr/storage/exports/hr/google.xml",
     "rs": "https://api.maaarket.rs/storage/exports/sr/google.xml",
@@ -74,72 +112,60 @@ FEEDS = {
     "ro": "https://api.maaarket.ro/storage/exports/ro/google.xml",
 }
 
-# ─── IN-MEMORY CACHE ─────────────────────────────────────────────────────────
+# ─── CACHE ───────────────────────────────────────────────────────────────────
+# { lang: { key: { url, title, sku, path } } }
+# "path" = the URL path part (e.g. /izdelek/parni-cistilec-vapurex)
+# This is what gets reused across brands with domain swap.
+
 feed_cache: dict = {}
 last_fetch: Optional[datetime] = None
 CACHE_TTL_HOURS = 24
 
 
 def is_cache_stale() -> bool:
-    if last_fetch is None:
-        return True
-    return datetime.now() - last_fetch > timedelta(hours=CACHE_TTL_HOURS)
+    return last_fetch is None or datetime.now() - last_fetch > timedelta(hours=CACHE_TTL_HOURS)
 
 
-# ─── URL HELPERS ─────────────────────────────────────────────────────────────
+# ─── URL / BRAND HELPERS ─────────────────────────────────────────────────────
 
-def get_domain_group(domain: str) -> Optional[dict]:
-    """Find the domain group that contains this domain."""
-    clean = domain.replace("https://", "").replace("http://", "").split("/")[0]
-    for group in DOMAIN_GROUPS:
-        if clean in group.values():
-            return group
+def detect_brand(url: str) -> Optional[str]:
+    """Detect brand from input URL domain."""
+    if not url:
+        return None
+    domain = urlparse(url).netloc.lower().replace("www.", "")
+    for brand, lang_map in BRAND_DOMAINS.items():
+        for d in lang_map.values():
+            if domain == d.replace("www.", ""):
+                return brand
     return None
 
 
-def build_urls_from_slug(source_url: str) -> dict:
-    """
-    Given a source URL, extract the slug and build URLs for all languages
-    by replacing the domain. Returns { lang: url }.
-    """
-    parsed = urlparse(source_url)
-    source_domain = parsed.netloc  # e.g. www.maaarket.si
-    path = parsed.path             # e.g. /izdelek/parni-cistilec-vapurex
-
-    group = get_domain_group(source_domain)
-    if not group:
-        return {}
-
-    result = {}
-    for lang, target_domain in group.items():
-        # Apply path prefix override if defined
-        final_path = path
-        if lang in PATH_PREFIX_OVERRIDE:
-            # Replace the path prefix (e.g. /izdelek/ → /proizvod/)
-            parts = path.split("/")
-            if len(parts) >= 3:
-                parts[1] = PATH_PREFIX_OVERRIDE[lang].strip("/")
-                final_path = "/".join(parts)
-
-        result[lang] = f"{parsed.scheme}://{target_domain}{final_path}"
-
-    return result
-
-
 def extract_slug(url: str) -> Optional[str]:
-    """Extract product slug from URL."""
-    for pattern in [r'/izdelek/([^/?#]+)', r'/product/([^/?#]+)', r'/proizvod/([^/?#]+)',
-                    r'/termek/([^/?#]+)', r'/produkt/([^/?#]+)', r'/produkty/([^/?#]+)']:
+    """Extract product slug (last path segment after known prefixes)."""
+    for pattern in [
+        r'/izdelek/([^/?#]+)',
+        r'/product/([^/?#]+)',
+        r'/proizvod/([^/?#]+)',
+        r'/termek/([^/?#]+)',
+        r'/produkt/([^/?#]+)',
+        r'/produkty/([^/?#]+)',
+        r'/item/([^/?#]+)',
+        r'/tovar/([^/?#]+)',
+    ]:
         m = re.search(pattern, url)
         if m:
             return m.group(1).lower()
     return None
 
 
-# ─── XML FEED PARSING ────────────────────────────────────────────────────────
+# ─── XML PARSING ─────────────────────────────────────────────────────────────
 
-def parse_feed(xml_content: str, lang: str) -> dict:
-    """Parse Google Merchant XML and return {sku: {url, title}} dict."""
+def parse_feed(xml_content: str) -> dict:
+    """
+    Parse Google Merchant XML.
+    Returns { key: { url, path, title, sku } }
+    Indexed by both g:id (SKU) and slug for flexible lookup.
+    """
     products = {}
     try:
         root = ET.fromstring(xml_content)
@@ -152,31 +178,37 @@ def parse_feed(xml_content: str, lang: str) -> dict:
             url = link_el.text.strip() if link_el is not None and link_el.text else None
             if not url:
                 continue
+            parsed = urlparse(url)
+            path = parsed.path  # e.g. /izdelek/parni-cistilec-vapurex
+
             title_el = item.find('title')
             title = title_el.text.strip() if title_el is not None and title_el.text else ""
+
             gid_el = item.find(f'{{{ns_g}}}id')
-            sku = gid_el.text.strip().lower() if gid_el is not None and gid_el.text else None
+            sku = gid_el.text.strip() if gid_el is not None and gid_el.text else None
+
             slug = extract_slug(url)
-            entry = {"url": url, "title": title}
+            entry = {"url": url, "path": path, "title": title, "sku": sku or ""}
+
             if sku:
-                products[sku] = entry
-            if slug and slug != sku:
+                products[sku.lower()] = entry
+            if slug and slug != (sku or "").lower():
                 products[slug] = entry
     except ET.ParseError as e:
-        print(f"XML parse error [{lang}]: {e}")
+        print(f"XML parse error: {e}")
     return products
 
 
 async def fetch_all_feeds():
     global feed_cache, last_fetch
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Fetching XML feeds...")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Fetching maaarket XML feeds...")
     async with httpx.AsyncClient(timeout=30.0) as hc:
-        tasks = {lang: hc.get(url) for lang, url in FEEDS.items()}
+        tasks = {lang: hc.get(url) for lang, url in MAAARKET_FEEDS.items()}
         for lang, task in tasks.items():
             try:
                 resp = await task
                 if resp.status_code == 200:
-                    feed_cache[lang] = parse_feed(resp.text, lang)
+                    feed_cache[lang] = parse_feed(resp.text)
                     print(f"  ✓ {lang}: {len(feed_cache[lang])} products")
                 else:
                     feed_cache[lang] = {}
@@ -185,6 +217,7 @@ async def fetch_all_feeds():
                 feed_cache[lang] = {}
                 print(f"  ✗ {lang}: {e}")
     last_fetch = datetime.now()
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Done.")
 
 
 async def ensure_cache_fresh():
@@ -192,19 +225,55 @@ async def ensure_cache_fresh():
         await fetch_all_feeds()
 
 
-def lookup_by_sku(sku: str) -> dict:
-    """Find product URLs across all languages by SKU. Returns {lang: url}."""
-    key = sku.strip().lower()
+# ─── CORE LOOKUP ─────────────────────────────────────────────────────────────
+
+def find_product_urls(source_url: Optional[str], sku: Optional[str]) -> dict:
+    """
+    1. Determine brand from source_url (default: maaarket)
+    2. Find lookup key: explicit SKU > slug from URL
+    3. For each lang: find path in maaarket XML cache, then apply to target brand domain
+    4. Return { lang: final_url }
+    """
+    brand = detect_brand(source_url) if source_url else None
+    if not brand:
+        brand = "maaarket"
+
+    # Determine lookup key
+    lookup_key = None
+    if sku and sku.strip():
+        lookup_key = sku.strip().lower()
+    elif source_url:
+        lookup_key = extract_slug(source_url)
+
+    if not lookup_key:
+        return {}
+
+    target_domains = BRAND_DOMAINS.get(brand, BRAND_DOMAINS["maaarket"])
     result = {}
+
     for lang, products in feed_cache.items():
-        if key in products:
-            result[lang] = products[key]["url"]
+        # Find the product entry in maaarket XML
+        entry = None
+        if lookup_key in products:
+            entry = products[lookup_key]
+        else:
+            # Partial match fallback
+            for prod_key, prod_data in products.items():
+                if lookup_key in prod_key or prod_key in lookup_key:
+                    entry = prod_data
+                    break
+
+        if not entry:
             continue
-        # Partial match fallback
-        for prod_key, prod_data in products.items():
-            if key in prod_key or prod_key in key:
-                result[lang] = prod_data["url"]
-                break
+
+        # Get path from maaarket entry (e.g. /izdelek/parni-cistilec-vapurex)
+        path = entry["path"]
+
+        # Apply target brand domain for this lang
+        if lang in target_domains:
+            target_domain = target_domains[lang]
+            result[lang] = f"https://{target_domain}{path}"
+
     return result
 
 
@@ -225,12 +294,12 @@ async def daily_refresh():
 # ─── MODELS ──────────────────────────────────────────────────────────────────
 
 class AdRequest(BaseModel):
-    input: str       # product description or URL
-    mode: str        # "url" or "text"
+    input: str
+    mode: str
     pt_count: int = 1
     hl_count: int = 1
-    source_url: Optional[str] = None   # SL product URL for domain mapping
-    sku: Optional[str] = None          # SKU for XML lookup fallback
+    source_url: Optional[str] = None
+    sku: Optional[str] = None
 
 
 # ─── ROUTES ──────────────────────────────────────────────────────────────────
@@ -259,21 +328,8 @@ async def refresh_cache():
 async def generate(req: AdRequest):
     await ensure_cache_fresh()
 
-    # ── Step 1: Resolve product URLs ──
-    product_urls = {}
+    product_urls = find_product_urls(req.source_url, req.sku)
 
-    if req.source_url:
-        # Primary: build URLs by replacing domain (no tokens needed)
-        product_urls = build_urls_from_slug(req.source_url)
-
-    if req.sku:
-        # Fallback/supplement: look up missing langs via XML cache
-        sku_urls = lookup_by_sku(req.sku)
-        for lang, url in sku_urls.items():
-            if lang not in product_urls:
-                product_urls[lang] = url
-
-    # ── Step 2: Generate ad copy via Claude ──
     if req.mode == "url":
         user_msg = f"Preberi to stran in ustvari Meta oglase: {req.input}"
     else:
