@@ -365,7 +365,7 @@ Vrni SAMO veljaven JSON brez markdown:
     tools = [{"type": "web_search_20250305", "name": "web_search"}] if req.mode == "url" else []
 
     message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model="claude-sonnet-4-6",
         max_tokens=8000,
         tools=tools if tools else anthropic.NOT_GIVEN,
         messages=[{"role": "user", "content": prompt}]
