@@ -167,6 +167,7 @@ const BUMPS={
   'RON':[{l:'+2',v:2},{l:'+5',v:5},{l:'+10',v:10},{l:'−5',v:-5}],
 };
 const DEFAULTS={SLO:16.99,HR:16.99,RS:1599,HU:4999,IT:16.99,CZ:399,SK:16.99,PL:59,GR:16.99,RO:59,BG:16.99};
+let mode='single',inputMode='manual',roundingOn=false;
 function marketRound(val,curr){
   if(!roundingOn)return val;
   if(curr==='din'){const base=Math.floor(val/100)*100+99;return base+100;}
