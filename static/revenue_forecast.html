@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Napoved prometa</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -15,156 +16,205 @@
   --blue:#3a6fff;--blue-dim:rgba(58,111,255,0.1);--blue-border:rgba(58,111,255,0.3);
   --radius:10px;--radius-lg:14px;
 }
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;justify-content:center;padding:1.5rem 1rem 4rem}
-.wrap{width:100%;max-width:600px}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem 1rem 4rem}
+.wrap{width:100%;max-width:1100px;margin:0 auto}
 .hdr{margin-bottom:1.25rem}
 .hdr-title{font-size:18px;font-weight:600;letter-spacing:-0.3px}
 .hdr-sub{font-size:12px;color:var(--text3);margin-top:3px}
+
+/* Desktop layout: left inputs, right chart */
+.layout{display:grid;grid-template-columns:420px 1fr;gap:16px;align-items:start}
+@media(max-width:700px){.layout{grid-template-columns:1fr}}
+
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:10px}
-
-/* Mode buttons */
 .mode-row{display:flex;gap:6px;margin-bottom:1.25rem}
-.mode-btn{flex:1;padding:10px 8px;font-size:12px;font-weight:500;cursor:pointer;border-radius:var(--radius);border:1.5px solid var(--border);background:var(--surface);color:var(--text2);font-family:'DM Sans',sans-serif;transition:all 0.15s;line-height:1.3}
+.mode-btn{flex:1;padding:9px 8px;font-size:12px;font-weight:500;cursor:pointer;border-radius:var(--radius);border:1.5px solid var(--border);background:var(--surface);color:var(--text2);font-family:'DM Sans',sans-serif;transition:all 0.15s}
 .mode-btn.on{border-color:var(--blue-border);background:var(--blue-dim);color:var(--blue)}
-
-/* Inputs */
 .flabel{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;display:block}
 .field{margin-bottom:12px}
-input[type=number]{width:100%;height:48px;padding:0 14px;font-size:16px;font-family:'DM Sans',sans-serif;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text);transition:all 0.15s;text-align:center;-moz-appearance:textfield}
-input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
+input[type=number]{width:100%;height:46px;padding:0 14px;font-size:16px;font-family:'DM Sans',sans-serif;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text);transition:all 0.15s;text-align:center;-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
 input[type=number]:focus{outline:none;border-color:var(--blue-border);background:var(--surface);box-shadow:0 0 0 3px var(--blue-dim)}
 input::placeholder{color:var(--text3)}
-
-/* Time row */
 .time-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-bottom:8px}
 .time-sep{font-size:22px;font-weight:500;color:var(--text3);text-align:center}
-.now-btn{width:100%;height:42px;border-radius:var(--radius);border:1px solid var(--blue-border);background:var(--blue-dim);color:var(--blue);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.now-btn{width:100%;height:40px;border-radius:var(--radius);border:1px solid var(--blue-border);background:var(--blue-dim);color:var(--blue);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;transition:all 0.15s}
 .now-btn:hover{background:var(--blue);color:white}
-.now-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-.time-hint{font-size:11px;color:var(--text3);text-align:center;margin-top:4px}
+.time-hint{font-size:11px;color:var(--text3);text-align:center;margin-bottom:8px}
+.add-btn{width:100%;height:44px;border-radius:var(--radius);border:none;background:var(--blue);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.15s;margin-top:4px}
+.add-btn:hover{background:#2d5fee}
+.add-btn:active{transform:scale(0.98)}
 
-/* 2-col grid on desktop, 1-col on mobile */
-.fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:480px){.fields-grid{grid-template-columns:1fr}}
-
-/* Results */
+/* Result cards */
 .highlight{background:var(--green-dim);border:1px solid var(--green-border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:10px}
-.hl-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.hl-val{font-size:38px;font-weight:600;color:var(--green);letter-spacing:-1px;line-height:1}
+.hl-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.hl-val{font-size:34px;font-weight:600;color:var(--green);letter-spacing:-1px;line-height:1}
 .hl-lbl{font-size:12px;color:var(--green);opacity:0.8;margin-top:5px}
 .prog-wrap{text-align:right;min-width:120px}
-.prog-orders{font-size:14px;font-weight:600;color:var(--green)}
-.prog-sub{font-size:11px;color:var(--green);opacity:0.75;margin-top:2px}
+.prog-orders{font-size:13px;font-weight:600;color:var(--green)}
 .prog-bar{height:5px;background:rgba(10,140,90,0.2);border-radius:3px;overflow:hidden;margin-top:8px}
 .prog-fill{height:100%;background:var(--green);border-radius:3px;transition:width 0.4s}
 .prog-pct{font-size:11px;color:var(--green);opacity:0.7;margin-top:5px}
-
-/* Metric cards */
 .metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
-@media(max-width:400px){.metrics{grid-template-columns:1fr 1fr}}
 .metric{background:var(--surface2);border-radius:var(--radius);padding:0.875rem;text-align:center}
 .metric-val{font-size:20px;font-weight:500;color:var(--text)}
 .metric-lbl{font-size:10px;color:var(--text3);margin-top:4px;text-transform:uppercase;letter-spacing:0.4px;line-height:1.3}
 .metric-sub{font-size:10px;color:var(--text3);margin-top:3px}
-
 .info-box{background:var(--blue-dim);border:1px solid var(--blue-border);border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--blue);line-height:1.6}
-.empty{text-align:center;padding:2.5rem 1rem;color:var(--text3);font-size:13px}
+.empty{text-align:center;padding:2rem 1rem;color:var(--text3);font-size:13px}
+
+/* Chart panel */
+.chart-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;position:sticky;top:1rem}
+.chart-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.chart-title{font-size:13px;font-weight:600;color:var(--text)}
+.chart-clear{font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif}
+.chart-clear:hover{color:var(--red,#e03030)}
+.chart-wrap{position:relative;height:280px}
+.chart-empty{display:flex;align-items:center;justify-content:center;height:280px;color:var(--text3);font-size:13px;text-align:center;line-height:1.6}
+
+/* Log entries */
+.log-list{margin-top:1rem;display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto}
+.log-item{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--surface2);border-radius:7px;font-size:11px}
+.log-time{font-weight:600;color:var(--text);font-family:'DM Mono',monospace;flex-shrink:0}
+.log-napoved{color:var(--green);font-weight:600;flex:1;text-align:right}
+.log-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;flex-shrink:0}
+.log-del:hover{color:var(--red,#e03030)}
+
 .footer{text-align:center;font-size:11px;color:var(--text3);margin-top:1.5rem}
 </style>
 </head>
 <body>
 <div class="wrap">
-
   <div class="hdr">
     <div class="hdr-title">Napoved dnevnega prometa</div>
-    <div class="hdr-sub">Vpiši trenutne podatke za napoved do konca dneva</div>
+    <div class="hdr-sub">Vpiši podatke in dodaj vnos — graf kaže trend čez dan</div>
   </div>
 
-  <div class="card">
-    <div class="mode-row">
-      <button class="mode-btn on" id="btn-linear" onclick="setMode('linear')">📈 Linearni</button>
-      <button class="mode-btn" id="btn-weighted" onclick="setMode('weighted')">⏰ Po urah (priporočeno)</button>
-    </div>
-
-    <!-- Time field -->
-    <div class="field">
-      <span class="flabel">Čas od začetka dneva</span>
-      <div class="time-row">
-        <input type="number" id="hours" placeholder="hh" min="0" max="23" oninput="calc()">
-        <span class="time-sep">:</span>
-        <input type="number" id="mins" placeholder="mm" min="0" max="59" oninput="calc()">
-      </div>
-      <button class="now-btn" onclick="useNow()">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Uporabi trenutni čas (Ljubljana)
-      </button>
-      <div class="time-hint" id="time-hint"></div>
-    </div>
-
-    <!-- Orders + Revenue -->
-    <div class="fields-grid">
-      <div class="field" style="margin-bottom:0">
-        <span class="flabel">Naročila do sedaj</span>
-        <input type="number" id="orders" placeholder="npr. 150" min="0" oninput="calc()">
-      </div>
-      <div class="field" style="margin-bottom:0">
-        <span class="flabel">Promet do sedaj (€)</span>
-        <input type="number" id="revenue" placeholder="npr. 2500" min="0" oninput="calc()">
-      </div>
-    </div>
-  </div>
-
-  <div id="result" style="display:none">
-    <div class="highlight">
-      <div class="hl-top">
-        <div>
-          <div class="hl-val" id="pred-promet">€0</div>
-          <div class="hl-lbl" id="hl-lbl">predviden dnevni promet</div>
+  <div class="layout">
+    <!-- LEFT: inputs + results -->
+    <div>
+      <div class="card">
+        <div class="mode-row">
+          <button class="mode-btn on" id="btn-linear" onclick="setMode('linear')">📈 Linearni</button>
+          <button class="mode-btn" id="btn-weighted" onclick="setMode('weighted')">⏰ Po urah (priporočeno)</button>
         </div>
-        <div class="prog-wrap">
-          <div class="prog-orders" id="pred-narocila">0 naročil</div>
-          <div class="prog-sub">predviden dnevni</div>
-          <div class="prog-bar"><div class="prog-fill" id="prog" style="width:0%"></div></div>
-          <div class="prog-pct" id="prog-pct">0% dneva preteklo</div>
+
+        <div class="field">
+          <span class="flabel">Čas od začetka dneva</span>
+          <div class="time-row">
+            <input type="number" id="hours" placeholder="hh" min="0" max="23" oninput="calc()">
+            <span class="time-sep">:</span>
+            <input type="number" id="mins" placeholder="mm" min="0" max="59" oninput="calc()">
+          </div>
+          <button class="now-btn" onclick="useNow()">
+            <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Uporabi trenutni čas (Ljubljana)
+          </button>
+          <div class="time-hint" id="time-hint"></div>
+        </div>
+
+        <div class="field-grid" style="margin-bottom:12px">
+          <div>
+            <span class="flabel">Naročila do sedaj</span>
+            <input type="number" id="orders" placeholder="npr. 150" min="0" oninput="calc()">
+          </div>
+          <div>
+            <span class="flabel">Promet do sedaj (€)</span>
+            <input type="number" id="revenue" placeholder="npr. 2500" min="0" oninput="calc()">
+          </div>
+        </div>
+
+        <button class="add-btn" onclick="addEntry()">
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Dodaj vnos v graf
+        </button>
+      </div>
+
+      <div id="result" style="display:none">
+        <div class="highlight">
+          <div class="hl-top">
+            <div>
+              <div class="hl-val" id="pred-promet">€0</div>
+              <div class="hl-lbl" id="hl-lbl">predviden dnevni promet</div>
+            </div>
+            <div class="prog-wrap">
+              <div class="prog-orders" id="pred-narocila">0 naročil</div>
+              <div style="font-size:11px;color:var(--green);opacity:0.75;margin-top:2px">predviden dnevni</div>
+              <div class="prog-bar"><div class="prog-fill" id="prog" style="width:0%"></div></div>
+              <div class="prog-pct" id="prog-pct">0% dneva preteklo</div>
+            </div>
+          </div>
+        </div>
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-val" id="nmin">0.00</div>
+            <div class="metric-lbl">naročil / minuto</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val" id="avg-order">€0</div>
+            <div class="metric-lbl">povp. vrednost naročila</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val" id="remaining">€0</div>
+            <div class="metric-lbl">preostali promet</div>
+            <div class="metric-sub" id="remaining-sub"></div>
+          </div>
+        </div>
+        <div id="weighted-info" style="display:none" class="info-box">
+          Uteženni model upošteva da je zdaj <strong id="hour-label"></strong> — napoved je prilagojena.
         </div>
       </div>
+
+      <div id="empty" class="empty">Vpiši čas, naročila in promet.</div>
     </div>
 
-    <div class="metrics">
-      <div class="metric">
-        <div class="metric-val" id="nmin">0.00</div>
-        <div class="metric-lbl">naročil / minuto</div>
+    <!-- RIGHT: chart -->
+    <div class="chart-panel">
+      <div class="chart-hdr">
+        <span class="chart-title">Trend napovedi čez dan</span>
+        <button class="chart-clear" onclick="clearEntries()">Počisti</button>
       </div>
-      <div class="metric">
-        <div class="metric-val" id="avg-order">€0</div>
-        <div class="metric-lbl">povp. vrednost naročila</div>
+      <div id="chart-wrap" class="chart-wrap" style="display:none">
+        <canvas id="myChart"></canvas>
       </div>
-      <div class="metric">
-        <div class="metric-val" id="remaining">€0</div>
-        <div class="metric-lbl">preostali promet</div>
-        <div class="metric-sub" id="remaining-sub"></div>
+      <div id="chart-empty" class="chart-empty">
+        Dodaj vsaj en vnos<br>da vidiš trend napovedi
       </div>
-    </div>
-
-    <div id="weighted-info" style="display:none" class="info-box">
-      Uteženni model upošteva da je zdaj <strong id="hour-label"></strong> — napoved je prilagojena glede na zgodovinski vzorec naročil.
+      <div class="log-list" id="logList"></div>
     </div>
   </div>
 
-  <div id="empty" class="empty">Vpiši čas, naročila in promet za napoved.</div>
   <div class="footer">Model temelji na 7-dnevnem povprečju · 0 API klicev</div>
 </div>
 
 <script>
-const W = [1.1,1.1,1.1,1.1,1.1,1.1,1.1,3.7,5.9,5.3,9.8,9.8,7.1,7.1,7.1,5.9,5.9,5.3,4.8,4.3,3.7,2.7,2.1,1.6];
-const WT = W.reduce((a,b)=>a+b,0);
-const WN = W.map(w=>w/WT);
-const HNAMES = ['polnoč','1h','2h','3h','4h','5h','6h','7h zjutraj','8h zjutraj','9h zjutraj','10h','11h','12h (opoldne)','13h','14h','15h popoldne','16h','17h','18h večer','19h','20h','21h','22h','23h'];
+const W=[1.1,1.1,1.1,1.1,1.1,1.1,1.1,3.7,5.9,5.3,9.8,9.8,7.1,7.1,7.1,5.9,5.9,5.3,4.8,4.3,3.7,2.7,2.1,1.6];
+const WT=W.reduce((a,b)=>a+b,0);
+const WN=W.map(w=>w/WT);
+const HNAMES=['polnoč','1h','2h','3h','4h','5h','6h','7h zjutraj','8h zjutraj','9h zjutraj','10h','11h','12h','13h','14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'];
 
 function cumW(h,m){let s=0;for(let i=0;i<h;i++)s+=WN[i];s+=WN[Math.min(h,23)]*(m/60);return s;}
 
 let mode='linear';
+let entries=[];
+let chart=null;
+
+// Load from localStorage, reset if new day
+function loadEntries(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('forecast_entries')||'null');
+    if(!saved)return;
+    const today=new Date().toLocaleDateString('sl-SI');
+    if(saved.date!==today){localStorage.removeItem('forecast_entries');return;}
+    entries=saved.entries||[];
+  }catch(e){entries=[];}
+}
+function saveEntries(){
+  const today=new Date().toLocaleDateString('sl-SI');
+  localStorage.setItem('forecast_entries',JSON.stringify({date:today,entries}));
+}
+
 function setMode(m){
   mode=m;
   document.getElementById('btn-linear').classList.toggle('on',m==='linear');
@@ -182,6 +232,8 @@ function useNow(){
 function fmt(n){return new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);}
 function fmtN(n){return new Intl.NumberFormat('sl-SI',{maximumFractionDigits:2}).format(n);}
 
+let lastPredRev=0;
+
 function calc(){
   const h=parseInt(document.getElementById('hours').value)||0;
   const m=parseInt(document.getElementById('mins').value)||0;
@@ -190,33 +242,28 @@ function calc(){
   const rev=parseFloat(document.getElementById('revenue').value);
   const hint=document.getElementById('time-hint');
   hint.textContent=totalMin>0?totalMin+' minut skupaj':'';
-  if(!totalMin||!ord||!rev||totalMin<=0||ord<=0||rev<=0){
+  if(!totalMin||!ord||!rev||ord<=0||rev<=0){
     document.getElementById('result').style.display='none';
     document.getElementById('empty').style.display='block';
-    return;
+    lastPredRev=0;return;
   }
-  const TMIN=1440;
-  const avg=rev/ord;
+  const TMIN=1440,avg=rev/ord;
   let predOrd,predRev;
   if(mode==='linear'){
-    const rate=ord/totalMin;
-    predOrd=Math.round(rate*TMIN);
-    predRev=rate*TMIN*avg;
+    predOrd=Math.round((ord/totalMin)*TMIN);
+    predRev=(ord/totalMin)*TMIN*avg;
     document.getElementById('weighted-info').style.display='none';
     document.getElementById('hl-lbl').textContent='predviden dnevni promet (linearno)';
-  } else {
-    const cw=cumW(h,m);
-    if(cw<=0)return;
-    predOrd=Math.round(ord/cw);
-    predRev=predOrd*avg;
+  }else{
+    const cw=cumW(h,m);if(cw<=0)return;
+    predOrd=Math.round(ord/cw);predRev=predOrd*avg;
     document.getElementById('weighted-info').style.display='block';
     document.getElementById('hour-label').textContent=HNAMES[Math.min(h,23)];
     document.getElementById('hl-lbl').textContent='predviden dnevni promet (uteženni)';
   }
+  lastPredRev=predRev;
   const pct=Math.min(100,Math.round((totalMin/TMIN)*100));
-  const remMin=TMIN-totalMin;
-  const remH=Math.floor(remMin/60);
-  const remM=Math.round(remMin%60);
+  const remMin=TMIN-totalMin,remH=Math.floor(remMin/60),remM=Math.round(remMin%60);
   document.getElementById('pred-promet').textContent=fmt(predRev);
   document.getElementById('pred-narocila').textContent=predOrd.toLocaleString('sl-SI')+' naročil';
   document.getElementById('nmin').textContent=fmtN(ord/totalMin);
@@ -228,6 +275,73 @@ function calc(){
   document.getElementById('result').style.display='block';
   document.getElementById('empty').style.display='none';
 }
+
+function addEntry(){
+  if(!lastPredRev){alert('Najprej vpiši podatke.');return;}
+  const h=parseInt(document.getElementById('hours').value)||0;
+  const m=parseInt(document.getElementById('mins').value)||0;
+  const rev=parseFloat(document.getElementById('revenue').value)||0;
+  const label=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  entries.push({label,napoved:Math.round(lastPredRev),dejanski:Math.round(rev)});
+  saveEntries();
+  renderChart();renderLog();
+}
+
+function clearEntries(){entries=[];saveEntries();renderChart();renderLog();}
+
+function removeEntry(i){entries.splice(i,1);saveEntries();renderChart();renderLog();}
+
+function renderChart(){
+  const wrap=document.getElementById('chart-wrap');
+  const empty=document.getElementById('chart-empty');
+  if(!entries.length){wrap.style.display='none';empty.style.display='flex';if(chart){chart.destroy();chart=null;}return;}
+  wrap.style.display='block';empty.style.display='none';
+  const labels=entries.map(e=>e.label);
+  const napovedi=entries.map(e=>e.napoved);
+  const dejanski=entries.map(e=>e.dejanski);
+  if(chart){
+    chart.data.labels=labels;
+    chart.data.datasets[0].data=napovedi;
+    chart.data.datasets[1].data=dejanski;
+    chart.update();return;
+  }
+  const ctx=document.getElementById('myChart').getContext('2d');
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:'Napoved (€)',data:napovedi,borderColor:'#0a8c5a',backgroundColor:'rgba(10,140,90,0.08)',tension:0.4,pointRadius:5,pointBackgroundColor:'#0a8c5a',borderWidth:2},
+        {label:'Dejanski promet (€)',data:dejanski,borderColor:'#3a6fff',backgroundColor:'rgba(58,111,255,0.08)',tension:0.4,pointRadius:5,pointBackgroundColor:'#3a6fff',borderWidth:2,borderDash:[5,4]}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{family:'DM Sans',size:11},boxWidth:12,padding:12}}},
+      scales:{
+        y:{ticks:{callback:v=>new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},
+        x:{ticks:{font:{size:10}},grid:{display:false}}
+      }
+    }
+  });
+}
+
+function renderLog(){
+  const el=document.getElementById('logList');
+  if(!entries.length){el.innerHTML='';return;}
+  el.innerHTML=entries.map((e,i)=>`
+    <div class="log-item">
+      <span class="log-time">${e.label}</span>
+      <span style="font-size:11px;color:var(--text3)">dejanski: ${fmt(e.dejanski)}</span>
+      <span class="log-napoved">→ ${fmt(e.napoved)}</span>
+      <button class="log-del" onclick="removeEntry(${i})" title="Odstrani">×</button>
+    </div>`).join('');
+}
+
+// Init
+loadEntries();
+renderChart();
+renderLog();
 </script>
 </body>
 </html>
