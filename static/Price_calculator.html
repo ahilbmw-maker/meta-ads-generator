@@ -38,7 +38,7 @@ input:focus,select:focus{border-color:rgba(0,0,0,0.5);}
 .bump-btn.minus{color:#888;}
 .country-row{display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:0.5px solid rgba(0,0,0,0.08);align-items:stretch;}
 .country-row:last-child{border-bottom:none;}
-.cr-left{padding:8px 10px;display:flex;align-items:center;gap:7px;border-right:0.5px solid rgba(0,0,0,0.08);}
+.cr-left{padding:8px 10px;display:grid;grid-template-columns:8px 44px 1fr 44px 44px;align-items:center;gap:6px;border-right:0.5px solid rgba(0,0,0,0.08);}
 .cr-label{font-size:13px;font-weight:500;color:#1a1a1a;}
 .cr-curr{font-size:11px;color:#999;}
 .cr-right{padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
@@ -166,7 +166,7 @@ const BUMPS={
   'zł': [{l:'+2',v:2},{l:'+5',v:5},{l:'+10',v:10},{l:'−5',v:-5}],
   'RON':[{l:'+2',v:2},{l:'+5',v:5},{l:'+10',v:10},{l:'−5',v:-5}],
 };
-let mode='single',inputMode='manual',roundingOn=false;
+const DEFAULTS={SLO:16.99,HR:16.99,RS:1599,HU:4999,IT:16.99,CZ:399,SK:16.99,PL:59,GR:16.99,RO:59,BG:16.99};
 function marketRound(val,curr){
   if(!roundingOn)return val;
   if(curr==='din'){const base=Math.floor(val/100)*100+99;return base+100;}
@@ -320,9 +320,9 @@ function buildAllRows(){
       <div class="cr-left">
         <div class="cc-dot" style="background:${c.color};"></div>
         <div style="min-width:28px;"><div class="cr-label">${c.label}</div><div class="cr-curr">${c.curr}</div></div>
-        <input class="cr-input" id="inp-${ckey}" type="number" step="${c.dec===0?1:0.01}" min="0" placeholder="samodejno" oninput="calc()" style="min-width:100px;flex:1;">
-        <button class="bump-btn minus" style="padding:3px 7px;font-size:11px;flex-shrink:0" onclick="bumpAll('${ckey}',${minusV})">${minusL}</button>
-        <button class="bump-btn" style="padding:3px 7px;font-size:11px;flex-shrink:0" onclick="bumpAll('${ckey}',${plusV})">${plusL}</button>
+        <input class="cr-input" id="inp-${ckey}" type="number" step="${c.dec===0?1:0.01}" min="0" placeholder="samodejno" value="${DEFAULTS[ckey]||''}" oninput="calc()">
+        <button class="bump-btn minus" style="padding:3px 0;font-size:11px;width:100%;text-align:center;flex-shrink:0" onclick="bumpAll('${ckey}',${minusV})">${minusL}</button>
+        <button class="bump-btn" style="padding:3px 0;font-size:11px;width:100%;text-align:center;flex-shrink:0" onclick="bumpAll('${ckey}',${plusV})">${plusL}</button>
       </div>
       <div class="cr-right">
         <div><div class="cr-price" id="res-price-${ckey}">—</div><div class="cr-nova">NOVA: <span id="res-nova-${ckey}">—</span></div></div>
