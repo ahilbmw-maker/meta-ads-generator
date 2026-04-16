@@ -16,14 +16,17 @@
   --blue:#3a6fff;--blue-dim:rgba(58,111,255,0.1);--blue-border:rgba(58,111,255,0.3);
   --radius:10px;--radius-lg:14px;
 }
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem 1rem 4rem}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem 1rem 2rem;overflow-x:hidden}
 .wrap{width:100%;max-width:1400px;margin:0 auto}
 .hdr{margin-bottom:1.25rem}
 .hdr-title{font-size:18px;font-weight:600;letter-spacing:-0.3px}
 .hdr-sub{font-size:12px;color:var(--text3);margin-top:3px}
 
-/* Desktop layout: left inputs, right chart */
+/* Desktop layout: left inputs, right charts */
 .layout{display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:start}
+.charts-col{display:flex;flex-direction:column;gap:12px}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.charts-row{grid-template-columns:1fr}}
 @media(max-width:700px){.layout{grid-template-columns:1fr}}
 
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:10px}
@@ -170,29 +173,27 @@ input::placeholder{color:var(--text3)}
     </div>
 
     <!-- RIGHT: charts -->
-    <div>
-      <div class="chart-panel" style="margin-bottom:12px">
-        <div class="chart-hdr">
-          <span class="chart-title">Napoved prometa (€)</span>
-          <button class="chart-clear" onclick="clearEntries()">Počisti vse</button>
+    <div class="charts-col">
+      <div class="charts-row">
+        <div class="chart-panel">
+          <div class="chart-hdr">
+            <span class="chart-title">Napoved prometa (€)</span>
+            <button class="chart-clear" onclick="clearEntries()">Počisti vse</button>
+          </div>
+          <div id="chart-wrap" class="chart-wrap" style="display:none">
+            <canvas id="myChart"></canvas>
+          </div>
+          <div id="chart-empty" class="chart-empty">Dodaj vsaj en vnos<br>da vidiš trend napovedi</div>
         </div>
-        <div id="chart-wrap" class="chart-wrap" style="display:none">
-          <canvas id="myChart"></canvas>
-        </div>
-        <div id="chart-empty" class="chart-empty">
-          Dodaj vsaj en vnos<br>da vidiš trend napovedi
-        </div>
-      </div>
 
-      <div class="chart-panel" style="margin-bottom:12px">
-        <div class="chart-hdr">
-          <span class="chart-title">Napoved naročil</span>
-        </div>
-        <div id="chart-wrap2" class="chart-wrap" style="display:none">
-          <canvas id="myChart2"></canvas>
-        </div>
-        <div id="chart-empty2" class="chart-empty">
-          Dodaj vsaj en vnos<br>da vidiš trend naročil
+        <div class="chart-panel">
+          <div class="chart-hdr">
+            <span class="chart-title">Napoved naročil</span>
+          </div>
+          <div id="chart-wrap2" class="chart-wrap" style="display:none">
+            <canvas id="myChart2"></canvas>
+          </div>
+          <div id="chart-empty2" class="chart-empty">Dodaj vsaj en vnos<br>da vidiš trend naročil</div>
         </div>
       </div>
 
