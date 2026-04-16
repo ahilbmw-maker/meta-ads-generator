@@ -284,12 +284,37 @@ Vrni SAMO JSON: {{"product": "ime", "pt": [{pt_ph}], "hl": [{hl_ph}]}}"""
 
         sl_pts = sl_data.get("pt", [])
         sl_hls = sl_data.get("hl", [])
-        trans_prompt = f"""Prevedi Meta oglase iz slovenščine v 9 jezikov. Ohrani emoji točno kot so.
+        trans_prompt = f"""Prevedi Meta oglase iz slovenščine v 9 jezikov. Ohrani ŠTEVILO in POZICIJO emoji-jev točno kot v originalu.
 
 Primary Texts: {json.dumps(sl_pts, ensure_ascii=False)}
 Headlines: {json.dumps(sl_hls, ensure_ascii=False)}
 
-Jeziki: HR (latinica), RS (SAMO latinica!), HU, CZ, SK, PL, GR (grška pisava), RO (latinica), BG (SAMO cirilica!).
+PRAVILA PREVAJANJA PO JEZIKIH:
+
+HR (hrvaščina, latinica): Natural marketing ton. Pazi na "č/ć/š/ž/đ".
+
+RS (srbščina, SAMO LATINICA — NIKOLI cirilica!): Natural marketing ton. Pazi na "č/ć/š/ž/đ".
+
+HU (madžarščina): KRITIČNO - to ni indoevropski jezik, NE prevajaj dobesedno. Uporabljaj aglutinacijo (končnice) pravilno. CTA kot "Naroči zdaj" = "Rendeld meg most". Pazi da stavek ni predolg (madžarski stavki so lahko za 20-30% daljši).
+
+CZ (češčina): Natural. Pazi na sklonjenje samostalnikov (akuzativ po glagolih).
+
+SK (slovaščina): Podobno češčini. Natural.
+
+PL (poljščina): Pazi na sklone (7 padežev). CTA "Naroči" = "Zamów". Uporabi neformalni ti-vi.
+
+GR (grščina, grška pisava!): KRITIČNO - kompleksna slovnica s skloni (nominativ/akuzativ). CTA "Naroči zdaj" = "Παράγγειλε τώρα". Izogibaj se predolgih stavkov. Pazi na spol samostalnikov. Uporabljaj natural marketing grščino, ne dobesedni prevod.
+
+RO (romunščina, latinica): Natural. Pazi na "ă/â/î/ș/ț". CTA "Naroči" = "Comandă".
+
+BG (bolgarščina, SAMO CIRILICA — NIKOLI latinica!): Natural. CTA "Naroči" = "Поръчай".
+
+SPLOŠNA PRAVILA:
+- Ohrani prodajni/energičen ton
+- Prevodi morajo zveneti kot da jih je pisal materni govorec, ne robot
+- Ohrani ŠTEVILO emoji-jev (če ima SL 3 emoji, mora imeti tudi prevod 3)
+- Headlines: ohrani MAX 5 besed tudi v prevodu
+- Ne prevajaj blagovnih znamk, imen izdelkov, če so v originalu
 
 Vrni SAMO JSON:
 {{"hr":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"rs":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"hu":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"cz":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"sk":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"pl":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"gr":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"ro":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"bg":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}}}}"""
