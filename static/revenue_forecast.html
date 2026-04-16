@@ -169,19 +169,40 @@ input::placeholder{color:var(--text3)}
       <div id="empty" class="empty">Vpiši čas, naročila in promet.</div>
     </div>
 
-    <!-- RIGHT: chart -->
-    <div class="chart-panel">
-      <div class="chart-hdr">
-        <span class="chart-title">Trend napovedi čez dan</span>
-        <button class="chart-clear" onclick="clearEntries()">Počisti</button>
+    <!-- RIGHT: charts -->
+    <div>
+      <div class="chart-panel" style="margin-bottom:12px">
+        <div class="chart-hdr">
+          <span class="chart-title">Napoved prometa (€)</span>
+          <button class="chart-clear" onclick="clearEntries()">Počisti vse</button>
+        </div>
+        <div id="chart-wrap" class="chart-wrap" style="display:none">
+          <canvas id="myChart"></canvas>
+        </div>
+        <div id="chart-empty" class="chart-empty">
+          Dodaj vsaj en vnos<br>da vidiš trend napovedi
+        </div>
       </div>
-      <div id="chart-wrap" class="chart-wrap" style="display:none">
-        <canvas id="myChart"></canvas>
+
+      <div class="chart-panel" style="margin-bottom:12px">
+        <div class="chart-hdr">
+          <span class="chart-title">Napoved naročil</span>
+        </div>
+        <div id="chart-wrap2" class="chart-wrap" style="display:none">
+          <canvas id="myChart2"></canvas>
+        </div>
+        <div id="chart-empty2" class="chart-empty">
+          Dodaj vsaj en vnos<br>da vidiš trend naročil
+        </div>
       </div>
-      <div id="chart-empty" class="chart-empty">
-        Dodaj vsaj en vnos<br>da vidiš trend napovedi
+
+      <div class="chart-panel">
+        <div class="chart-hdr">
+          <span class="chart-title">Vnosi danes</span>
+        </div>
+        <div class="log-list" id="logList"></div>
+        <div id="log-empty" style="text-align:center;padding:1rem;font-size:12px;color:var(--text3)">Še ni vnosov.</div>
       </div>
-      <div class="log-list" id="logList"></div>
     </div>
   </div>
 
@@ -199,6 +220,7 @@ function cumW(h,m){let s=0;for(let i=0;i<h;i++)s+=WN[i];s+=WN[Math.min(h,23)]*(m
 let mode='linear';
 let entries=[];
 let chart=null;
+let chart2=null;
 
 // Load from localStorage, reset if new day
 function loadEntries(){
@@ -233,6 +255,7 @@ function fmt(n){return new Intl.NumberFormat('sl-SI',{style:'currency',currency:
 function fmtN(n){return new Intl.NumberFormat('sl-SI',{maximumFractionDigits:2}).format(n);}
 
 let lastPredRev=0;
+let lastPredOrd=0;
 
 function calc(){
   const h=parseInt(document.getElementById('hours').value)||0;
@@ -245,7 +268,7 @@ function calc(){
   if(!totalMin||!ord||!rev||ord<=0||rev<=0){
     document.getElementById('result').style.display='none';
     document.getElementById('empty').style.display='block';
-    lastPredRev=0;return;
+    lastPredRev=0;lastPredOrd=0;return;
   }
   const TMIN=1440,avg=rev/ord;
   let predOrd,predRev;
@@ -262,6 +285,7 @@ function calc(){
     document.getElementById('hl-lbl').textContent='predviden dnevni promet (uteženni)';
   }
   lastPredRev=predRev;
+  lastPredOrd=predOrd;
   const pct=Math.min(100,Math.round((totalMin/TMIN)*100));
   const remMin=TMIN-totalMin,remH=Math.floor(remMin/60),remM=Math.round(remMin%60);
   document.getElementById('pred-promet').textContent=fmt(predRev);
@@ -281,58 +305,81 @@ function addEntry(){
   const h=parseInt(document.getElementById('hours').value)||0;
   const m=parseInt(document.getElementById('mins').value)||0;
   const rev=parseFloat(document.getElementById('revenue').value)||0;
+  const ord=parseFloat(document.getElementById('orders').value)||0;
   const label=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-  entries.push({label,napoved:Math.round(lastPredRev),dejanski:Math.round(rev)});
+  entries.push({label,napoved:Math.round(lastPredRev),dejanski:Math.round(rev),napovedOrd:Math.round(lastPredOrd),dejanskiOrd:Math.round(ord)});
   saveEntries();
   renderChart();renderLog();
 }
 
-function clearEntries(){entries=[];saveEntries();renderChart();renderLog();}
+function clearEntries(){entries=[];saveEntries();if(chart){chart.destroy();chart=null;}if(chart2){chart2.destroy();chart2=null;}renderChart();renderLog();}
 
 function removeEntry(i){entries.splice(i,1);saveEntries();renderChart();renderLog();}
 
 function renderChart(){
-  const wrap=document.getElementById('chart-wrap');
-  const empty=document.getElementById('chart-empty');
-  if(!entries.length){wrap.style.display='none';empty.style.display='flex';if(chart){chart.destroy();chart=null;}return;}
+  const wrap=document.getElementById('chart-wrap'),empty=document.getElementById('chart-empty');
+  const wrap2=document.getElementById('chart-wrap2'),empty2=document.getElementById('chart-empty2');
+  const logEmpty=document.getElementById('log-empty');
+
+  if(!entries.length){
+    wrap.style.display='none';empty.style.display='flex';
+    wrap2.style.display='none';empty2.style.display='flex';
+    if(chart){chart.destroy();chart=null;}
+    if(chart2){chart2.destroy();chart2=null;}
+    return;
+  }
+
   wrap.style.display='block';empty.style.display='none';
+  wrap2.style.display='block';empty2.style.display='none';
+
   const labels=entries.map(e=>e.label);
   const napovedi=entries.map(e=>e.napoved);
   const dejanski=entries.map(e=>e.dejanski);
-  if(chart){
-    chart.data.labels=labels;
-    chart.data.datasets[0].data=napovedi;
-    chart.data.datasets[1].data=dejanski;
-    chart.update();return;
-  }
-  const ctx=document.getElementById('myChart').getContext('2d');
-  chart=new Chart(ctx,{
-    type:'line',
-    data:{
-      labels,
-      datasets:[
+  const napovediOrd=entries.map(e=>e.napovedOrd||0);
+  const dejanskiOrd=entries.map(e=>e.dejanskiOrd||0);
+
+  // Chart 1 — promet €
+  if(chart){chart.data.labels=labels;chart.data.datasets[0].data=napovedi;chart.data.datasets[1].data=dejanski;chart.update();}
+  else{
+    chart=new Chart(document.getElementById('myChart').getContext('2d'),{
+      type:'line',
+      data:{labels,datasets:[
         {label:'Napoved (€)',data:napovedi,borderColor:'#0a8c5a',backgroundColor:'rgba(10,140,90,0.08)',tension:0.4,pointRadius:5,pointBackgroundColor:'#0a8c5a',borderWidth:2},
-        {label:'Dejanski promet (€)',data:dejanski,borderColor:'#3a6fff',backgroundColor:'rgba(58,111,255,0.08)',tension:0.4,pointRadius:5,pointBackgroundColor:'#3a6fff',borderWidth:2,borderDash:[5,4]}
-      ]
-    },
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{font:{family:'DM Sans',size:11},boxWidth:12,padding:12}}},
-      scales:{
-        y:{ticks:{callback:v=>new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},
-        x:{ticks:{font:{size:10}},grid:{display:false}}
+        {label:'Dejanski (€)',data:dejanski,borderColor:'#3a6fff',backgroundColor:'rgba(58,111,255,0.08)',tension:0.4,pointRadius:5,pointBackgroundColor:'#3a6fff',borderWidth:2,borderDash:[5,4]}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'bottom',labels:{font:{family:'DM Sans',size:11},boxWidth:12,padding:10}}},
+        scales:{y:{ticks:{callback:v=>fmt(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}
       }
-    }
-  });
+    });
+  }
+
+  // Chart 2 — naročila
+  if(chart2){chart2.data.labels=labels;chart2.data.datasets[0].data=napovediOrd;chart2.data.datasets[1].data=dejanskiOrd;chart2.update();}
+  else{
+    chart2=new Chart(document.getElementById('myChart2').getContext('2d'),{
+      type:'line',
+      data:{labels,datasets:[
+        {label:'Napoved naročil',data:napovediOrd,borderColor:'#0a8c5a',backgroundColor:'rgba(10,140,90,0.08)',tension:0.4,pointRadius:5,pointBackgroundColor:'#0a8c5a',borderWidth:2},
+        {label:'Dejanska naročila',data:dejanskiOrd,borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0.08)',tension:0.4,pointRadius:5,pointBackgroundColor:'#f59e0b',borderWidth:2,borderDash:[5,4]}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'bottom',labels:{font:{family:'DM Sans',size:11},boxWidth:12,padding:10}}},
+        scales:{y:{ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}
+      }
+    });
+  }
 }
 
 function renderLog(){
   const el=document.getElementById('logList');
-  if(!entries.length){el.innerHTML='';return;}
+  const logEmpty=document.getElementById('log-empty');
+  if(!entries.length){el.innerHTML='';if(logEmpty)logEmpty.style.display='block';return;}
+  if(logEmpty)logEmpty.style.display='none';
   el.innerHTML=entries.map((e,i)=>`
     <div class="log-item">
       <span class="log-time">${e.label}</span>
-      <span style="font-size:11px;color:var(--text3)">dejanski: ${fmt(e.dejanski)}</span>
+      <span style="font-size:11px;color:var(--text3)">${e.dejanskiOrd||0} naročil · ${fmt(e.dejanski)}</span>
       <span class="log-napoved">→ ${fmt(e.napoved)}</span>
       <button class="log-del" onclick="removeEntry(${i})" title="Odstrani">×</button>
     </div>`).join('');
