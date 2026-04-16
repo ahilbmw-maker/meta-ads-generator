@@ -105,6 +105,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
 /* ── MAIN CONTENT ── */
 .main { flex: 1; padding: 2rem 2rem 5rem; max-width: 1000px; }
+.main.wide { max-width: 100%; padding: 1.5rem 1.5rem 5rem; }
 .page { display: none; }
 .page.active { display: block; }
 
@@ -505,6 +506,9 @@ function switchPage(page) {
   document.getElementById('page-' + page).classList.add('active');
   if(document.getElementById('nav-' + page)) document.getElementById('nav-' + page).classList.add('active');
   if(document.getElementById('tab-' + page)) document.getElementById('tab-' + page).classList.add('active');
+  // Wide layout for forecast and calc pages
+  const mainEl = document.querySelector('.main');
+  if(mainEl) mainEl.classList.toggle('wide', page==='forecast' || page==='calc');
   closeMenu();
 }
 
