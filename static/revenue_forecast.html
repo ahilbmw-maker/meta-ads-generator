@@ -429,7 +429,7 @@ function renderLog(){
     <div class="log-item">
       <span class="log-time">${e.label}</span>
       <span style="font-size:11px;color:var(--text3)">${e.dejanskiOrd||0} naročil · ${fmt(e.dejanski)}</span>
-      <span class="log-napoved">→ ${fmt(e.napoved)}</span>
+      <span class="log-napoved">${fmt(e.napoved)} · ${(e.napovedOrd||0).toLocaleString('sl-SI')} naročil</span>
       <button class="log-del" onclick="removeEntry(${i})" title="Odstrani">×</button>
     </div>`).join('');
 }
