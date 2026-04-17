@@ -252,19 +252,22 @@ input[type="text"].error { border-color: var(--red) !important; }
 .meta-history-search:focus { outline: none; border-color: var(--accent); }
 .tt-history { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; }
 .tt-history-hdr { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 8px; }
-.tt-search { width: 100%; height: 32px; padding: 0 10px; font-size: 12px; font-family: 'DM Sans', sans-serif; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface2); color: var(--text); margin-bottom: 8px; outline: none; }
+.tt-search { width: 100%; height: 32px; padding: 0 10px; font-size: 12px; font-family: 'DM Sans', sans-serif; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface2); color: var(--text); margin-bottom: 8px; outline: none; box-sizing: border-box; }
 .tt-search:focus { border-color: var(--accent-border); }
-.tt-history-list { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
-.tt-h-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 7px 10px; }
-.tt-h-sku { font-size: 12px; font-weight: 600; color: var(--text); }
-.tt-h-meta { font-size: 10px; color: var(--text-tertiary); margin-top: 2px; margin-bottom: 6px; }
-.tt-h-actions { display: flex; gap: 4px; }
-.tt-h-load { flex: 1; height: 24px; font-size: 10px; font-family: 'DM Sans', sans-serif; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text-secondary); cursor: pointer; }
+.tt-history-list { display: flex; flex-direction: column; gap: 4px; max-height: 520px; overflow-y: auto; }
+.tt-h-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; display: flex; align-items: center; gap: 8px; transition: all 0.12s; }
+.tt-h-item:hover { border-color: var(--accent-border); background: var(--accent-dim); }
+.tt-h-icon { width: 28px; height: 28px; border-radius: 7px; background: var(--surface2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tt-h-icon svg { width: 13px; height: 13px; stroke: var(--text-tertiary); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.tt-h-body { flex: 1; min-width: 0; }
+.tt-h-sku { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt-h-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+.tt-h-load { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; white-space: nowrap; flex-shrink: 0; font-family: 'DM Sans', sans-serif; }
 .tt-h-load:hover { border-color: var(--accent-border); color: var(--accent); }
-.tt-h-regen { flex: 1; height: 24px; font-size: 10px; font-family: 'DM Sans', sans-serif; border: 1px solid var(--green-border); border-radius: 5px; background: var(--green-dim); color: var(--green); cursor: pointer; font-weight: 500; }
-.tt-h-regen:hover { background: var(--green); color: white; }
-.tt-h-del { width: 24px; height: 24px; font-size: 12px; font-family: 'DM Sans', sans-serif; border: 1px solid var(--border); border-radius: 5px; background: transparent; color: var(--text-tertiary); cursor: pointer; }
-.tt-h-del:hover { color: var(--red); border-color: var(--red); }
+.tt-h-regen { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 4px; border: 1px solid var(--green-border,#b7e4c7); background: var(--green-dim,#f0faf4); color: var(--green,#1e8e3e); cursor: pointer; white-space: nowrap; flex-shrink: 0; font-family: 'DM Sans', sans-serif; }
+.tt-h-regen:hover { background: var(--green,#1e8e3e); color: white; }
+.tt-h-del { width: 22px; height: 22px; font-size: 13px; border: none; background: transparent; color: var(--text-tertiary); cursor: pointer; flex-shrink: 0; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+.tt-h-del:hover { color: var(--red,#d93025); background: #fce8e8; }
 .tt-empty { font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 1.5rem 0; }
 @media(max-width:600px){ .tt-layout { grid-template-columns: 1fr; } }
 .tt-download-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 12px; display: flex; align-items: center; gap: 16px; }
@@ -1081,13 +1084,14 @@ function ttRenderHistory(){
   if(!h.length){ el.innerHTML='<div class="tt-empty">'+(q?'Ni rezultatov.':'Še ni zgodovine.')+'</div>'; return; }
   el.innerHTML = h.map((e,i) => `
     <div class="tt-h-item">
-      <div class="tt-h-sku">${esc(e.sku)}</div>
-      <div class="tt-h-meta">${esc(e.brand)} · ${esc(e.date)}</div>
-      <div class="tt-h-actions">
-        <button class="tt-h-load" onclick="ttLoadFromHistory(${i})">Naloži</button>
-        <button class="tt-h-regen" onclick="ttRegenFromHistory(${i})">↺ Znova</button>
-        <button class="tt-h-del" onclick="ttDeleteHistory(${i})">×</button>
+      <div class="tt-h-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+      <div class="tt-h-body">
+        <div class="tt-h-sku">${esc(e.sku)}</div>
+        <div class="tt-h-meta">${esc(e.brand||'')}${e.brand?' · ':''}${esc(e.date)}</div>
       </div>
+      <button class="tt-h-load" onclick="ttLoadFromHistory(${i})">Naloži</button>
+      <button class="tt-h-regen" onclick="ttRegenFromHistory(${i})">↺ Znova</button>
+      <button class="tt-h-del" onclick="ttDeleteHistory(${i})">×</button>
     </div>`).join('');
 }
 function ttLoadFromHistory(i){
