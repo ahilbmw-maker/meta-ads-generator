@@ -15,7 +15,7 @@ import openpyxl
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 import anthropic
 
@@ -265,6 +265,34 @@ async def call_claude(prompt: str, model: str, tools=None, max_tokens: int = 800
     return ""
 
 
+async def generate_meta_sl_only(user_msg: str, mode: str, source_url: Optional[str],
+                                pt_count: int, hl_count: int) -> dict:
+    """Generira samo SL tekste brez prevajanja — za streaming mode."""
+    product_urls = find_product_urls(source_url)
+    tools = [{"type": "web_search_20250305", "name": "web_search"}] if mode == "url" else []
+    pt_ph = ", ".join([f'"PT {i+1}"' for i in range(pt_count)])
+    hl_ph = ", ".join([f'"HL {i+1}"' for i in range(hl_count)])
+    sl_prompt = f"""{user_msg}
+
+Ustvari Meta oglase SAMO v slovenščini.
+Primary Text ({pt_count}x): 2-3 vrstice, 2-3 emoji-ji, prodajni ton, brez cen, vsak DRUGAČEN.
+Headline ({hl_count}x): MAX 5 BESED, 1 emoji na začetku, brez cen, vsak DRUGAČEN.
+EMOJI PRAVILO: Uporabljaj SAMO te emoji-je ki so zagotovo podprti na vseh napravah:
+✅ ⭐ 🔥 💪 🎯 👍 ❤️ 💥 🚀 ✨ 💡 🎁 💰 👌 🙌 😍 💎 🏆 ⚡ 🌟 👏 💫 🛒 📦 🔑 💯 😊 🤩 🌿 🌱 🍃 🌸 🌻 🌞 🍀 🎉 🎊 🛍️ 💚 💙 🧡 💜 🤍 🖤
+NE uporabljaj: redkih, novejših ali manj znanih emoji-jev ki se lahko prikažejo kot □
+Vrni SAMO JSON: {{"product": "ime", "pt": [{pt_ph}], "hl": [{hl_ph}]}}"""
+
+    sl_text = await call_claude(sl_prompt, "claude-sonnet-4-6", tools if tools else None, 4000)
+    sl_data = parse_json_response(sl_text)
+    if not sl_data:
+        return {"error": "Napaka pri generiranju SL tekstov."}
+    return {
+        "product": sl_data.get("product", "Izdelek"),
+        "sl": {"pt": sl_data.get("pt", []), "hl": sl_data.get("hl", [])},
+        "product_urls": product_urls,
+    }
+
+
 async def generate_meta_one(user_msg: str, mode: str, source_url: Optional[str],
                             pt_count: int, hl_count: int, qmode: str) -> dict:
     product_urls = find_product_urls(source_url)
@@ -478,6 +506,122 @@ async def generate_multi(req: MultiAdRequest):
         if i < len(req.products) - 1:
             await asyncio.sleep(15)
     return {"results": results}
+
+
+@app.post("/generate-multi-stream")
+async def generate_multi_stream(req: MultiAdRequest):
+    """SSE streaming endpoint — pošilja rezultate batch po batch."""
+    await ensure_cache_fresh()
+
+    async def event_stream():
+        for i, p in enumerate(req.products):
+            url = p.get("url", "").strip()
+            mode = p.get("mode", "url")
+            if not url:
+                yield f"data: {json.dumps({'type': 'result', 'index': i, 'data': {'error': 'Prazen URL'}})}\n\n"
+                continue
+
+            # Notify frontend that this product is being processed
+            yield f"data: {json.dumps({'type': 'loading', 'index': i, 'url': url})}\n\n"
+
+            user_msg = f"Preberi to stran in ustvari Meta oglase: {url}" if mode == "url" else f"Na podlagi tega opisa:\n\n{url}"
+
+            if req.qmode == "fast":
+                # Step 1: SL generation
+                yield f"data: {json.dumps({'type': 'progress', 'index': i, 'step': 'sl'})}\n\n"
+                result = await generate_meta_sl_only(user_msg, mode, url if mode == "url" else None,
+                                                      req.pt_count, req.hl_count)
+                if "error" in result:
+                    yield f"data: {json.dumps({'type': 'result', 'index': i, 'data': result})}\n\n"
+                    if i < len(req.products) - 1:
+                        await asyncio.sleep(15)
+                    continue
+
+                # Send SL immediately
+                yield f"data: {json.dumps({'type': 'partial', 'index': i, 'langs': ['sl'], 'data': result})}\n\n"
+
+                sl_pts = result["sl"]["pt"]
+                sl_hls = result["sl"]["hl"]
+                product_urls = result.get("product_urls", {})
+                product_name = result.get("product", "Izdelek")
+
+                # Step 2: Parallel translation in 4 batches of 2-3 langs
+                pt_ph = ", ".join([f'"PT {i2+1}"' for i2 in range(req.pt_count)])
+                hl_ph = ", ".join([f'"HL {i2+1}"' for i2 in range(req.hl_count)])
+
+                lang_batches = [
+                    ["hr", "rs"],
+                    ["hu", "cz"],
+                    ["sk", "pl"],
+                    ["gr", "ro", "bg"],
+                ]
+
+                lang_info = {
+                    "hr": "HR (hrvaščina, latinica)",
+                    "rs": "RS (srbščina, SAMO latinica!)",
+                    "hu": "HU (madžarščina - aglutinacijski jezik, ne prevajaj dobesedno)",
+                    "cz": "CZ (češčina)",
+                    "sk": "SK (slovaščina)",
+                    "pl": "PL (poljščina)",
+                    "gr": "GR (grščina, grška pisava!)",
+                    "ro": "RO (romunščina, latinica)",
+                    "bg": "BG (bolgarščina, SAMO cirilica!)",
+                }
+
+                full_result = {
+                    "product": product_name,
+                    "product_urls": product_urls,
+                    "sl": {"pt": sl_pts, "hl": sl_hls},
+                }
+
+                for batch in lang_batches:
+                    yield f"data: {json.dumps({'type': 'progress', 'index': i, 'step': 'translating', 'langs': batch})}\n\n"
+
+                    batch_json_keys = ", ".join([
+                        f'"{lang}":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}}'
+                        for lang in batch
+                    ])
+                    batch_lang_lines = "\n".join([f"- {lang_info[lang]}" for lang in batch])
+
+                    batch_prompt = f"""Prevedi Meta oglase iz slovenščine v naslednje jezike. Ohrani ŠTEVILO in POZICIJO emoji-jev točno kot v originalu.
+
+Primary Texts: {json.dumps(sl_pts, ensure_ascii=False)}
+Headlines: {json.dumps(sl_hls, ensure_ascii=False)}
+
+Prevedi SAMO v te jezike:
+{batch_lang_lines}
+
+SPLOŠNA PRAVILA:
+- Ohrani prodajni/energičen ton
+- Prevodi morajo zveneti kot materni govorec
+- Ohrani ŠTEVILO emoji-jev
+- Headlines: MAX 5 besed
+- Ne prevajaj imen izdelkov/blagovnih znamk
+
+Vrni SAMO JSON: {{{batch_json_keys}}}"""
+
+                    batch_text = await call_claude(batch_prompt, "claude-haiku-4-5-20251001", None, 3000)
+                    batch_data = parse_json_response(batch_text)
+
+                    if batch_data:
+                        full_result.update(batch_data)
+                        yield f"data: {json.dumps({'type': 'partial', 'index': i, 'langs': batch, 'data': full_result})}\n\n"
+
+                yield f"data: {json.dumps({'type': 'result', 'index': i, 'data': full_result})}\n\n"
+
+            else:
+                # Kreativni način — en klic, pošlji ko konča
+                result = await generate_meta_one(user_msg, mode, url if mode == "url" else None,
+                                                  req.pt_count, req.hl_count, req.qmode)
+                yield f"data: {json.dumps({'type': 'result', 'index': i, 'data': result})}\n\n"
+
+            if i < len(req.products) - 1:
+                await asyncio.sleep(15)
+
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.post("/generate-tiktok")
