@@ -31,6 +31,8 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 DATA_DIR.mkdir(exist_ok=True, parents=True)
 TT_HISTORY_FILE = DATA_DIR / "tiktok_history.json"
 META_HISTORY_FILE = DATA_DIR / "meta_history.json"
+FORECAST_ENTRIES_FILE = DATA_DIR / "forecast_entries.json"
+FORECAST_HISTORY_FILE = DATA_DIR / "forecast_history.json"
 
 # ─── BRAND DOMAIN MAPS ───────────────────────────────────────────────────────
 
@@ -503,6 +505,40 @@ async def save_meta_history(data: dict):
         history = data.get("history", [])
         META_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
         return {"status": "ok", "count": len(history)}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/forecast-entries")
+async def get_forecast_entries():
+    if FORECAST_ENTRIES_FILE.exists():
+        try:
+            return json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
+        except:
+            return {}
+    return {}
+
+@app.post("/forecast-entries")
+async def save_forecast_entries(data: dict):
+    try:
+        FORECAST_ENTRIES_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"status": "ok"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/forecast-history")
+async def get_forecast_history():
+    if FORECAST_HISTORY_FILE.exists():
+        try:
+            return json.loads(FORECAST_HISTORY_FILE.read_text(encoding="utf-8"))
+        except:
+            return {}
+    return {}
+
+@app.post("/forecast-history")
+async def save_forecast_history(data: dict):
+    try:
+        FORECAST_HISTORY_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"status": "ok"}
     except Exception as e:
         return {"error": str(e)}
 
