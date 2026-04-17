@@ -235,47 +235,50 @@ let entries=[];
 let chart=null;
 let chart2=null;
 
-// Load from localStorage, reset if new day
-function loadEntries(){
+// Load from server, reset if new day
+async function loadEntries(){
   try{
-    const saved=JSON.parse(localStorage.getItem('forecast_entries')||'null');
-    if(!saved)return;
-    const today=new Date().toLocaleDateString('sl-SI');
-    if(saved.date!==today){localStorage.removeItem('forecast_entries');return;}
-    entries=saved.entries||[];
-  }catch(e){entries=[];}
+    const data = await fetch('/forecast-entries').then(r=>r.json());
+    if(!data || !data.date) return;
+    const today = new Date().toLocaleDateString('sl-SI');
+    if(data.date !== today) return; // new day, start fresh
+    entries = data.entries || [];
+  }catch(e){ entries=[]; }
 }
-function saveEntries(){
-  const today=new Date().toLocaleDateString('sl-SI');
-  localStorage.setItem('forecast_entries',JSON.stringify({date:today,entries}));
-  // Zbiranje zgodovinskih podatkov za učenje modela
+
+async function saveEntries(){
+  const today = new Date().toLocaleDateString('sl-SI');
+  try{
+    await fetch('/forecast-entries', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({date:today, entries})});
+  }catch(e){}
   collectHistoricalData(today);
 }
 
-function collectHistoricalData(today){
+async function collectHistoricalData(today){
   try{
-    const hist=JSON.parse(localStorage.getItem('forecast_history')||'{}');
-    // Shrani vse vnose za današnji dan
-    hist[today]=entries.map(e=>({
+    const hist = await fetch('/forecast-history').then(r=>r.json());
+    hist[today] = entries.map(e=>({
       h: parseInt(e.label.split(':')[0]),
       m: parseInt(e.label.split(':')[1]),
       ord: e.dejanskiOrd||0,
       rev: e.dejanski||0
     }));
     // Ohrani samo zadnjih 14 dni
-    const keys=Object.keys(hist).sort();
+    const keys = Object.keys(hist).sort();
     if(keys.length>14) delete hist[keys[0]];
-    localStorage.setItem('forecast_history',JSON.stringify(hist));
-    updateDataCounter();
+    await fetch('/forecast-history', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(hist)});
+    updateDataCounter(hist);
   }catch(e){}
 }
 
-function updateDataCounter(){
+async function updateDataCounter(hist){
   try{
-    const hist=JSON.parse(localStorage.getItem('forecast_history')||'{}');
-    const days=Object.keys(hist).length;
-    const el=document.getElementById('data-counter');
-    if(!el)return;
+    if(!hist) hist = await fetch('/forecast-history').then(r=>r.json());
+    const days = Object.keys(hist).length;
+    const el = document.getElementById('data-counter');
+    if(!el) return;
     if(days<7){
       el.textContent=`Zbiranje podatkov za učenje modela: ${days}/7 dni`;
       el.style.color='var(--text3)';
@@ -435,10 +438,12 @@ function renderLog(){
 }
 
 // Init
-loadEntries();
-renderChart();
-renderLog();
-updateDataCounter();
+(async()=>{
+  await loadEntries();
+  renderChart();
+  renderLog();
+  await updateDataCounter();
+})();
 </script>
 </body>
 </html>
