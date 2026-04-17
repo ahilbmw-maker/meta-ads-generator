@@ -408,6 +408,7 @@ input[type="text"].error { border-color: var(--red) !important; }
         </div><!-- /desna kolona -->
 
       </div><!-- /meta-layout -->
+    </div><!-- /metaFormSection -->
 
     <div class="results" id="metaResults">
       <div class="results-hdr">
@@ -578,13 +579,17 @@ function switchPage(page) {
   document.getElementById('page-' + page).classList.add('active');
   if(document.getElementById('nav-' + page)) document.getElementById('nav-' + page).classList.add('active');
   if(document.getElementById('tab-' + page)) document.getElementById('tab-' + page).classList.add('active');
-  // Wide layout for forecast and calc pages
+  // Wide layout
   const mainEl = document.querySelector('.main');
-  if(mainEl) mainEl.classList.toggle('wide', page==='forecast' || page==='calc' || page==='tiktok');
-  // Meta: wide only if form is visible (not results)
-  if(page==='meta') {
-    const formVisible = document.getElementById('metaFormSection').style.display !== 'none';
-    setMetaWide(formVisible);
+  if(mainEl) {
+    if(page==='forecast' || page==='calc' || page==='tiktok') {
+      mainEl.classList.add('wide');
+    } else if(page==='meta') {
+      const formVisible = document.getElementById('metaFormSection').style.display !== 'none';
+      mainEl.classList.toggle('wide', formVisible);
+    } else {
+      mainEl.classList.remove('wide');
+    }
   }
   closeMenu();
 }
