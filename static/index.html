@@ -567,6 +567,72 @@ async function metaGenerate() {
   document.getElementById('metaLoadingText').textContent=`Generiram 1/${inputs.length}...`;
   const reqBody={products:inputs.map(url=>({url,mode:'url'})),pt_count:metaState.pt,hl_count:metaState.hl,qmode:metaState.qmode};
   metaLastReq={reqBody,urls:inputs};
+  if(metaState.qmode==='fast'){
+    await metaGenerateStream(inputs,reqBody,btn);
+  } else {
+    await metaGenerateClassic(inputs,reqBody,btn);
+  }
+}
+
+async function metaGenerateStream(inputs,reqBody,btn) {
+  const results=new Array(inputs.length).fill(null);
+  let rendered=false;
+  try{
+    const res=await fetch('/generate-multi-stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)});
+    if(!res.ok) throw new Error(`Server napaka ${res.status}`);
+    const reader=res.body.getReader();
+    const decoder=new TextDecoder();
+    let buffer='';
+    while(true){
+      const {done,value}=await reader.read();
+      if(done) break;
+      buffer+=decoder.decode(value,{stream:true});
+      const lines=buffer.split('\n');
+      buffer=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: ')) continue;
+        try{
+          const msg=JSON.parse(line.slice(6));
+          if(msg.type==='loading'){
+            document.getElementById('metaLoadingText').textContent=`Generiram ${msg.index+1}/${inputs.length}...`;
+          }
+          else if(msg.type==='progress'){
+            const langNames={'sl':'SL','hr':'HR','rs':'RS','hu':'HU','cz':'CZ','sk':'SK','pl':'PL','gr':'GR','ro':'RO','bg':'BG'};
+            if(msg.step==='sl') document.getElementById('metaLoadingText').textContent='Generiram SL tekste...';
+            else if(msg.langs) document.getElementById('metaLoadingText').textContent=`Prevajam: ${msg.langs.map(l=>langNames[l]||l).join(', ')}...`;
+          }
+          else if(msg.type==='partial'){
+            results[msg.index]=msg.data;
+            if(!rendered){
+              document.getElementById('metaFormSection').style.display='none';
+              document.getElementById('metaResults').classList.add('show');
+              rendered=true;
+            }
+            renderMetaResults(results.filter(Boolean));
+          }
+          else if(msg.type==='result'){
+            results[msg.index]=msg.data;
+            const el=document.getElementById('mprog-'+msg.index);
+            if(el){el.classList.remove('loading');el.classList.add('done');}
+          }
+          else if(msg.type==='done'){
+            document.getElementById('metaLoadingText').textContent='Končano! ✅';
+            setTimeout(()=>{
+              document.getElementById('metaLoading').classList.remove('show');
+              saveH(results,inputs,metaState.pt,metaState.hl);
+              renderMetaResults(results.filter(Boolean));
+            },600);
+          }
+        }catch(e){console.warn('SSE parse error',e);}
+      }
+    }
+  }catch(e){
+    document.getElementById('metaLoading').classList.remove('show');
+    const err=document.getElementById('metaError');err.textContent='Napaka: '+(e.message||'Poskusi znova.');err.classList.add('show');btn.disabled=false;
+  }
+}
+
+async function metaGenerateClassic(inputs,reqBody,btn) {
   try{
     const res=await fetch('/generate-multi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)});
     if(!res.ok){const txt=await res.text();throw new Error(`Server napaka ${res.status} — poskusi znova čez minuto`);}
