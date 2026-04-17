@@ -220,22 +220,29 @@ function fmt(val,dec,curr){
 }
 function doCopy(val,btnId){
   const txt=typeof val==='number'?val.toFixed(2):String(val);
-  // Fallback ki deluje v iframu
-  const ta=document.createElement('textarea');
-  ta.value=txt;
-  ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
-  document.body.appendChild(ta);
-  ta.focus();ta.select();ta.setSelectionRange(0,99999);
-  try{document.execCommand('copy');}catch(e){}
-  document.body.removeChild(ta);
-  // Poskusi tudi clipboard API
-  if(navigator.clipboard&&window.isSecureContext){
-    navigator.clipboard.writeText(txt).catch(()=>{});
+  let success=false;
+  // Metoda 1: execCommand
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=txt;
+    ta.setAttribute('readonly','');
+    ta.style.cssText='position:absolute;left:-9999px;top:-9999px;';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0,99999);
+    success=document.execCommand('copy');
+    document.body.removeChild(ta);
+  }catch(e){console.warn('execCommand failed',e);}
+  // Metoda 2: clipboard API
+  if(!success&&navigator.clipboard){
+    navigator.clipboard.writeText(txt).catch(e=>console.warn('clipboard failed',e));
+    success=true;
   }
+  console.log('Copy attempt:', txt, 'success:', success);
   const btn=document.getElementById(btnId);
   if(!btn)return;
   const orig=btn.textContent;
-  btn.textContent='ok';btn.classList.add('ok');
+  btn.textContent='ok ✓';btn.classList.add('ok');
   setTimeout(()=>{btn.textContent=orig;btn.classList.remove('ok');},1800);
 }
 function calc(){
