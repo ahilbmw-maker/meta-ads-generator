@@ -371,6 +371,11 @@ input[type="text"].error { border-color: var(--red) !important; }
           <button class="back-btn" onclick="metaGoBack()"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg> Nov vnos</button>
         </div>
       </div>
+      <!-- Streaming progress bar — viden med prevajanjem -->
+      <div id="streamingBar" style="display:none;align-items:center;gap:10px;padding:8px 14px;margin-bottom:10px;background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:var(--radius);font-size:12px;color:var(--accent)">
+        <div class="spinner" style="width:14px;height:14px;border-width:2px;flex-shrink:0"></div>
+        <span id="streamingBarText">Prevajam...</span>
+      </div>
       <div id="prodPanels"></div>
     </div>
   </div>
@@ -598,14 +603,20 @@ async function metaGenerateStream(inputs,reqBody,btn) {
           }
           else if(msg.type==='progress'){
             const langNames={'sl':'SL','hr':'HR','rs':'RS','hu':'HU','cz':'CZ','sk':'SK','pl':'PL','gr':'GR','ro':'RO','bg':'BG'};
-            if(msg.step==='sl') document.getElementById('metaLoadingText').textContent='Generiram SL tekste...';
-            else if(msg.langs) document.getElementById('metaLoadingText').textContent=`Prevajam: ${msg.langs.map(l=>langNames[l]||l).join(', ')}...`;
+            if(msg.step==='sl'){
+              document.getElementById('metaLoadingText').textContent='Generiram SL tekste...';
+            } else if(msg.langs){
+              const names=msg.langs.map(l=>langNames[l]||l).join(', ');
+              document.getElementById('metaLoadingText').textContent=`Prevajam: ${names}...`;
+              document.getElementById('streamingBarText').textContent=`Prevajam: ${names}...`;
+            }
           }
           else if(msg.type==='partial'){
             results[msg.index]=msg.data;
             if(!rendered){
               document.getElementById('metaFormSection').style.display='none';
               document.getElementById('metaResults').classList.add('show');
+              document.getElementById('streamingBar').style.display='flex';
               rendered=true;
             }
             renderMetaResults(results.filter(Boolean));
@@ -616,6 +627,7 @@ async function metaGenerateStream(inputs,reqBody,btn) {
             if(el){el.classList.remove('loading');el.classList.add('done');}
           }
           else if(msg.type==='done'){
+            document.getElementById('streamingBar').style.display='none';
             document.getElementById('metaLoadingText').textContent='Končano! ✅';
             setTimeout(()=>{
               document.getElementById('metaLoading').classList.remove('show');
