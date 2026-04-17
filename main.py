@@ -420,7 +420,8 @@ def build_tiktok_xlsx(sku: str, brand: str, video_names: str,
     # Count videos to build matching BC ID
     videos = [v.strip() for v in re.findall(r'\[([^\]]+)\]', video_names)]
     new_bc_id = ','.join([single_id] * len(videos)) if videos else single_id
-    new_campaign = f'[{brand}] Smart+ {sku} - ALL'
+    today = datetime.now().strftime('%-d_%-m_%Y')
+    new_campaign = f'[{brand}] Smart+ {sku} - {today}'
 
     for row in ws.iter_rows(min_row=2):
         r = row[0].row
