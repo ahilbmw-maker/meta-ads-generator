@@ -246,6 +246,8 @@ input[type="text"].error { border-color: var(--red) !important; }
 .meta-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
 .meta-history-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; }
 .meta-history-panel .history-list { max-height: 520px; overflow-y: auto; }
+.hi-regen { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 4px; border: 1px solid var(--accent-border); background: var(--accent-dim); color: var(--accent); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.hi-regen:hover { background: var(--accent); color: #fff; }
 .meta-history-search { width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-primary); margin-bottom: 10px; box-sizing: border-box; }
 .meta-history-search:focus { outline: none; border-color: var(--accent); }
 .tt-history { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; }
@@ -655,7 +657,7 @@ function metaRenderServerHistory() {
   if (!filtered.length) { el.innerHTML='<div class="history-empty">Ni zgodovine.</div>'; return; }
   el.innerHTML = filtered.map(e => {
     const brand = detectBrand(e.urls);
-    return `<div class="history-item" onclick="metaLoadServerEntry(${e.id})">
+    return `<div class="history-item" onclick="metaLoadServerEntry(${e.id})" style="cursor:pointer">
     <div class="hi-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
     <div class="hi-body"><div class="hi-name">🛍 ${esc(e.names)}</div><div class="hi-meta">${e.date} · ${(e.urls||[]).filter(Boolean).length} URL-jev</div></div>
     <span class="brand-badge brand-${brand.key}">${brand.label}</span>
@@ -667,11 +669,27 @@ function metaRenderServerHistory() {
 function metaLoadServerEntry(id) {
   const e = metaServerHistory.find(x => x.id === id);
   if (!e) return;
-  // Fill URL inputs
+  if (e.results && e.results.length) {
+    // Show saved results directly
+    document.getElementById('metaFormSection').style.display = 'none';
+    document.getElementById('metaResults').classList.add('show');
+    setMetaWide(false);
+    renderMetaResults(e.results);
+  } else {
+    // Fallback: just load URLs into form
+    const inputs = [...document.querySelectorAll('.meta-url-input')];
+    (e.urls||[]).forEach((u,i) => { if(inputs[i]) inputs[i].value = u||''; });
+    for(let i=(e.urls||[]).length; i<inputs.length; i++) inputs[i].value='';
+  }
+}
+
+function metaRegenServerEntry(id) {
+  const e = metaServerHistory.find(x => x.id === id);
+  if (!e) return;
   const inputs = [...document.querySelectorAll('.meta-url-input')];
   (e.urls||[]).forEach((u,i) => { if(inputs[i]) inputs[i].value = u||''; });
-  // Fill remaining with empty
   for(let i=(e.urls||[]).length; i<inputs.length; i++) inputs[i].value='';
+  setTimeout(() => metaGenerate(), 100);
 }
 
 async function metaServerClearHistory() {
@@ -692,8 +710,8 @@ function saveH(results,urls,pt,hl){
   if(h.length>HMAX)h.splice(HMAX);
   localStorage.setItem(HKEY,JSON.stringify(h));renderH();
   // Save to server (without full results to save space)
-  const serverEntry = {id:entry.id, names:entry.names, urls:entry.urls, pt:entry.pt, hl:entry.hl, date:entry.date};
-  console.log('[MetaHistory] Saving entry:', serverEntry);
+  const serverEntry = {id:entry.id, names:entry.names, urls:entry.urls, pt:entry.pt, hl:entry.hl, date:entry.date, results:validResults};
+
   metaServerHistory.unshift(serverEntry);
   if(metaServerHistory.length>50) metaServerHistory.splice(50);
   metaSaveServerHistory();
@@ -1038,9 +1056,11 @@ async function ttLoadHistory(){
 
 async function ttSaveHistory(){
   try{
-    await fetch('/tiktok-history', {method:'POST', headers:{'Content-Type':'application/json'},
+    const res = await fetch('/tiktok-history', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({history: ttHistory})});
-  }catch(e){ console.warn('History save failed', e); }
+    const json = await res.json();
+    console.log('[TikTokHistory] Saved', ttHistory.length, 'entries:', json);
+  }catch(e){ console.warn('[TikTokHistory] Save failed', e); }
 }
 
 function ttGetHistory(){ return ttHistory; }
