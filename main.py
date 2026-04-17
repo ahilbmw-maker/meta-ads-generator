@@ -27,6 +27,9 @@ client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 TEMPLATE_PATH = "static/tiktok_template.xlsx"
 EXPORTS_DIR = Path("exports")
 EXPORTS_DIR.mkdir(exist_ok=True)
+DATA_DIR = Path("data")
+DATA_DIR.mkdir(exist_ok=True)
+TT_HISTORY_FILE = DATA_DIR / "tiktok_history.json"
 
 # ─── BRAND DOMAIN MAPS ───────────────────────────────────────────────────────
 
@@ -464,6 +467,24 @@ class TikTokRequest(BaseModel):
 
 
 # ─── ROUTES ──────────────────────────────────────────────────────────────────
+
+@app.get("/tiktok-history")
+async def get_tiktok_history():
+    if TT_HISTORY_FILE.exists():
+        try:
+            return json.loads(TT_HISTORY_FILE.read_text(encoding="utf-8"))
+        except:
+            return []
+    return []
+
+@app.post("/tiktok-history")
+async def save_tiktok_history(data: dict):
+    try:
+        history = data.get("history", [])
+        TT_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"status": "ok", "count": len(history)}
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.get("/")
 def root():
