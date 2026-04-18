@@ -528,7 +528,32 @@ def build_master_xlsx(skus: list) -> str:
 
 
 class MasterXlsxRequest(BaseModel):
-    skus: List[dict]  # [{sku, brand, url, videos}]
+    skus: List[dict]  # [{sku, brand, url, videos, texts, urls}]
+
+
+@app.post("/build-master-xlsx")
+async def build_master_xlsx_endpoint(req: MasterXlsxRequest):
+    """Sestavi master XLS iz že shranjenih tekstov — brez API klicev."""
+    skus_data = []
+    for entry in req.skus:
+        if not entry.get('videos'):
+            continue
+        skus_data.append({
+            'sku':    entry.get('sku', ''),
+            'brand':  entry.get('brand', ''),
+            'videos': entry.get('videos', ''),
+            'texts':  entry.get('texts', {}),
+            'urls':   entry.get('urls', {}),
+        })
+
+    if not skus_data:
+        return {"error": "Ni veljavnih SKU-jev (manjkajo video imena)."}
+
+    try:
+        path = build_master_xlsx(skus_data)
+        return {"status": "ok", "file": path}
+    except FileNotFoundError as e:
+        return {"error": str(e)}
 
 
 @app.post("/generate-master-xlsx")
