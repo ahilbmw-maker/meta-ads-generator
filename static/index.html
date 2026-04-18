@@ -269,6 +269,14 @@ input[type="text"].error { border-color: var(--red) !important; }
 .tt-h-del { width: 22px; height: 22px; font-size: 13px; border: none; background: transparent; color: var(--text-tertiary); cursor: pointer; flex-shrink: 0; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
 .tt-h-del:hover { color: var(--red,#d93025); background: #fce8e8; }
 .tt-empty { font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 1.5rem 0; }
+.tt-h-check { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+.tt-h-item.selected { border-color: var(--accent-border); background: var(--accent-dim); }
+.tt-master-bar { display: none; align-items: center; gap: 8px; padding: 8px 12px; margin-top: 8px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: var(--radius); }
+.tt-master-bar.show { display: flex; }
+.tt-master-count { font-size: 12px; font-weight: 600; color: var(--accent); flex: 1; }
+.tt-master-btn { font-size: 12px; font-weight: 600; padding: 5px 14px; border-radius: var(--radius); border: none; background: var(--accent); color: white; cursor: pointer; white-space: nowrap; }
+.tt-master-btn:hover { opacity: 0.85; }
+.tt-master-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 @media(max-width:600px){ .tt-layout { grid-template-columns: 1fr; } }
 .tt-download-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 12px; display: flex; align-items: center; gap: 16px; }
 .tt-download-icon { width: 48px; height: 48px; border-radius: 12px; background: var(--surface2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -491,6 +499,11 @@ input[type="text"].error { border-color: var(--red) !important; }
           <input type="text" class="tt-search" id="ttHistorySearch" placeholder="Išči SKU..." oninput="ttRenderHistory()">
           <div class="tt-history-list" id="ttHistoryList">
             <div class="tt-empty">Še ni zgodovine.</div>
+          </div>
+          <!-- Master XLS bar -->
+          <div class="tt-master-bar" id="ttMasterBar">
+            <span class="tt-master-count" id="ttMasterCount">0 izbranih</span>
+            <button class="tt-master-btn" id="ttMasterBtn" onclick="ttGenerateMaster()">⬇ Ustvari Master XLS</button>
           </div>
           <div id="ttManualAdd" style="margin-top:8px">
             <div id="ttManualBtn" onclick="ttToggleManual()" style="font-size:11px;color:var(--text-tertiary);cursor:pointer;text-align:center;padding:6px;border:1px dashed var(--border);border-radius:var(--radius);background:transparent;font-family:'DM Sans',sans-serif">+ Dodaj SKU ročno</div>
@@ -1076,14 +1089,85 @@ function ttSaveToHistory(sku, brand, url, videos){
   ttSaveHistory();
   ttRenderHistory();
 }
+let ttSelectedSkus = []; // ordered by click
+
+function ttToggleSelect(sku, checkbox) {
+  const item = checkbox.closest('.tt-h-item');
+  if (checkbox.checked) {
+    if (!ttSelectedSkus.includes(sku)) ttSelectedSkus.push(sku);
+    item.classList.add('selected');
+  } else {
+    ttSelectedSkus = ttSelectedSkus.filter(s => s !== sku);
+    item.classList.remove('selected');
+  }
+  ttUpdateMasterBar();
+}
+
+function ttUpdateMasterBar() {
+  const bar = document.getElementById('ttMasterBar');
+  const count = document.getElementById('ttMasterCount');
+  const btn = document.getElementById('ttMasterBtn');
+  if (ttSelectedSkus.length >= 1) {
+    bar.classList.add('show');
+    count.textContent = `${ttSelectedSkus.length} izbranih SKU-jev`;
+    btn.disabled = false;
+  } else {
+    bar.classList.remove('show');
+  }
+}
+
+async function ttGenerateMaster() {
+  const btn = document.getElementById('ttMasterBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Generiram...';
+
+  // Build ordered list of entries by click order
+  const skus = ttSelectedSkus.map(sku => {
+    const e = ttHistory.find(x => x.sku === sku);
+    return e || null;
+  }).filter(e => e && e.videos); // preskoči brez video imen
+
+  if (!skus.length) {
+    alert('Nobeden od izbranih SKU-jev nima shranjenih video imen.');
+    btn.disabled = false;
+    btn.textContent = '⬇ Ustvari Master XLS';
+    return;
+  }
+
+  try {
+    const res = await fetch('/generate-master-xlsx', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({skus: skus.map(e => ({sku:e.sku, brand:e.brand, url:e.url, videos:e.videos}))})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    // Download
+    const a = document.createElement('a');
+    a.href = '/download/' + data.file.split('/').pop();
+    a.download = `master_${ttSelectedSkus.join('_').substring(0,40)}.xlsx`;
+    a.click();
+    btn.textContent = '✅ Prenešeno!';
+    setTimeout(() => { btn.textContent = '⬇ Ustvari Master XLS'; btn.disabled = false; }, 3000);
+  } catch(e) {
+    alert('Napaka: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = '⬇ Ustvari Master XLS';
+  }
+}
+
 function ttRenderHistory(){
   const q = (document.getElementById('ttHistorySearch')?.value||'').toLowerCase();
   const h = ttGetHistory().filter(x => !q || x.sku.toLowerCase().includes(q));
   const el = document.getElementById('ttHistoryList');
   if(!el) return;
   if(!h.length){ el.innerHTML='<div class="tt-empty">'+(q?'Ni rezultatov.':'Še ni zgodovine.')+'</div>'; return; }
-  el.innerHTML = h.map((e,i) => `
-    <div class="tt-h-item">
+  el.innerHTML = h.map((e,i) => {
+    const isSelected = ttSelectedSkus.includes(e.sku);
+    const hasVideos = !!e.videos;
+    return `
+    <div class="tt-h-item${isSelected?' selected':''}">
+      <input type="checkbox" class="tt-h-check" ${isSelected?'checked':''} ${!hasVideos?'disabled title="Ni video imen"':''} onchange="ttToggleSelect('${esc(e.sku)}', this)">
       <div class="tt-h-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
       <div class="tt-h-body">
         <div class="tt-h-sku">${esc(e.sku)}</div>
@@ -1092,7 +1176,8 @@ function ttRenderHistory(){
       <button class="tt-h-load" onclick="ttLoadFromHistory(${i})">Naloži</button>
       <button class="tt-h-regen" onclick="ttRegenFromHistory(${i})">↺ Znova</button>
       <button class="tt-h-del" onclick="ttDeleteHistory(${i})">×</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function ttLoadFromHistory(i){
   const h = ttGetHistory();
