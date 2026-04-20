@@ -1122,3 +1122,99 @@ async def generate_kreative(data: dict):
     # Vse kombinacije + vse slike vzporedno
     results = await asyncio.gather(*[generate_combo(combo) for combo in combos])
     return {"results": list(results)}
+
+
+# ─── ASANA ENDPOINTS ──────────────────────────────────────────────────────────
+
+ASANA_API = "https://app.asana.com/api/1.0"
+
+def asana_headers():
+    token = os.environ.get("ASANA_API_KEY", "")
+    return {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+
+@app.get("/asana-search")
+async def asana_search(q: str = ""):
+    """Išče Asana taske po imenu."""
+    if not q:
+        return {"tasks": []}
+    token = os.environ.get("ASANA_API_KEY", "")
+    if not token:
+        return {"error": "ASANA_API_KEY ni nastavljen."}
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as hc:
+            # Get workspaces first
+            ws_resp = await hc.get(f"{ASANA_API}/workspaces", headers=asana_headers())
+            workspaces = ws_resp.json().get("data", [])
+            if not workspaces:
+                return {"error": "Ni najdenih workspace-ov."}
+            ws_gid = workspaces[0]["gid"]
+
+            # Search tasks
+            params = {"workspace": ws_gid, "text": q, "resource_type": "task",
+                      "opt_fields": "gid,name,projects.name"}
+            search_resp = await hc.get(f"{ASANA_API}/workspaces/{ws_gid}/tasks/search",
+                                        params=params, headers=asana_headers())
+            tasks_raw = search_resp.json().get("data", [])
+
+            tasks = []
+            for t in tasks_raw[:10]:
+                projects = t.get("projects", [])
+                proj_name = projects[0]["name"] if projects else ""
+                tasks.append({"gid": t["gid"], "name": t["name"], "project": proj_name})
+
+            return {"tasks": tasks}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/asana-attach")
+async def asana_attach(data: dict):
+    """Priloži slike (base64 data URLs) na Asana task."""
+    task_id = data.get("task_id", "")
+    image_urls = data.get("image_urls", [])
+
+    if not task_id or not image_urls:
+        return {"error": "Manjka task_id ali slike."}
+
+    token = os.environ.get("ASANA_API_KEY", "")
+    if not token:
+        return {"error": "ASANA_API_KEY ni nastavljen."}
+
+    attached = 0
+    errors = []
+
+    async with httpx.AsyncClient(timeout=60.0) as hc:
+        for i, img_url in enumerate(image_urls):
+            try:
+                # Decode base64 data URL
+                if img_url.startswith("data:"):
+                    header, b64data = img_url.split(",", 1)
+                    mime = header.split(":")[1].split(";")[0]
+                    ext = mime.split("/")[1] if "/" in mime else "png"
+                    img_bytes = __import__("base64").b64decode(b64data)
+                else:
+                    # Regular URL — fetch it
+                    img_resp = await hc.get(img_url)
+                    img_bytes = img_resp.content
+                    mime = img_resp.headers.get("content-type", "image/png")
+                    ext = "png"
+
+                filename = f"kreativa_{i+1}.{ext}"
+
+                # Upload to Asana as attachment
+                files = {"file": (filename, img_bytes, mime)}
+                attach_resp = await hc.post(
+                    f"{ASANA_API}/tasks/{task_id}/attachments",
+                    headers={"Authorization": f"Bearer {token}"},
+                    files=files
+                )
+
+                if attach_resp.status_code in (200, 201):
+                    attached += 1
+                else:
+                    errors.append(f"Slika {i+1}: {attach_resp.text[:100]}")
+
+            except Exception as e:
+                errors.append(f"Slika {i+1}: {str(e)}")
+
+    return {"attached": attached, "errors": errors, "total": len(image_urls)}
