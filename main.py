@@ -963,21 +963,24 @@ Vrni SAMO JSON (brez markdown) v tej obliki:
     {{"label": "MAIN VERSION", "text": "benefit1, benefit2, benefit3"}},
     {{"label": "HIGH-CONVERT", "text": "benefit1, benefit2, benefit3"}},
     {{"label": "PROBLEM-SOLUTION", "text": "benefit1, benefit2, benefit3"}},
-    {{"label": "ULTRA SIMPLE", "text": "benefit1, benefit2"}}
+    {{"label": "ULTRA SIMPLE", "text": "benefit1, benefit2"}},
+    {{"label": "SOCIAL PROOF", "text": "benefit1, benefit2, benefit3"}}
   ],
   "bOptions": [
-    {{"label": "BEST", "text": "satisfying use moment shot"}},
-    {{"label": "SECOND OPTION", "text": "problem solved angle"}},
-    {{"label": "SCROLL STOPPER", "text": "before/after transformation"}},
-    {{"label": "BONUS", "text": "lifestyle outdoor scene"}}
+    {{"label": "BEST", "text": "kratko ime vibeа ozadja"}},
+    {{"label": "SECOND OPTION", "text": "kratko ime vibeа ozadja"}},
+    {{"label": "SCROLL STOPPER", "text": "kratko ime vibeа ozadja"}},
+    {{"label": "BONUS", "text": "kratko ime vibeа ozadja"}},
+    {{"label": "LIFESTYLE", "text": "kratko ime vibeа ozadja"}}
   ]
 }}
 
 Pravila:
 - name: samo ime blagovne znamke/modela z CAPS (npr. WEEDZAP, ASHIRAFLUX)
 - aOptions "text": SAMO kratki key benefits ločeni z vejico, ki se prikažejo kot ikone/tekst na sliki (v angleščini). Npr: "Real Flame, No Smoke, Anywhere You Are" ali "Pulls Root, No Chemicals, No Back Pain"
-- bOptions "text": SAMO kratko ime vibeа/stila ozadja (2-5 besed), npr: "evening atmosphere shot", "root pull satisfying moment", "before/after garden", "no chemicals angle"
-- Vsaka opcija mora biti unikatna in specifična za ta izdelek"""
+- bOptions "text": SAMO kratko ime vibeа/stila ozadja (2-5 besed), npr: "evening atmosphere shot", "root pull satisfying moment", "before/after garden", "no chemicals angle", "sweat reveal close-up"
+- Vsaka opcija mora biti unikatna in specifična za ta izdelek
+- Vrni točno 5 aOptions in 5 bOptions"""
 
     text = await call_claude(analysis_prompt, "claude-sonnet-4-6", tools, 2000)
     result = parse_json_response(text)
@@ -1056,12 +1059,12 @@ async def generate_kreative(data: dict):
     for a in a_options:
         for b in b_options:
             prompt = (
-                f"From these reference images, create a new Facebook ad creative. "
-                f"Try with an intense '{b.get('text', '')}' background/scene style — make it dramatic, eye-catching and scroll-stopping. "
-                f"On the image write ONLY the product name '{product_name}' in large stylized uppercase letters — recreate the brand logo from the reference images exactly: same font style, same design, same colors, same graphic elements. Make it look like an established brand logo, not plain text. "
-                f"No other text or copy on the image besides the brand name/logo. "
-                f"Visually highlight these key features using bold icons or graphic elements (in English): {a.get('text', '')}. Make the icons and feature labels visually strong and prominent. "
-                f"Photorealistic, high quality, square 1:1 FB ad format. High contrast, vibrant colors."
+                f"Iz teh slik mi ustvari novo kreativo za FB oglase. "
+                f"Poskusi bolj z intenzivnim \"{b.get('text', '')}\" ozadjem. "
+                f"Na sliki ne pisat nobenega teksta/besedila razen ime naprave z velikimi črkami \"{product_name}\" "
+                f"lahko kjer uspeš oz. je smiselno (prepoznaš kakšne angleške nazive) tudi narediš ven logotip iz imena. "
+                f"Uporabi logotip iz slik (exact). "
+                f"Izpostavi (lahko v ikoni, tekstu - v angleškem jeziku) da je: {a.get('text', '')}."
             )
             combos.append({
                 "combo": f"{a.get('label','A')} × {b.get('label','B')}",
