@@ -1072,24 +1072,52 @@ async def generate_kreative(data: dict):
             })
 
     # Prepare reference image parts for Gemini
-    image_parts = []
-    for img_data in ref_images[:8]:
+    # Upload referenčne slike enkrat na Gemini Files API (ne pošiljamo base64 v vsak klic)
+    file_uris = []
+    if ref_images:
+        async with httpx.AsyncClient(timeout=60.0) as hc:
+            for img_data in ref_images[:4]:  # max 4 referenčne slike
+                try:
+                    if "," in img_data:
+                        header, b64 = img_data.split(",", 1)
+                        mime = header.split(":")[1].split(";")[0]
+                    else:
+                        b64 = img_data
+                        mime = "image/jpeg"
+                    img_bytes = __import__("base64").b64decode(b64)
+                    upload_url = f"https://generativelanguage.googleapis.com/upload/v1beta/files?key={gemini_key}"
+                    resp = await hc.post(
+                        upload_url,
+                        content=img_bytes,
+                        headers={"Content-Type": mime, "X-Goog-Upload-Content-Type": mime,
+                                 "X-Goog-Upload-Protocol": "raw"}
+                    )
+                    if resp.status_code == 200:
+                        uri = resp.json().get("file", {}).get("uri", "")
+                        if uri:
+                            file_uris.append({"fileData": {"mimeType": mime, "fileUri": uri}})
+                except Exception:
+                    continue
+
+    # Fallback: če Files API ne dela, uporabi inline za prvo sliko
+    if file_uris:
+        image_parts = file_uris
+    elif ref_images:
         try:
+            img_data = ref_images[0]
             if "," in img_data:
                 header, b64 = img_data.split(",", 1)
                 mime = header.split(":")[1].split(";")[0]
             else:
-                b64 = img_data
-                mime = "image/jpeg"
-            image_parts.append({
-                "inline_data": {"mime_type": mime, "data": b64}
-            })
+                b64 = img_data; mime = "image/jpeg"
+            image_parts = [{"inline_data": {"mime_type": mime, "data": b64}}]
         except Exception:
-            continue
+            image_parts = []
+    else:
+        image_parts = []
 
     async def generate_one_image(combo_prompt, combo_label, idx):
-        """Generate a single image for a combo."""
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key={gemini_key}"
+        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key={gemini_key}"
         parts = list(image_parts) + [{"text": combo_prompt}]
         payload = {
             "contents": [{"parts": parts}],
@@ -1097,7 +1125,7 @@ async def generate_kreative(data: dict):
         }
         try:
             async with httpx.AsyncClient(timeout=120.0) as hc:
-                resp = await hc.post(url, json=payload, headers={"Content-Type": "application/json"})
+                resp = await hc.post(api_url, json=payload, headers={"Content-Type": "application/json"})
                 result = resp.json()
             if resp.status_code != 200:
                 return None, result.get("error", {}).get("message", str(result))
