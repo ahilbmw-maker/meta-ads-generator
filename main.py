@@ -1056,12 +1056,13 @@ async def generate_kreative(data: dict):
     for a in a_options:
         for b in b_options:
             prompt = (
-                f"Create a professional Facebook ad creative for {product_name}. "
-                f"Background/scene style: {b.get('text', '')}. "
-                f"Key message to highlight visually: {a.get('text', '')}. "
-                f"Write product name '{product_name}' in large uppercase letters on the image. "
-                f"No other text or copy. Use exact logo and branding from reference images if provided. "
-                f"Photorealistic, high quality, square FB ad format."
+                f"From these reference images, create a new Facebook ad creative. "
+                f"Use {b.get('text', '')} as the background/scene style. "
+                f"On the image write ONLY the product name '{product_name}' in large uppercase letters — no other text. "
+                f"Where it makes sense, extract and recreate the logo from the reference images (exact style). "
+                f"Visually highlight these key benefits using icons or visual elements (in English): {a.get('text', '')}. "
+                f"Photorealistic, high quality, square 1:1 FB ad format. "
+                f"Do not add any other text, taglines or copy besides the product name."
             )
             combos.append({
                 "combo": f"{a.get('label','A')} × {b.get('label','B')}",
@@ -1084,46 +1085,41 @@ async def generate_kreative(data: dict):
         except Exception:
             continue
 
-    async def generate_one(combo):
+    async def generate_one_image(combo_prompt, combo_label, idx):
+        """Generate a single image for a combo."""
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key={gemini_key}"
-        
-        # Build content parts: images first, then prompt
-        parts = list(image_parts) + [{"text": combo["prompt"]}]
-        
+        parts = list(image_parts) + [{"text": combo_prompt}]
         payload = {
             "contents": [{"parts": parts}],
             "generationConfig": {"responseModalities": ["IMAGE", "TEXT"]}
         }
-
         try:
             async with httpx.AsyncClient(timeout=120.0) as hc:
                 resp = await hc.post(url, json=payload, headers={"Content-Type": "application/json"})
                 result = resp.json()
-
             if resp.status_code != 200:
-                err = result.get("error", {}).get("message", str(result))
-                return {"combo": combo["combo"], "images": [], "error": err}
-
-            # Extract generated images from response
-            imgs = []
-            candidates = result.get("candidates", [])
-            for candidate in candidates:
+                return None, result.get("error", {}).get("message", str(result))
+            for candidate in result.get("candidates", []):
                 for part in candidate.get("content", {}).get("parts", []):
                     if "inlineData" in part:
                         inline = part["inlineData"]
                         mime = inline.get("mimeType", "image/png")
                         b64_data = inline.get("data", "")
-                        # Return as data URL
-                        imgs.append(f"data:{mime};base64,{b64_data}")
-
-            if not imgs:
-                return {"combo": combo["combo"], "images": [], "error": "Gemini ni vrnil slike. " + str(result)[:200]}
-
-            return {"combo": combo["combo"], "images": imgs}
-
+                        return f"data:{mime};base64,{b64_data}", None
+            return None, "Gemini ni vrnil slike: " + str(result)[:150]
         except Exception as e:
-            return {"combo": combo["combo"], "images": [], "error": str(e)}
+            return None, str(e)
 
-    # Vse kombinacije vzporedno
-    results = await asyncio.gather(*[generate_one(combo) for combo in combos])
+    async def generate_combo(combo):
+        """Generate `count` images for one combo in parallel."""
+        tasks = [generate_one_image(combo["prompt"], combo["combo"], i) for i in range(count)]
+        img_results = await asyncio.gather(*tasks)
+        imgs = [img for img, err in img_results if img]
+        errors = [err for img, err in img_results if err]
+        if not imgs:
+            return {"combo": combo["combo"], "images": [], "error": errors[0] if errors else "Ni slike"}
+        return {"combo": combo["combo"], "images": imgs}
+
+    # Vse kombinacije + vse slike vzporedno
+    results = await asyncio.gather(*[generate_combo(combo) for combo in combos])
     return {"results": list(results)}
