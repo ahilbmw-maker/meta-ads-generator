@@ -269,6 +269,34 @@ input[type="text"].error { border-color: var(--red) !important; }
 .tt-h-del { width: 22px; height: 22px; font-size: 13px; border: none; background: transparent; color: var(--text-tertiary); cursor: pointer; flex-shrink: 0; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
 .tt-h-del:hover { color: var(--red,#d93025); background: #fce8e8; }
 .tt-empty { font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 1.5rem 0; }
+
+/* ── KREATIVE ── */
+.kreative-layout { display: grid; grid-template-columns: 380px 1fr; gap: 14px; align-items: start; }
+.kreative-left { display: flex; flex-direction: column; gap: 0; }
+.kreative-right {}
+.kinput-btn { flex: 1; padding: 6px 12px; font-size: 12px; font-weight: 500; border-radius: var(--radius); border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; }
+.kinput-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.kinput-btn:hover:not(.active) { border-color: var(--accent-border); color: var(--accent); }
+.k-dropzone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 1.5rem; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); transition: all 0.12s; }
+.k-dropzone:hover { border-color: var(--accent-border); background: var(--accent-dim); }
+.k-dropzone.dragover { border-color: var(--accent); background: var(--accent-dim); }
+.k-prompt-textarea { width: 100%; min-height: 120px; padding: 10px; font-size: 12px; font-family: 'DM Mono', monospace; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface2); color: var(--text); resize: vertical; outline: none; box-sizing: border-box; line-height: 1.5; }
+.k-prompt-textarea:focus { border-color: var(--accent-border); }
+.k-tag { font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-secondary); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; }
+.k-tag:hover { border-color: var(--accent-border); color: var(--accent); background: var(--accent-dim); }
+.k-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius); border: 2px solid transparent; cursor: pointer; transition: all 0.12s; }
+.k-thumb:hover { border-color: var(--accent); }
+.k-thumb.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+.k-thumb-wrap { position: relative; }
+.k-thumb-del { position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; background: var(--red, #d93025); color: white; border: none; border-radius: 50%; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+.k-results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.k-result-item { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--surface2); position: relative; }
+.k-result-item img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+.k-result-actions { display: flex; gap: 4px; padding: 6px; }
+.k-result-btn { flex: 1; font-size: 11px; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.k-result-btn:hover { border-color: var(--accent-border); color: var(--accent); }
+.k-result-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+@media(max-width:600px){ .kreative-layout { grid-template-columns: 1fr; } }
 .tt-h-check { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
 .tt-h-item.selected { border-color: var(--accent-border); background: var(--accent-dim); }
 .tt-master-bar { display: none; align-items: center; gap: 8px; padding: 8px 12px; margin-top: 8px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: var(--radius); }
@@ -351,6 +379,12 @@ input[type="text"].error { border-color: var(--red) !important; }
     <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     Napoved
     <span class="nav-badge" style="background:#fff7ed;color:#9a3412">📈</span>
+  </div>
+
+  <div class="nav-item nav-kreative" id="nav-kreative" onclick="switchPage('kreative')">
+    <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    Kreative
+    <span class="nav-badge" style="background:#fdf2f8;color:#9d174d">🎨</span>
   </div>
 </nav>
 
@@ -559,6 +593,109 @@ input[type="text"].error { border-color: var(--red) !important; }
     <iframe src="/static/price_calculator.html" style="width:100%;height:calc(100vh - 4rem);border:none;border-radius:var(--radius-lg)" allow="clipboard-write"></iframe>
   </div>
 
+  <!-- ═══ KREATIVE PAGE ═══ -->
+  <div class="page" id="page-kreative">
+    <div class="kreative-layout">
+
+      <!-- LEVO: Vnos -->
+      <div class="kreative-left">
+
+        <!-- Blok 1: URL ali upload slik -->
+        <div class="card" style="margin-bottom:12px">
+          <span class="slabel">VHODNI MATERIAL</span>
+
+          <!-- URL način -->
+          <div class="kreative-input-toggle" style="display:flex;gap:6px;margin-bottom:10px">
+            <button class="kinput-btn active" id="kinput-url-btn" onclick="kSwitchInput('url')">🔗 URL strani</button>
+            <button class="kinput-btn" id="kinput-upload-btn" onclick="kSwitchInput('upload')">📁 Naloži slike</button>
+          </div>
+
+          <!-- URL polje -->
+          <div id="kinput-url-section">
+            <div class="url-wrap">
+              <span class="url-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+              <input type="text" id="kUrlInput" placeholder="https://www.maaarket.si/izdelek/..." style="width:100%"/>
+            </div>
+            <button class="btn-gen" id="kFetchBtn" onclick="kFetchImages()" style="margin-top:8px;width:100%">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Poberi slike s strani
+            </button>
+            <div id="kFetchedImages" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+          </div>
+
+          <!-- Upload polja -->
+          <div id="kinput-upload-section" style="display:none">
+            <div id="kDropZone" class="k-dropzone" onclick="document.getElementById('kFileInput').click()">
+              <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span>Klikni ali povleci slike sem</span>
+              <span style="font-size:11px;color:var(--text-tertiary)">PNG, JPG · več slik naenkrat</span>
+            </div>
+            <input type="file" id="kFileInput" multiple accept="image/*" style="display:none" onchange="kHandleFiles(this.files)">
+            <div id="kUploadedImages" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+          </div>
+        </div>
+
+        <!-- Blok 2: Prompt editor -->
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span class="slabel">PROMPT</span>
+            <button class="history-clear" onclick="kClearPrompt()">Počisti</button>
+          </div>
+          <textarea id="kPromptInput" class="k-prompt-textarea" placeholder="Vnesi prompt za generiranje slik...&#10;&#10;Npr: Professional product photo, white background, studio lighting, high quality, 4K..."></textarea>
+          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap" id="kPromptSuggestions">
+            <button class="k-tag" onclick="kAddTag('white background, studio lighting')">🏠 Studio</button>
+            <button class="k-tag" onclick="kAddTag('lifestyle photo, natural light, real environment')">🌿 Lifestyle</button>
+            <button class="k-tag" onclick="kAddTag('close-up macro shot, sharp details')">🔍 Macro</button>
+            <button class="k-tag" onclick="kAddTag('dramatic lighting, dark background, premium feel')">✨ Premium</button>
+            <button class="k-tag" onclick="kAddTag('flat lay, top view, minimalist')">📐 Flat lay</button>
+          </div>
+        </div>
+
+        <!-- Blok 3: Nastavitve + Generiraj -->
+        <div class="card">
+          <span class="slabel">NASTAVITVE</span>
+          <div style="display:flex;gap:10px;margin:8px 0;align-items:center;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:12px;color:var(--text-secondary)">Število slik:</span>
+              <div style="display:flex;align-items:center;gap:4px">
+                <button class="cnt-btn" onclick="kChangeCount(-1)">−</button>
+                <span class="cnt-val" id="kCountVal">4</span>
+                <button class="cnt-btn" onclick="kChangeCount(1)">+</button>
+                <span style="font-size:11px;color:var(--text-tertiary)">max 12</span>
+              </div>
+            </div>
+          </div>
+          <button class="btn-gen" id="kGenBtn" onclick="kGenerate()" style="width:100%">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Generiraj slike
+          </button>
+          <div class="error-msg" id="kError"></div>
+        </div>
+      </div>
+
+      <!-- DESNO: Preview -->
+      <div class="kreative-right">
+        <div class="card" style="min-height:400px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <span class="slabel">GENERIRANE SLIKE</span>
+            <span style="font-size:11px;color:var(--text-tertiary)" id="kResultCount"></span>
+          </div>
+          <div id="kLoading" style="display:none;text-align:center;padding:2rem">
+            <div class="spinner"></div>
+            <div style="margin-top:8px;font-size:13px;color:var(--text-secondary)" id="kLoadingText">Generiram slike...</div>
+          </div>
+          <div id="kResultsGrid" class="k-results-grid">
+            <div style="text-align:center;padding:3rem;color:var(--text-tertiary);font-size:13px">
+              <svg viewBox="0 0 24 24" style="width:40px;height:40px;stroke:var(--border);fill:none;stroke-width:1.5;margin-bottom:8px;display:block;margin:0 auto 8px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Tukaj se bodo prikazale generirane slike
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /page-kreative -->
+
 </div>
 
 <script>
@@ -585,7 +722,7 @@ function closeMenu(){
   document.querySelector('.sidebar').classList.remove('open');
   document.getElementById('overlay').classList.remove('open');
 }
-const PAGES = ['meta','tiktok','calc','forecast'];
+const PAGES = ['meta','tiktok','calc','forecast','kreative'];
 let currentIdx = 0;
 
 function switchPage(page) {
@@ -600,7 +737,7 @@ function switchPage(page) {
   // Wide layout
   const mainEl = document.querySelector('.main');
   if(mainEl) {
-    if(page==='forecast' || page==='calc' || page==='tiktok') {
+    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative') {
       mainEl.classList.add('wide');
     } else if(page==='meta') {
       const formVisible = document.getElementById('metaFormSection').style.display !== 'none';
@@ -1279,6 +1416,168 @@ function cpIco(){return`<svg viewBox="0 0 24 24" style="width:11px;height:11px;s
 function flash(id){const el=document.getElementById(id);if(!el)return;el.style.borderColor='var(--red)';el.focus();setTimeout(()=>el.style.borderColor='',1500);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
+// ── KREATIVE ──
+let kInputMode = 'url';
+let kSelectedImages = []; // {src, type: 'fetched'|'uploaded', name}
+let kCount = 4;
+
+function kSwitchInput(mode) {
+  kInputMode = mode;
+  document.getElementById('kinput-url-section').style.display = mode === 'url' ? 'block' : 'none';
+  document.getElementById('kinput-upload-section').style.display = mode === 'upload' ? 'block' : 'none';
+  document.getElementById('kinput-url-btn').classList.toggle('active', mode === 'url');
+  document.getElementById('kinput-upload-btn').classList.toggle('active', mode === 'upload');
+}
+
+function kChangeCount(d) {
+  kCount = Math.max(1, Math.min(12, kCount + d));
+  document.getElementById('kCountVal').textContent = kCount;
+}
+
+function kAddTag(text) {
+  const ta = document.getElementById('kPromptInput');
+  const val = ta.value.trim();
+  ta.value = val ? val + ', ' + text : text;
+  ta.focus();
+}
+
+function kClearPrompt() {
+  document.getElementById('kPromptInput').value = '';
+}
+
+// Fetch images from URL
+async function kFetchImages() {
+  const url = document.getElementById('kUrlInput').value.trim();
+  if (!url) return;
+  const btn = document.getElementById('kFetchBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Nalagam...';
+  try {
+    const res = await fetch('/fetch-product-images', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    kRenderFetchedImages(data.images || []);
+  } catch(e) {
+    alert('Napaka: ' + e.message);
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Poberi slike s strani';
+}
+
+function kRenderFetchedImages(images) {
+  const el = document.getElementById('kFetchedImages');
+  if (!images.length) { el.innerHTML = '<span style="font-size:12px;color:var(--text-tertiary)">Ni najdenih slik.</span>'; return; }
+  el.innerHTML = images.map((src, i) => `
+    <div class="k-thumb-wrap">
+      <img src="${esc(src)}" class="k-thumb ${kSelectedImages.find(x=>x.src===src)?'selected':''}" onclick="kToggleFetched('${esc(src)}')" title="Klikni za izbiro">
+    </div>`).join('');
+}
+
+function kToggleFetched(src) {
+  const idx = kSelectedImages.findIndex(x => x.src === src);
+  if (idx >= 0) { kSelectedImages.splice(idx, 1); }
+  else { kSelectedImages.push({src, type: 'fetched'}); }
+  // Update UI
+  document.querySelectorAll('#kFetchedImages .k-thumb').forEach(img => {
+    img.classList.toggle('selected', !!kSelectedImages.find(x => x.src === img.src));
+  });
+}
+
+// Handle file uploads
+function kHandleFiles(files) {
+  [...files].forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const src = e.target.result;
+      kSelectedImages.push({src, type: 'uploaded', name: file.name});
+      kRenderUploadedImages();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function kRenderUploadedImages() {
+  const el = document.getElementById('kUploadedImages');
+  const uploaded = kSelectedImages.filter(x => x.type === 'uploaded');
+  el.innerHTML = uploaded.map((img, i) => `
+    <div class="k-thumb-wrap">
+      <img src="${img.src}" class="k-thumb selected">
+      <button class="k-thumb-del" onclick="kRemoveUploaded(${kSelectedImages.indexOf(img)})">×</button>
+    </div>`).join('');
+}
+
+function kRemoveUploaded(idx) {
+  kSelectedImages.splice(idx, 1);
+  kRenderUploadedImages();
+}
+
+// Drag & drop
+document.addEventListener('DOMContentLoaded', () => {
+  const dz = document.getElementById('kDropZone');
+  if (!dz) return;
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('dragover');
+    kHandleFiles(e.dataTransfer.files);
+  });
+});
+
+// Generate
+async function kGenerate() {
+  const prompt = document.getElementById('kPromptInput').value.trim();
+  if (!prompt) { document.getElementById('kError').textContent = 'Vnesi prompt!'; document.getElementById('kError').classList.add('show'); return; }
+  document.getElementById('kError').classList.remove('show');
+
+  const btn = document.getElementById('kGenBtn');
+  btn.disabled = true;
+  document.getElementById('kLoading').style.display = 'block';
+  document.getElementById('kResultsGrid').innerHTML = '';
+  document.getElementById('kLoadingText').textContent = `Generiram ${kCount} slik...`;
+
+  try {
+    const body = {prompt, count: kCount, images: kSelectedImages.map(x => x.src)};
+    const res = await fetch('/generate-kreative', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    kRenderResults(data.images || []);
+    document.getElementById('kResultCount').textContent = `${data.images.length} slik`;
+  } catch(e) {
+    document.getElementById('kError').textContent = 'Napaka: ' + e.message;
+    document.getElementById('kError').classList.add('show');
+  }
+  document.getElementById('kLoading').style.display = 'none';
+  btn.disabled = false;
+}
+
+function kRenderResults(images) {
+  const grid = document.getElementById('kResultsGrid');
+  if (!images.length) { grid.innerHTML = '<div style="color:var(--text-tertiary);font-size:13px">Ni rezultatov.</div>'; return; }
+  grid.innerHTML = images.map((img, i) => `
+    <div class="k-result-item">
+      <img src="${esc(img.url || img)}" alt="Kreativa ${i+1}" loading="lazy">
+      <div class="k-result-actions">
+        <button class="k-result-btn" onclick="kDownload('${esc(img.url || img)}', ${i+1})">⬇ Prenesi</button>
+        <button class="k-result-btn primary" onclick="kSendToAsana('${esc(img.url || img)}')">→ Asana</button>
+      </div>
+    </div>`).join('');
+}
+
+function kDownload(url, n) {
+  const a = document.createElement('a');
+  a.href = url; a.download = `kreativa_${n}.png`; a.click();
+}
+
+function kSendToAsana(url) {
+  alert('Asana integracija prihaja v naslednjem koraku! 🎯');
+}
+
 updateMeta();renderH();ttRenderHistory();ttLoadHistory();metaLoadServerHistory();setMetaWide(true);
 </script>
 
@@ -1302,6 +1601,11 @@ updateMeta();renderH();ttRenderHistory();ttLoadHistory();metaLoadServerHistory()
   <button class="tab-item" id="tab-forecast" onclick="switchPage('forecast')">
     <svg viewBox="0 0 24 24" style="stroke:var(--text-secondary);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     <span>Napoved</span>
+    <div class="tab-dot"></div>
+  </button>
+  <button class="tab-item" id="tab-kreative" onclick="switchPage('kreative')">
+    <svg viewBox="0 0 24 24" style="stroke:var(--text-secondary);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    <span>Kreative</span>
     <div class="tab-dot"></div>
   </button>
 </nav>
