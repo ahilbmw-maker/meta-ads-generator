@@ -296,6 +296,13 @@ input[type="text"].error { border-color: var(--red) !important; }
 .k-result-btn { flex: 1; font-size: 11px; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; font-family: 'DM Sans', sans-serif; }
 .k-result-btn:hover { border-color: var(--accent-border); color: var(--accent); }
 .k-result-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.k-option-btn { width:100%; text-align:left; padding:8px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.12s; display:flex; flex-direction:column; gap:2px; }
+.k-option-btn:hover { border-color:var(--accent-border); background:var(--accent-dim); }
+.k-option-btn.active { border-color:var(--accent); background:var(--accent-dim); }
+.k-opt-label { font-size:10px; font-weight:700; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.5px; }
+.k-option-btn.active .k-opt-label { color:var(--accent); }
+.k-opt-text { font-size:12px; font-weight:500; color:var(--text); }
+.k-result-header { padding:6px 8px; background:var(--surface2); border-bottom:1px solid var(--border); }
 @media(max-width:600px){ .kreative-layout { grid-template-columns: 1fr; } }
 .tt-h-check { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
 .tt-h-item.selected { border-color: var(--accent-border); background: var(--accent-dim); }
@@ -597,97 +604,100 @@ input[type="text"].error { border-color: var(--red) !important; }
   <div class="page" id="page-kreative">
     <div class="kreative-layout">
 
-      <!-- LEVO: Vnos -->
+      <!-- LEVO: Vnos + A/B/C izbira -->
       <div class="kreative-left">
 
-        <!-- Blok 1: URL ali upload slik -->
+        <!-- Blok 1: URL + Analiziraj -->
         <div class="card" style="margin-bottom:12px">
-          <span class="slabel">VHODNI MATERIAL</span>
+          <span class="slabel">URL IZDELKA</span>
+          <div class="url-wrap" style="margin-bottom:8px">
+            <span class="url-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+            <input type="text" id="kUrlInput" placeholder="https://www.maaarket.si/izdelek/..." style="width:100%"/>
+          </div>
+          <button class="btn-gen" id="kAnalyzeBtn" onclick="kAnalyze()" style="width:100%">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Analiziraj izdelek
+          </button>
+        </div>
 
-          <!-- URL način -->
-          <div class="kreative-input-toggle" style="display:flex;gap:6px;margin-bottom:10px">
-            <button class="kinput-btn active" id="kinput-url-btn" onclick="kSwitchInput('url')">🔗 URL strani</button>
-            <button class="kinput-btn" id="kinput-upload-btn" onclick="kSwitchInput('upload')">📁 Naloži slike</button>
+        <!-- Loading analiza -->
+        <div id="kAnalyzeLoading" style="display:none" class="card" style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:10px;padding:4px 0">
+            <div class="spinner" style="width:16px;height:16px;border-width:2px"></div>
+            <span style="font-size:13px;color:var(--text-secondary)">Analiziram izdelek...</span>
+          </div>
+        </div>
+
+        <!-- Blok 2: A/B/C — prikaže se po analizi -->
+        <div id="kAbcSection" style="display:none">
+
+          <!-- C: Ime izdelka -->
+          <div class="card" style="margin-bottom:12px">
+            <span class="slabel">C — IME IZDELKA</span>
+            <input type="text" id="kProductName" class="meta-url-input" style="margin-top:6px;font-weight:600;font-size:14px" placeholder="npr. WEEDZAP"/>
           </div>
 
-          <!-- URL polje -->
-          <div id="kinput-url-section">
-            <div class="url-wrap">
-              <span class="url-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
-              <input type="text" id="kUrlInput" placeholder="https://www.maaarket.si/izdelek/..." style="width:100%"/>
-            </div>
-            <button class="btn-gen" id="kFetchBtn" onclick="kFetchImages()" style="margin-top:8px;width:100%">
-              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Poberi slike s strani
-            </button>
-            <div id="kFetchedImages" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+          <!-- A: Tekst opcije -->
+          <div class="card" style="margin-bottom:12px">
+            <span class="slabel">A — IZBERI TEKST (lahko več)</span>
+            <div id="kAOptions" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div>
           </div>
 
-          <!-- Upload polja -->
-          <div id="kinput-upload-section" style="display:none">
-            <div id="kDropZone" class="k-dropzone" onclick="document.getElementById('kFileInput').click()">
-              <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <span>Klikni ali povleci slike sem</span>
-              <span style="font-size:11px;color:var(--text-tertiary)">PNG, JPG · več slik naenkrat</span>
+          <!-- B: Ozadje/Vibe opcije -->
+          <div class="card" style="margin-bottom:12px">
+            <span class="slabel">B — IZBERI OZADJE (lahko več)</span>
+            <div id="kBOptions" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div>
+          </div>
+
+          <!-- Slike -->
+          <div class="card" style="margin-bottom:12px">
+            <span class="slabel">REFERENČNE SLIKE IZDELKA</span>
+            <div id="kDropZone" class="k-dropzone" style="margin-top:8px" onclick="document.getElementById('kFileInput').click()">
+              <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span style="font-size:12px">Klikni, povleci ali prilepi slike (Ctrl+V)</span>
             </div>
             <input type="file" id="kFileInput" multiple accept="image/*" style="display:none" onchange="kHandleFiles(this.files)">
             <div id="kUploadedImages" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
-          </div>
-        </div>
-
-        <!-- Blok 2: Prompt editor -->
-        <div class="card" style="margin-bottom:12px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <span class="slabel">PROMPT</span>
-            <button class="history-clear" onclick="kClearPrompt()">Počisti</button>
-          </div>
-          <textarea id="kPromptInput" class="k-prompt-textarea" placeholder="Vnesi prompt za generiranje slik...&#10;&#10;Npr: Professional product photo, white background, studio lighting, high quality, 4K..."></textarea>
-          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap" id="kPromptSuggestions">
-            <button class="k-tag" onclick="kAddTag('white background, studio lighting')">🏠 Studio</button>
-            <button class="k-tag" onclick="kAddTag('lifestyle photo, natural light, real environment')">🌿 Lifestyle</button>
-            <button class="k-tag" onclick="kAddTag('close-up macro shot, sharp details')">🔍 Macro</button>
-            <button class="k-tag" onclick="kAddTag('dramatic lighting, dark background, premium feel')">✨ Premium</button>
-            <button class="k-tag" onclick="kAddTag('flat lay, top view, minimalist')">📐 Flat lay</button>
-          </div>
-        </div>
-
-        <!-- Blok 3: Nastavitve + Generiraj -->
-        <div class="card">
-          <span class="slabel">NASTAVITVE</span>
-          <div style="display:flex;gap:10px;margin:8px 0;align-items:center;flex-wrap:wrap">
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:12px;color:var(--text-secondary)">Število slik:</span>
-              <div style="display:flex;align-items:center;gap:4px">
-                <button class="cnt-btn" onclick="kChangeCount(-1)">−</button>
-                <span class="cnt-val" id="kCountVal">4</span>
-                <button class="cnt-btn" onclick="kChangeCount(1)">+</button>
-                <span style="font-size:11px;color:var(--text-tertiary)">max 12</span>
-              </div>
+            <div id="kFetchedImagesWrap" style="display:none;margin-top:8px">
+              <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">Slike s strani (klikni za izbiro):</div>
+              <div id="kFetchedImages" style="display:flex;flex-wrap:wrap;gap:6px"></div>
             </div>
           </div>
-          <button class="btn-gen" id="kGenBtn" onclick="kGenerate()" style="width:100%">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            Generiraj slike
-          </button>
-          <div class="error-msg" id="kError"></div>
+
+          <!-- Generiraj -->
+          <div class="card">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <span style="font-size:12px;color:var(--text-secondary)">Slike na kombinacijo:</span>
+              <button class="cnt-btn" onclick="kChangeCount(-1)">&#x2212;</button>
+              <span class="cnt-val" id="kCountVal">4</span>
+              <button class="cnt-btn" onclick="kChangeCount(1)">+</button>
+            </div>
+            <div id="kComboPreview" style="font-size:11px;color:var(--text-tertiary);margin-bottom:8px"></div>
+            <button class="btn-gen" id="kGenBtn" onclick="kGenerate()" style="width:100%">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Generiraj kreative
+            </button>
+            <div class="error-msg" id="kError"></div>
+          </div>
         </div>
+
       </div>
 
       <!-- DESNO: Preview -->
       <div class="kreative-right">
-        <div class="card" style="min-height:400px">
+        <div class="card" style="min-height:500px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <span class="slabel">GENERIRANE SLIKE</span>
+            <span class="slabel">GENERIRANE KREATIVE</span>
             <span style="font-size:11px;color:var(--text-tertiary)" id="kResultCount"></span>
           </div>
           <div id="kLoading" style="display:none;text-align:center;padding:2rem">
             <div class="spinner"></div>
-            <div style="margin-top:8px;font-size:13px;color:var(--text-secondary)" id="kLoadingText">Generiram slike...</div>
+            <div style="margin-top:8px;font-size:13px;color:var(--text-secondary)" id="kLoadingText">Generiram...</div>
           </div>
           <div id="kResultsGrid" class="k-results-grid">
-            <div style="text-align:center;padding:3rem;color:var(--text-tertiary);font-size:13px">
-              <svg viewBox="0 0 24 24" style="width:40px;height:40px;stroke:var(--border);fill:none;stroke-width:1.5;margin-bottom:8px;display:block;margin:0 auto 8px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              Tukaj se bodo prikazale generirane slike
+            <div style="text-align:center;padding:4rem 2rem;color:var(--text-tertiary);font-size:13px">
+              <svg viewBox="0 0 24 24" style="width:48px;height:48px;stroke:var(--border);fill:none;stroke-width:1.2;display:block;margin:0 auto 12px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Vpiši URL in analiziraj izdelek,<br>nato izberi A+B kombinacije
             </div>
           </div>
         </div>
@@ -1417,82 +1427,115 @@ function flash(id){const el=document.getElementById(id);if(!el)return;el.style.b
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 // ── KREATIVE ──
-let kInputMode = 'url';
-let kSelectedImages = []; // {src, type: 'fetched'|'uploaded', name}
+let kProductData = null;
+let kSelectedA = [];
+let kSelectedB = [];
+let kSelectedImages = [];
 let kCount = 4;
-
-function kSwitchInput(mode) {
-  kInputMode = mode;
-  document.getElementById('kinput-url-section').style.display = mode === 'url' ? 'block' : 'none';
-  document.getElementById('kinput-upload-section').style.display = mode === 'upload' ? 'block' : 'none';
-  document.getElementById('kinput-url-btn').classList.toggle('active', mode === 'url');
-  document.getElementById('kinput-upload-btn').classList.toggle('active', mode === 'upload');
-}
 
 function kChangeCount(d) {
   kCount = Math.max(1, Math.min(12, kCount + d));
   document.getElementById('kCountVal').textContent = kCount;
+  kUpdateComboPreview();
 }
 
-function kAddTag(text) {
-  const ta = document.getElementById('kPromptInput');
-  const val = ta.value.trim();
-  ta.value = val ? val + ', ' + text : text;
-  ta.focus();
+function kUpdateComboPreview() {
+  const nA = kSelectedA.length, nB = kSelectedB.length;
+  const el = document.getElementById('kComboPreview');
+  if (!el) return;
+  if (!nA || !nB) { el.textContent = 'Izberi vsaj 1x A in 1x B'; return; }
+  const total = nA * nB * kCount;
+  el.textContent = nA + ' tekst × ' + nB + ' ozadje × ' + kCount + ' slik = ' + total + ' kreativ';
 }
 
-function kClearPrompt() {
-  document.getElementById('kPromptInput').value = '';
+function kToggleA(idx) {
+  const i = kSelectedA.indexOf(idx);
+  if (i >= 0) kSelectedA.splice(i, 1); else kSelectedA.push(idx);
+  document.querySelectorAll('.k-option-btn[data-type="a"]').forEach((btn, j) => {
+    btn.classList.toggle('active', kSelectedA.includes(j));
+  });
+  kUpdateComboPreview();
 }
 
-// Fetch images from URL
-async function kFetchImages() {
+function kToggleB(idx) {
+  const i = kSelectedB.indexOf(idx);
+  if (i >= 0) kSelectedB.splice(i, 1); else kSelectedB.push(idx);
+  document.querySelectorAll('.k-option-btn[data-type="b"]').forEach((btn, j) => {
+    btn.classList.toggle('active', kSelectedB.includes(j));
+  });
+  kUpdateComboPreview();
+}
+
+function kRenderAB() {
+  if (!kProductData) return;
+  const aEl = document.getElementById('kAOptions');
+  const bEl = document.getElementById('kBOptions');
+  aEl.innerHTML = kProductData.aOptions.map((opt, i) =>
+    '<button class="k-option-btn' + (kSelectedA.includes(i) ? ' active' : '') + '" data-type="a" onclick="kToggleA(' + i + ')">' +
+    '<span class="k-opt-label">' + esc(opt.label) + '</span>' +
+    '<span class="k-opt-text">' + esc(opt.text) + '</span></button>'
+  ).join('');
+  bEl.innerHTML = kProductData.bOptions.map((opt, i) =>
+    '<button class="k-option-btn' + (kSelectedB.includes(i) ? ' active' : '') + '" data-type="b" onclick="kToggleB(' + i + ')">' +
+    '<span class="k-opt-label">' + esc(opt.label) + '</span>' +
+    '<span class="k-opt-text">' + esc(opt.text) + '</span></button>'
+  ).join('');
+}
+
+async function kAnalyze() {
   const url = document.getElementById('kUrlInput').value.trim();
   if (!url) return;
-  const btn = document.getElementById('kFetchBtn');
+  const btn = document.getElementById('kAnalyzeBtn');
   btn.disabled = true;
-  btn.textContent = '⏳ Nalagam...';
+  document.getElementById('kAnalyzeLoading').style.display = 'block';
+  document.getElementById('kAbcSection').style.display = 'none';
+  document.getElementById('kError').classList.remove('show');
+
   try {
-    const res = await fetch('/fetch-product-images', {
+    const res = await fetch('/analyze-product-kreative', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({url})
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    kRenderFetchedImages(data.images || []);
-  } catch(e) {
-    alert('Napaka: ' + e.message);
-  }
-  btn.disabled = false;
-  btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Poberi slike s strani';
-}
 
-function kRenderFetchedImages(images) {
-  const el = document.getElementById('kFetchedImages');
-  if (!images.length) { el.innerHTML = '<span style="font-size:12px;color:var(--text-tertiary)">Ni najdenih slik.</span>'; return; }
-  el.innerHTML = images.map((src, i) => `
-    <div class="k-thumb-wrap">
-      <img src="${esc(src)}" class="k-thumb ${kSelectedImages.find(x=>x.src===src)?'selected':''}" onclick="kToggleFetched('${esc(src)}')" title="Klikni za izbiro">
-    </div>`).join('');
+    kProductData = data;
+    kSelectedA = []; kSelectedB = [];
+    document.getElementById('kProductName').value = data.name || '';
+    kRenderAB();
+
+    if (data.images && data.images.length) {
+      document.getElementById('kFetchedImagesWrap').style.display = 'block';
+      document.getElementById('kFetchedImages').innerHTML = data.images.map(src =>
+        '<div class="k-thumb-wrap"><img src="' + esc(src) + '" class="k-thumb" onclick="kToggleFetched(\'' + esc(src) + '\')" title="Klikni za izbiro"></div>'
+      ).join('');
+    }
+
+    document.getElementById('kAbcSection').style.display = 'block';
+    kUpdateComboPreview();
+  } catch(e) {
+    document.getElementById('kError').textContent = 'Napaka: ' + e.message;
+    document.getElementById('kError').classList.add('show');
+  }
+
+  document.getElementById('kAnalyzeLoading').style.display = 'none';
+  btn.disabled = false;
 }
 
 function kToggleFetched(src) {
   const idx = kSelectedImages.findIndex(x => x.src === src);
-  if (idx >= 0) { kSelectedImages.splice(idx, 1); }
-  else { kSelectedImages.push({src, type: 'fetched'}); }
-  // Update UI
+  if (idx >= 0) kSelectedImages.splice(idx, 1);
+  else kSelectedImages.push({src, type: 'fetched'});
   document.querySelectorAll('#kFetchedImages .k-thumb').forEach(img => {
     img.classList.toggle('selected', !!kSelectedImages.find(x => x.src === img.src));
   });
 }
 
-// Handle file uploads
 function kHandleFiles(files) {
   [...files].forEach(file => {
     const reader = new FileReader();
     reader.onload = e => {
-      const src = e.target.result;
-      kSelectedImages.push({src, type: 'uploaded', name: file.name});
+      kSelectedImages.push({src: e.target.result, type: 'uploaded', name: file.name});
       kRenderUploadedImages();
     };
     reader.readAsDataURL(file);
@@ -1502,11 +1545,10 @@ function kHandleFiles(files) {
 function kRenderUploadedImages() {
   const el = document.getElementById('kUploadedImages');
   const uploaded = kSelectedImages.filter(x => x.type === 'uploaded');
-  el.innerHTML = uploaded.map((img, i) => `
-    <div class="k-thumb-wrap">
-      <img src="${img.src}" class="k-thumb selected">
-      <button class="k-thumb-del" onclick="kRemoveUploaded(${kSelectedImages.indexOf(img)})">×</button>
-    </div>`).join('');
+  el.innerHTML = uploaded.map((img, i) =>
+    '<div class="k-thumb-wrap"><img src="' + img.src + '" class="k-thumb selected">' +
+    '<button class="k-thumb-del" onclick="kRemoveUploaded(' + kSelectedImages.indexOf(img) + ')">x</button></div>'
+  ).join('');
 }
 
 function kRemoveUploaded(idx) {
@@ -1514,40 +1556,58 @@ function kRemoveUploaded(idx) {
   kRenderUploadedImages();
 }
 
-// Drag & drop
+document.addEventListener('paste', e => {
+  if (!document.getElementById('page-kreative').classList.contains('active')) return;
+  const items = e.clipboardData?.items || [];
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      const reader = new FileReader();
+      reader.onload = ev => {
+        kSelectedImages.push({src: ev.target.result, type: 'uploaded', name: 'paste.png'});
+        kRenderUploadedImages();
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   const dz = document.getElementById('kDropZone');
   if (!dz) return;
   dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
-  dz.addEventListener('drop', e => {
-    e.preventDefault(); dz.classList.remove('dragover');
-    kHandleFiles(e.dataTransfer.files);
-  });
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); kHandleFiles(e.dataTransfer.files); });
 });
 
-// Generate
 async function kGenerate() {
-  const prompt = document.getElementById('kPromptInput').value.trim();
-  if (!prompt) { document.getElementById('kError').textContent = 'Vnesi prompt!'; document.getElementById('kError').classList.add('show'); return; }
+  if (!kSelectedA.length || !kSelectedB.length) {
+    const err = document.getElementById('kError');
+    err.textContent = 'Izberi vsaj 1x A (tekst) in 1x B (ozadje)!';
+    err.classList.add('show'); return;
+  }
   document.getElementById('kError').classList.remove('show');
-
   const btn = document.getElementById('kGenBtn');
   btn.disabled = true;
   document.getElementById('kLoading').style.display = 'block';
   document.getElementById('kResultsGrid').innerHTML = '';
-  document.getElementById('kLoadingText').textContent = `Generiram ${kCount} slik...`;
+
+  const productName = document.getElementById('kProductName').value.trim();
+  const aOpts = kSelectedA.map(i => kProductData.aOptions[i]);
+  const bOpts = kSelectedB.map(i => kProductData.bOptions[i]);
+  const images = kSelectedImages.map(x => x.src);
+  const total = aOpts.length * bOpts.length;
+  document.getElementById('kLoadingText').textContent = 'Generiram ' + total + ' kombinacij (×' + kCount + ' slik)...';
 
   try {
-    const body = {prompt, count: kCount, images: kSelectedImages.map(x => x.src)};
     const res = await fetch('/generate-kreative', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(body)
+      body: JSON.stringify({productName, aOptions: aOpts, bOptions: bOpts, count: kCount, images})
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    kRenderResults(data.images || []);
-    document.getElementById('kResultCount').textContent = `${data.images.length} slik`;
+    kRenderResults(data.results || []);
+    document.getElementById('kResultCount').textContent = (data.results||[]).length + ' kombinacij';
   } catch(e) {
     document.getElementById('kError').textContent = 'Napaka: ' + e.message;
     document.getElementById('kError').classList.add('show');
@@ -1556,75 +1616,29 @@ async function kGenerate() {
   btn.disabled = false;
 }
 
-function kRenderResults(images) {
+function kRenderResults(results) {
   const grid = document.getElementById('kResultsGrid');
-  if (!images.length) { grid.innerHTML = '<div style="color:var(--text-tertiary);font-size:13px">Ni rezultatov.</div>'; return; }
-  grid.innerHTML = images.map((img, i) => `
-    <div class="k-result-item">
-      <img src="${esc(img.url || img)}" alt="Kreativa ${i+1}" loading="lazy">
-      <div class="k-result-actions">
-        <button class="k-result-btn" onclick="kDownload('${esc(img.url || img)}', ${i+1})">⬇ Prenesi</button>
-        <button class="k-result-btn primary" onclick="kSendToAsana('${esc(img.url || img)}')">→ Asana</button>
-      </div>
-    </div>`).join('');
+  if (!results.length) { grid.innerHTML = '<div style="color:var(--text-tertiary);padding:2rem;text-align:center">Ni rezultatov.</div>'; return; }
+  grid.innerHTML = results.map((r, i) => {
+    const imgs = (r.images || (r.url ? [r.url] : [])).filter(Boolean);
+    return '<div class="k-result-item">' +
+      '<div class="k-result-header" style="padding:6px 8px;background:var(--surface2);border-bottom:1px solid var(--border)">' +
+        '<span style="font-size:10px;font-weight:600;color:var(--text-tertiary)">' + esc(r.combo || ('Kombinacija ' + (i+1))) + '</span>' +
+      '</div>' +
+      (imgs.length ? imgs.map(url => '<img src="' + esc(url) + '" alt="kreativa" loading="lazy" style="width:100%;display:block">').join('') :
+        '<div style="aspect-ratio:1;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:12px">Ni slike</div>') +
+      '<div class="k-result-actions">' +
+        (imgs[0] ? '<button class="k-result-btn" onclick="kDownload(\'' + esc(imgs[0]) + '\',' + (i+1) + ')">&#x2B07; Prenesi</button>' : '') +
+        '<button class="k-result-btn primary" onclick="kSendToAsana(\'' + esc(imgs[0]||'') + '\')">&#x2192; Asana</button>' +
+      '</div></div>';
+  }).join('');
 }
 
 function kDownload(url, n) {
   const a = document.createElement('a');
-  a.href = url; a.download = `kreativa_${n}.png`; a.click();
+  a.href = url; a.download = 'kreativa_' + n + '.png'; a.click();
 }
 
 function kSendToAsana(url) {
-  alert('Asana integracija prihaja v naslednjem koraku! 🎯');
+  alert('Asana integracija prihaja v naslednjem koraku!');
 }
-
-updateMeta();renderH();ttRenderHistory();ttLoadHistory();metaLoadServerHistory();setMetaWide(true);
-</script>
-
-<!-- MOBILE BOTTOM TAB BAR -->
-<nav class="mobile-tabbar">
-  <button class="tab-item active" id="tab-meta" onclick="switchPage('meta')">
-    <svg viewBox="0 0 24 24" style="stroke:#1877F2;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
-    <span>Meta</span>
-    <div class="tab-dot"></div>
-  </button>
-  <button class="tab-item" id="tab-tiktok" onclick="switchPage('tiktok')">
-    <svg viewBox="0 0 24 24" style="fill:var(--text);stroke:none"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06z"/></svg>
-    <span>TikTok</span>
-    <div class="tab-dot"></div>
-  </button>
-  <button class="tab-item" id="tab-calc" onclick="switchPage('calc')">
-    <svg viewBox="0 0 24 24" style="stroke:var(--text-secondary);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
-    <span>Kalkulator</span>
-    <div class="tab-dot"></div>
-  </button>
-  <button class="tab-item" id="tab-forecast" onclick="switchPage('forecast')">
-    <svg viewBox="0 0 24 24" style="stroke:var(--text-secondary);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-    <span>Napoved</span>
-    <div class="tab-dot"></div>
-  </button>
-  <button class="tab-item" id="tab-kreative" onclick="switchPage('kreative')">
-    <svg viewBox="0 0 24 24" style="stroke:var(--text-secondary);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-    <span>Kreative</span>
-    <div class="tab-dot"></div>
-  </button>
-</nav>
-
-<script>
-// ── SWIPE GESTURE ──
-let touchStartX = 0, touchStartY = 0;
-document.addEventListener('touchstart', e => {
-  touchStartX = e.touches[0].clientX;
-  touchStartY = e.touches[0].clientY;
-}, {passive: true});
-document.addEventListener('touchend', e => {
-  const dx = e.changedTouches[0].clientX - touchStartX;
-  const dy = e.changedTouches[0].clientY - touchStartY;
-  if(Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return;
-  if(window.innerWidth > 600) return;
-  if(dx < 0 && currentIdx < PAGES.length - 1) switchPage(PAGES[currentIdx + 1]);
-  if(dx > 0 && currentIdx > 0) switchPage(PAGES[currentIdx - 1]);
-}, {passive: true});
-</script>
-</body>
-</html>
