@@ -1072,49 +1072,44 @@ async def generate_kreative(data: dict):
                 "a": a, "b": b
             })
 
-    results = []
+    async def generate_one(hc, combo):
+        payload = {
+            "prompt": combo["prompt"],
+            "aspect_ratio": "1:1",
+            "resolution": "720p"
+        }
+        if ref_images:
+            payload["reference_images"] = ref_images[:8]
+
+        try:
+            resp = await hc.post(model_url, json=payload, headers=headers)
+            req_data = resp.json()
+
+            if resp.status_code != 200 or "request_id" not in req_data:
+                return {"combo": combo["combo"], "images": [], "error": req_data.get("message", str(req_data))}
+
+            request_id = req_data["request_id"]
+            status_url = f"https://platform.higgsfield.ai/requests/{request_id}/status"
+
+            # Poll max 90s
+            for _ in range(30):
+                await asyncio.sleep(3)
+                status_resp = await hc.get(status_url, headers=headers)
+                status_data = status_resp.json()
+                status = status_data.get("status", "")
+
+                if status == "completed":
+                    imgs = [img["url"] for img in status_data.get("images", [])]
+                    return {"combo": combo["combo"], "images": imgs}
+                elif status in ("failed", "nsfw"):
+                    return {"combo": combo["combo"], "images": [], "error": f"Status: {status}"}
+
+            return {"combo": combo["combo"], "images": [], "error": "Timeout"}
+        except Exception as e:
+            return {"combo": combo["combo"], "images": [], "error": str(e)}
+
+    # Vse kombinacije vzporedno
     async with httpx.AsyncClient(timeout=120.0) as hc:
-        for combo in combos:
-            payload = {
-                "prompt": combo["prompt"],
-                "aspect_ratio": "1:1",
-                "resolution": "720p"
-            }
+        results = await asyncio.gather(*[generate_one(hc, combo) for combo in combos])
 
-            # Add reference images if provided (max 8 for NB2)
-            if ref_images:
-                payload["reference_images"] = ref_images[:8]
-
-            try:
-                # Submit request
-                resp = await hc.post(model_url, json=payload, headers=headers)
-                req_data = resp.json()
-
-                if resp.status_code != 200 or "request_id" not in req_data:
-                    results.append({"combo": combo["combo"], "images": [], "error": req_data.get("message", str(req_data))})
-                    continue
-
-                request_id = req_data["request_id"]
-                status_url = f"https://platform.higgsfield.ai/requests/{request_id}/status"
-
-                # Poll for result (max 90s)
-                for _ in range(30):
-                    await asyncio.sleep(3)
-                    status_resp = await hc.get(status_url, headers=headers)
-                    status_data = status_resp.json()
-                    status = status_data.get("status", "")
-
-                    if status == "completed":
-                        imgs = [img["url"] for img in status_data.get("images", [])]
-                        results.append({"combo": combo["combo"], "images": imgs})
-                        break
-                    elif status in ("failed", "nsfw"):
-                        results.append({"combo": combo["combo"], "images": [], "error": f"Status: {status}"})
-                        break
-                else:
-                    results.append({"combo": combo["combo"], "images": [], "error": "Timeout"})
-
-            except Exception as e:
-                results.append({"combo": combo["combo"], "images": [], "error": str(e)})
-
-    return {"results": results}
+    return {"results": list(results)}
