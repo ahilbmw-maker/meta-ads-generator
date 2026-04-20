@@ -209,7 +209,7 @@ input::placeholder{color:var(--text3)}
       <div class="chart-panel">
         <div class="chart-hdr">
           <span class="chart-title">Vnosi</span>
-          <select id="historyDateSelect" onchange="loadHistoryDate(this.value)" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);color:var(--text);cursor:pointer">
+          <select id="historyDateSelect" onchange="loadHistoryDate(this.value)" style="font-size:11px;padding:3px 6px;border:1px solid var(--border,#e5e7eb);border-radius:4px;background:var(--bg2,#f9fafb);color:var(--text,#111);cursor:pointer">
             <option value="today">Danes</option>
           </select>
         </div>
@@ -242,20 +242,15 @@ let chart2=null;
 async function loadEntries(){
   try{
     const today = new Date().toLocaleDateString('sl-SI');
-    // Najprej poskusi today entries
     const data = await fetch('/forecast-entries').then(r=>r.json());
     if(data && data.date === today && data.entries && data.entries.length > 0){
       entries = data.entries || [];
       return;
     }
-    // Če danes ni podatkov, naloži iz history (zadnji dan)
+    // Poskusi iz history
     const hist = await fetch('/forecast-history').then(r=>r.json());
-    if(!hist) return;
-    const keys = Object.keys(hist).sort();
-    if(!keys.length) return;
-    // Poišči danes v history
-    if(hist[today] && hist[today].length > 0){
-      entries = hist[today].map((e,i) => ({
+    if(hist && hist[today] && hist[today].length > 0){
+      entries = hist[today].map(e => ({
         label: String(e.h).padStart(2,'0') + ':' + String(e.m).padStart(2,'0'),
         dejanski: e.rev || 0,
         dejanskiOrd: e.ord || 0
@@ -306,18 +301,17 @@ async function updateDataCounter(hist){
       el.textContent=`✓ Dovolj podatkov za osebni model (${days} dni)`;
       el.style.color='var(--green)';
     }
-    // Populate date selector
+    // Populate history dropdown
     const sel = document.getElementById('historyDateSelect');
     if(sel){
       const today = new Date().toLocaleDateString('sl-SI');
       const keys = Object.keys(hist).sort().reverse();
-      // Keep "Danes" option, add history dates
       sel.innerHTML = '<option value="today">Danes</option>';
       keys.forEach(k => {
         if(k !== today){
           const opt = document.createElement('option');
           opt.value = k;
-          opt.textContent = k + ' (' + (hist[k]||[]).length + ' vnosov)';
+          opt.textContent = k + ' (' + (hist[k]||[]).length + ')';
           sel.appendChild(opt);
         }
       });
