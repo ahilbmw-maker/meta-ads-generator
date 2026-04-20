@@ -289,7 +289,7 @@ input[type="text"].error { border-color: var(--red) !important; }
 .k-thumb.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
 .k-thumb-wrap { position: relative; }
 .k-thumb-del { position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; background: var(--red, #d93025); color: white; border: none; border-radius: 50%; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
-.k-results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.k-results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
 .k-result-item { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--surface2); position: relative; }
 .k-result-item img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
 .k-result-actions { display: flex; gap: 4px; padding: 6px; }
@@ -315,6 +315,9 @@ input[type="text"].error { border-color: var(--red) !important; }
 .k-asana-modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; width: 480px; max-width: 95vw; }
 .k-asana-modal-box input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface2); color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif; box-sizing: border-box; outline: none; }
 .k-asana-modal-box input:focus { border-color: var(--accent-border); }
+.k-hover-preview { display:none; position:fixed; z-index:2000; pointer-events:none; border-radius:12px; overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,0.55); border:2px solid rgba(255,255,255,0.15); transition: opacity 0.1s; }
+.k-hover-preview.show { display:block; }
+.k-hover-preview img { width:500px; height:500px; object-fit:cover; display:block; }
 .k-option-btn { width:100%; text-align:left; padding:8px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.12s; display:flex; flex-direction:column; gap:2px; }
 .k-option-btn:hover { border-color:var(--accent-border); background:var(--accent-dim); }
 .k-option-btn.active { border-color:var(--accent); background:var(--accent-dim); }
@@ -1654,6 +1657,47 @@ async function kGenerate() {
   btn.disabled = false;
 }
 
+// ── HOVER PREVIEW ──
+const kPreviewEl = () => document.getElementById('kHoverPreview');
+const kPreviewImg = () => document.getElementById('kHoverPreviewImg');
+let kHoverTimer = null;
+
+function kShowPreview(src, e) {
+  clearTimeout(kHoverTimer);
+  kHoverTimer = setTimeout(() => {
+    const el = kPreviewEl();
+    const img = kPreviewImg();
+    if (!el || !img) return;
+    img.src = src;
+    el.classList.add('show');
+    kPositionPreview(e);
+  }, 120);
+}
+
+function kHidePreview() {
+  clearTimeout(kHoverTimer);
+  const el = kPreviewEl();
+  if (el) el.classList.remove('show');
+}
+
+function kPositionPreview(e) {
+  const el = kPreviewEl();
+  if (!el || !el.classList.contains('show')) return;
+  const W = window.innerWidth, H = window.innerHeight;
+  const pw = 504, ph = 504;
+  let x = e.clientX + 16;
+  let y = e.clientY - ph / 2;
+  if (x + pw > W - 10) x = e.clientX - pw - 16;
+  if (y < 10) y = 10;
+  if (y + ph > H - 10) y = H - ph - 10;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+}
+
+document.addEventListener('mousemove', e => {
+  if (kPreviewEl()?.classList.contains('show')) kPositionPreview(e);
+});
+
 let kSelectedImgCards = new Set();
 let kAsanaPendingUrls = [];
 let kAsanaSelectedTaskId = null;
@@ -1687,7 +1731,7 @@ function kRenderResults(results) {
       '<div class="k-img-card" id="kcard-' + c.idx + '">' +
       '<div class="k-img-combo">' + esc(c.combo||'?') + '</div>' +
       '<div style="position:relative">' +
-        '<img src="' + esc(c.url) + '" loading="lazy" onclick="kToggleSelect(' + c.idx + ')" title="Klikni za izbiro">' +
+        '<img src="' + esc(c.url) + '" loading="lazy" onclick="kToggleSelect(' + c.idx + ')" onmouseenter="kShowPreview(\'' + esc(c.url) + '\',event)" onmouseleave="kHidePreview()" title="Hover za predogled, klik za izbiro">' +
         '<div class="k-select-check" onclick="kToggleSelect(' + c.idx + ')">' +
           '<svg viewBox="0 0 12 12" style="width:9px;height:9px;stroke:white;fill:none;stroke-width:2.5"><polyline points="2,6 5,9 10,3"/></svg>' +
         '</div>' +
@@ -1911,6 +1955,11 @@ function kLoadFromHistory(id) {
 updateMeta();renderH();ttRenderHistory();ttLoadHistory();metaLoadServerHistory();kLoadHistory();setMetaWide(true);
 
 </script>
+<!-- HOVER PREVIEW -->
+<div class="k-hover-preview" id="kHoverPreview">
+  <img id="kHoverPreviewImg" src="" alt="">
+</div>
+
 <!-- ASANA MODAL -->
 <div class="k-asana-modal" id="kAsanaModal" onclick="if(event.target===this)kCloseAsanaModal()">
   <div class="k-asana-modal-box">
