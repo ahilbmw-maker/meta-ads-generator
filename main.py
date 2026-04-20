@@ -31,6 +31,7 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 DATA_DIR.mkdir(exist_ok=True, parents=True)
 TT_HISTORY_FILE = DATA_DIR / "tiktok_history.json"
 META_HISTORY_FILE = DATA_DIR / "meta_history.json"
+KREATIVE_HISTORY_FILE = DATA_DIR / "kreative_history.json"
 FORECAST_ENTRIES_FILE = DATA_DIR / "forecast_entries.json"
 FORECAST_HISTORY_FILE = DATA_DIR / "forecast_history.json"
 
@@ -912,6 +913,25 @@ def download_file(filename: str):
                         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
+@app.get("/kreative-history")
+async def get_kreative_history():
+    if KREATIVE_HISTORY_FILE.exists():
+        try:
+            return json.loads(KREATIVE_HISTORY_FILE.read_text(encoding="utf-8"))
+        except:
+            return []
+    return []
+
+@app.post("/kreative-history")
+async def save_kreative_history(data: dict):
+    try:
+        history = data.get("history", [])
+        KREATIVE_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"status": "ok", "count": len(history)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ─── KREATIVE ENDPOINTS ───────────────────────────────────────────────────────
 
 @app.post("/analyze-product-kreative")
@@ -1015,10 +1035,30 @@ async def fetch_product_images(data: dict):
 
 @app.post("/generate-kreative")
 async def generate_kreative(data: dict):
-    """Placeholder za Higgsfield API — bo implementiran ko bo API ključ."""
-    prompt = data.get("prompt", "")
+    """Placeholder za Higgsfield API."""
+    product_name = data.get("productName", "")
+    a_options = data.get("aOptions", [])
+    b_options = data.get("bOptions", [])
     count = data.get("count", 4)
     images = data.get("images", [])
+
+    if not product_name or not a_options or not b_options:
+        return {"error": "Manjkajo podatki (ime izdelka, A ali B opcije)."}
+
+    combos = []
+    for a in a_options:
+        for b in b_options:
+            combos.append({
+                "combo": f"{a.get('label','A')} x {b.get('label','B')}",
+                "prompt": f"Create FB ad creative for {product_name}. Style: {b.get('text','')}. Copy: {a.get('text','')}",
+                "images": []
+            })
+
+    # TODO: Higgsfield API integracija
+    return {
+        "error": f"Higgsfield API kljuc se ni nastavljen. Kombinacij: {len(combos)}, Slik/kombinacijo: {count}",
+        "results": combos
+    }
 
     if not prompt:
         return {"error": "Manjka prompt."}
