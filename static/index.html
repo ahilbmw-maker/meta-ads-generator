@@ -289,29 +289,32 @@ input[type="text"].error { border-color: var(--red) !important; }
 .k-thumb.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
 .k-thumb-wrap { position: relative; }
 .k-thumb-del { position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; background: var(--red, #d93025); color: white; border: none; border-radius: 50%; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
-.k-results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.k-results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
 .k-result-item { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--surface2); position: relative; }
-.k-result-item img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; cursor: pointer; }
+.k-result-item img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
 .k-result-actions { display: flex; gap: 4px; padding: 6px; }
-.k-img-card { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--surface2); position: relative; display: flex; flex-direction: column; }
-.k-img-card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; cursor: zoom-in; transition: opacity 0.1s; }
-.k-img-card img:hover { opacity: 0.92; }
-.k-img-combo { font-size: 9px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; padding: 4px 8px; background: var(--surface2); border-bottom: 1px solid var(--border); letter-spacing: 0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.k-img-actions { display: flex; gap: 3px; padding: 5px 6px; background: var(--surface); }
-.k-img-btn { flex: 1; font-size: 10px; font-weight: 500; padding: 4px 4px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; font-family: 'DM Sans', sans-serif; text-align: center; transition: all 0.1s; white-space: nowrap; }
-.k-img-btn:hover { border-color: var(--accent-border); color: var(--accent); }
-.k-img-btn.danger:hover { border-color: #dc2626; color: #dc2626; }
-.k-img-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
-.k-img-btn.primary:hover { opacity: 0.85; }
-.k-combo-header { grid-column: 1/-1; font-size: 10px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; padding: 8px 4px 2px; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); margin-bottom: 2px; }
-.k-select-overlay { position: absolute; top: 6px; left: 6px; width: 18px; height: 18px; border-radius: 50%; border: 2px solid white; background: rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.1s; z-index: 2; }
-.k-img-card.selected .k-select-overlay { background: var(--accent); border-color: var(--accent); }
-.k-img-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
-.k-bulk-bar { display: none; align-items: center; gap: 8px; padding: 8px 12px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: var(--radius); margin-bottom: 10px; font-size: 12px; }
-.k-bulk-bar.show { display: flex; }
 .k-result-btn { flex: 1; font-size: 11px; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; font-family: 'DM Sans', sans-serif; }
 .k-result-btn:hover { border-color: var(--accent-border); color: var(--accent); }
 .k-result-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.k-img-card { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--surface2); display: flex; flex-direction: column; transition: border-color 0.12s, box-shadow 0.12s; }
+.k-img-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+.k-img-card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; cursor: pointer; }
+.k-img-combo { font-size: 9px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; padding: 4px 8px; background: var(--surface2); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.3px; }
+.k-img-actions { display: flex; gap: 3px; padding: 5px; background: var(--surface); }
+.k-img-btn { flex: 1; font-size: 10px; font-weight: 500; padding: 4px 3px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; font-family: 'DM Sans', sans-serif; text-align: center; transition: all 0.1s; white-space: nowrap; }
+.k-img-btn:hover { border-color: var(--accent-border); color: var(--accent); }
+.k-img-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.k-img-btn.primary:hover { opacity: 0.85; }
+.k-img-btn.danger:hover { border-color: #dc2626; color: #dc2626; }
+.k-select-check { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; background: rgba(0,0,0,0.35); cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
+.k-img-card.selected .k-select-check { background: var(--accent); border-color: var(--accent); }
+.k-bulk-bar { display: none; align-items: center; gap: 8px; padding: 8px 12px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: var(--radius); margin-bottom: 10px; font-size: 12px; flex-wrap: wrap; }
+.k-bulk-bar.show { display: flex; }
+.k-asana-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+.k-asana-modal.show { display: flex; }
+.k-asana-modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; width: 480px; max-width: 95vw; }
+.k-asana-modal-box input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface2); color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif; box-sizing: border-box; outline: none; }
+.k-asana-modal-box input:focus { border-color: var(--accent-border); }
 .k-option-btn { width:100%; text-align:left; padding:8px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.12s; display:flex; flex-direction:column; gap:2px; }
 .k-option-btn:hover { border-color:var(--accent-border); background:var(--accent-dim); }
 .k-option-btn.active { border-color:var(--accent); background:var(--accent-dim); }
@@ -717,9 +720,9 @@ input[type="text"].error { border-color: var(--red) !important; }
           </div>
           <div id="kBulkBar" class="k-bulk-bar">
             <span id="kBulkCount" style="font-weight:600;color:var(--accent)">0 izbranih</span>
-            <button class="k-img-btn primary" style="flex:none;padding:4px 10px" onclick="kBulkDownload()">⬇ Prenesi vse</button>
-            <button class="k-img-btn primary" style="flex:none;padding:4px 10px;background:#7c3aed;border-color:#7c3aed" onclick="kBulkAsana()">→ Asana (vse)</button>
-            <button class="k-img-btn danger" style="flex:none;padding:4px 10px;margin-left:auto" onclick="kClearSelection()">✕ Počisti</button>
+            <button class="k-img-btn primary" style="flex:none;padding:4px 10px;font-size:11px" onclick="kBulkDownload()">⬇ Prenesi izbrane</button>
+            <button class="k-img-btn primary" style="flex:none;padding:4px 10px;font-size:11px;background:#7c3aed;border-color:#7c3aed" onclick="kOpenAsanaModal(null)">→ Asana (izbrane)</button>
+            <button class="k-img-btn" style="flex:none;padding:4px 8px;font-size:11px;margin-left:auto" onclick="kClearSelection()">✕ Počisti</button>
           </div>
           <div id="kResultsGrid" class="k-results-grid">
             <div style="text-align:center;padding:4rem 2rem;color:var(--text-tertiary);font-size:13px">
@@ -1646,6 +1649,9 @@ async function kGenerate() {
 }
 
 let kSelectedImgCards = new Set();
+let kAsanaPendingUrls = [];
+let kAsanaSelectedTaskId = null;
+let kAsanaSelectedTaskName = '';
 
 function kRenderResults(results) {
   const grid = document.getElementById('kResultsGrid');
@@ -1653,9 +1659,8 @@ function kRenderResults(results) {
   kUpdateBulkBar();
   if (!results.length) { grid.innerHTML = '<div style="color:var(--text-tertiary);padding:2rem;text-align:center">Ni rezultatov.</div>'; return; }
 
-  // Flatten: each image gets its own card
   const cards = [];
-  results.forEach((r) => {
+  results.forEach(r => {
     const imgs = (r.images || (r.url ? [r.url] : [])).filter(Boolean);
     if (!imgs.length) {
       cards.push({combo: r.combo, url: null, error: r.error, idx: cards.length});
@@ -1676,14 +1681,16 @@ function kRenderResults(results) {
       '<div class="k-img-card" id="kcard-' + c.idx + '">' +
       '<div class="k-img-combo">' + esc(c.combo||'?') + '</div>' +
       '<div style="position:relative">' +
-        '<img src="' + esc(c.url) + '" loading="lazy" onclick="kToggleSelect(' + c.idx + ')">' +
-        '<div class="k-select-overlay" onclick="kToggleSelect(' + c.idx + ')" id="ksel-' + c.idx + '"><svg viewBox="0 0 12 12" style="width:10px;height:10px;stroke:white;fill:none;stroke-width:2"><polyline points="2,6 5,9 10,3"/></svg></div>' +
+        '<img src="' + esc(c.url) + '" loading="lazy" onclick="kToggleSelect(' + c.idx + ')" title="Klikni za izbiro">' +
+        '<div class="k-select-check" onclick="kToggleSelect(' + c.idx + ')">' +
+          '<svg viewBox="0 0 12 12" style="width:9px;height:9px;stroke:white;fill:none;stroke-width:2.5"><polyline points="2,6 5,9 10,3"/></svg>' +
+        '</div>' +
       '</div>' +
       '<div class="k-img-actions">' +
-        '<button class="k-img-btn" onclick="kToggleSelect(' + c.idx + ')">&#x2611; Izberi</button>' +
-        '<button class="k-img-btn" onclick="kDownloadCard(' + c.idx + ')">&#x2B07;</button>' +
-        '<button class="k-img-btn primary" onclick="kSendToAsana(\'' + esc(c.url) + '\')">&#x2192; Asana</button>' +
-        '<button class="k-img-btn danger" onclick="kDeleteCard(' + c.idx + ')">&#x2715;</button>' +
+        '<button class="k-img-btn" onclick="kToggleSelect(' + c.idx + ')">&#x2611;</button>' +
+        '<button class="k-img-btn" onclick="kDownloadCard(' + c.idx + ')" title="Prenesi">&#x2B07;</button>' +
+        '<button class="k-img-btn primary" onclick="kOpenAsanaModal([' + c.idx + '])" title="Pošlji v Asana">&#x2192; Asana</button>' +
+        '<button class="k-img-btn danger" onclick="kDeleteCard(' + c.idx + ')" title="Zbriši">&#x2715;</button>' +
       '</div>' +
       '</div>'
     );
@@ -1695,13 +1702,8 @@ function kRenderResults(results) {
 function kToggleSelect(idx) {
   const card = document.getElementById('kcard-' + idx);
   if (!card) return;
-  if (kSelectedImgCards.has(idx)) {
-    kSelectedImgCards.delete(idx);
-    card.classList.remove('selected');
-  } else {
-    kSelectedImgCards.add(idx);
-    card.classList.add('selected');
-  }
+  if (kSelectedImgCards.has(idx)) { kSelectedImgCards.delete(idx); card.classList.remove('selected'); }
+  else { kSelectedImgCards.add(idx); card.classList.add('selected'); }
   kUpdateBulkBar();
 }
 
@@ -1714,10 +1716,7 @@ function kUpdateBulkBar() {
 }
 
 function kClearSelection() {
-  kSelectedImgCards.forEach(idx => {
-    const card = document.getElementById('kcard-' + idx);
-    if (card) card.classList.remove('selected');
-  });
+  kSelectedImgCards.forEach(idx => { const c = document.getElementById('kcard-' + idx); if(c) c.classList.remove('selected'); });
   kSelectedImgCards.clear();
   kUpdateBulkBar();
 }
@@ -1741,9 +1740,97 @@ function kBulkDownload() {
   kSelectedImgCards.forEach(idx => kDownloadCard(idx));
 }
 
-function kBulkAsana() {
-  const urls = [...kSelectedImgCards].map(idx => window.kCardsData?.[idx]?.url).filter(Boolean);
-  alert('Asana bulk: ' + urls.length + ' slik — integracija prihaja!');
+// ── ASANA MODAL ──
+function kOpenAsanaModal(idxArray) {
+  // idxArray = null means use selected, else specific indices
+  const indices = idxArray || [...kSelectedImgCards];
+  kAsanaPendingUrls = indices.map(i => window.kCardsData?.[i]?.url).filter(Boolean);
+  if (!kAsanaPendingUrls.length) return;
+  kAsanaSelectedTaskId = null;
+  kAsanaSelectedTaskName = '';
+  document.getElementById('kAsanaUrlInput').value = '';
+  document.getElementById('kAsanaSearchResults').innerHTML = '';
+  document.getElementById('kAsanaSelected').textContent = '';
+  document.getElementById('kAsanaStatus').textContent = kAsanaPendingUrls.length + ' slikč pripravljenih za priložitev';
+  document.getElementById('kAsanaModal').classList.add('show');
+}
+
+function kCloseAsanaModal() {
+  document.getElementById('kAsanaModal').classList.remove('show');
+}
+
+async function kAsanaSearch() {
+  const q = document.getElementById('kAsanaUrlInput').value.trim();
+  if (!q) return;
+
+  // Check if it's a URL — extract task ID directly
+  const urlMatch = q.match(/\/task\/(\d+)/);
+  if (urlMatch) {
+    kAsanaSelectedTaskId = urlMatch[1];
+    document.getElementById('kAsanaSelected').textContent = '✓ Task ID: ' + kAsanaSelectedTaskId;
+    document.getElementById('kAsanaSearchResults').innerHTML = '';
+    return;
+  }
+
+  // Search by name
+  const el = document.getElementById('kAsanaSearchResults');
+  el.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);padding:4px">Iščem...</div>';
+  try {
+    const res = await fetch('/asana-search?q=' + encodeURIComponent(q));
+    const data = await res.json();
+    if (data.error) { el.innerHTML = '<div style="font-size:12px;color:#dc2626">' + esc(data.error) + '</div>'; return; }
+    const tasks = data.tasks || [];
+    if (!tasks.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);padding:4px">Ni zadetkov.</div>'; return; }
+    el.innerHTML = tasks.map(t =>
+      '<div onclick="kSelectAsanaTask(\'' + esc(t.gid) + '\',\'' + esc(t.name) + '\')" style="padding:6px 8px;border-radius:4px;cursor:pointer;font-size:12px;border:1px solid var(--border);margin-bottom:4px;background:var(--surface2)">' +
+        '<div style="font-weight:500">' + esc(t.name) + '</div>' +
+        '<div style="font-size:10px;color:var(--text-tertiary)">' + esc(t.project||'') + '</div>' +
+      '</div>'
+    ).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:12px;color:#dc2626">Napaka: ' + esc(e.message) + '</div>';
+  }
+}
+
+function kSelectAsanaTask(gid, name) {
+  kAsanaSelectedTaskId = gid;
+  kAsanaSelectedTaskName = name;
+  document.getElementById('kAsanaSelected').textContent = '✓ Izbran: ' + name;
+  document.getElementById('kAsanaSearchResults').innerHTML = '';
+  document.getElementById('kAsanaUrlInput').value = name;
+}
+
+async function kAsanaAttach() {
+  // Also try extracting task ID from URL input
+  if (!kAsanaSelectedTaskId) {
+    const val = document.getElementById('kAsanaUrlInput').value.trim();
+    const urlMatch = val.match(/\/task\/(\d+)/);
+    if (urlMatch) kAsanaSelectedTaskId = urlMatch[1];
+  }
+  if (!kAsanaSelectedTaskId) {
+    document.getElementById('kAsanaStatus').textContent = '⚠ Izberi task ali prilepi URL!';
+    return;
+  }
+
+  const btn = document.getElementById('kAsanaSubmitBtn');
+  btn.disabled = true;
+  const statusEl = document.getElementById('kAsanaStatus');
+  statusEl.textContent = 'Priložujem ' + kAsanaPendingUrls.length + ' slik...';
+
+  try {
+    const res = await fetch('/asana-attach', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({task_id: kAsanaSelectedTaskId, image_urls: kAsanaPendingUrls})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    statusEl.textContent = '✓ Priloženo ' + (data.attached||0) + ' slik v Asana!';
+    setTimeout(kCloseAsanaModal, 1500);
+  } catch(e) {
+    statusEl.textContent = '✕ Napaka: ' + e.message;
+  }
+  btn.disabled = false;
 }
 
 function kDownload(url, n) {
@@ -1752,9 +1839,8 @@ function kDownload(url, n) {
 }
 
 function kSendToAsana(url) {
-  alert('Asana integracija prihaja v naslednjem koraku!');
+  kOpenAsanaModal(null);
 }
-
 
 // ── KREATIVE HISTORY ──
 let kHistory = [];
@@ -1819,5 +1905,33 @@ function kLoadFromHistory(id) {
 updateMeta();renderH();ttRenderHistory();ttLoadHistory();metaLoadServerHistory();kLoadHistory();setMetaWide(true);
 
 </script>
+<!-- ASANA MODAL -->
+<div class="k-asana-modal" id="kAsanaModal" onclick="if(event.target===this)kCloseAsanaModal()">
+  <div class="k-asana-modal-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span style="font-weight:700;font-size:14px">Priloži v Asana task</span>
+      <button onclick="kCloseAsanaModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-tertiary)">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Prilepi Asana task URL ali poišči task:</div>
+    <input type="text" id="kAsanaUrlInput" placeholder="https://app.asana.com/0/.../task/..." style="margin-bottom:8px">
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <button class="btn-gen" style="flex:1;font-size:12px" onclick="kAsanaSearch()">
+        <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Išči task po imenu
+      </button>
+    </div>
+    <div id="kAsanaSearchResults" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div>
+    <div id="kAsanaSelected" style="font-size:11px;color:var(--accent);margin-bottom:10px;min-height:16px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-gen" id="kAsanaSubmitBtn" onclick="kAsanaAttach()" style="flex:1">
+        <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        Priloži slike
+      </button>
+      <button onclick="kCloseAsanaModal()" style="padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius);background:none;cursor:pointer;font-size:12px;color:var(--text-secondary)">Prekliči</button>
+    </div>
+    <div id="kAsanaStatus" style="font-size:12px;margin-top:8px;min-height:18px"></div>
+  </div>
+</div>
+
 </body>
 </html>
