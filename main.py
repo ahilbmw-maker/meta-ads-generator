@@ -929,20 +929,6 @@ async def analyze_product_kreative(data: dict):
     except Exception as e:
         return {"error": f"Ne morem prebrati strani: {e}"}
 
-    # Extract images from page
-    import re as _re
-    from urllib.parse import urljoin
-    srcs = _re.findall(r'<img[^>]+src=["\']([^"\' ]+)["\']', html, _re.IGNORECASE)
-    images = []
-    seen = set()
-    skip = ["logo","icon","favicon","sprite","banner","flag","payment","badge","star","rating","arrow"]
-    for src in srcs:
-        if any(w in src.lower() for w in skip): continue
-        if not any(ext in src.lower() for ext in [".jpg",".jpeg",".png",".webp"]): continue
-        if src not in seen:
-            seen.add(src)
-            images.append(src)
-        if len(images) >= 12: break
 
     # Build prompt for Claude to analyze product
     tools = [{"type": "web_search_20250305", "name": "web_search"}]
@@ -979,7 +965,6 @@ Pravila:
     if not result:
         return {"error": "Ni uspelo analizirati izdelka. Poskusi znova."}
 
-    result["images"] = images
     return result
 
 
