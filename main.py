@@ -1057,11 +1057,11 @@ async def generate_kreative(data: dict):
         for b in b_options:
             prompt = (
                 f"From these reference images, create a new Facebook ad creative. "
-                f"Use '{b.get('text', '')}' as the background/scene style. "
-                f"On the image write ONLY the product name '{product_name}' in large uppercase letters — no other text or copy. "
-                f"Where possible, recreate the exact logo from the reference images. "
-                f"Visually highlight these key features using icons or small visual elements (in English): {a.get('text', '')}. "
-                f"Photorealistic, high quality, square 1:1 FB ad format."
+                f"Try with an intense '{b.get('text', '')}' background/scene style — make it dramatic, eye-catching and scroll-stopping. "
+                f"On the image write ONLY the product name '{product_name}' in large stylized uppercase letters — recreate the brand logo from the reference images exactly: same font style, same design, same colors, same graphic elements. Make it look like an established brand logo, not plain text. "
+                f"No other text or copy on the image besides the brand name/logo. "
+                f"Visually highlight these key features using bold icons or graphic elements (in English): {a.get('text', '')}. Make the icons and feature labels visually strong and prominent. "
+                f"Photorealistic, high quality, square 1:1 FB ad format. High contrast, vibrant colors."
             )
             combos.append({
                 "combo": f"{a.get('label','A')} × {b.get('label','B')}",
