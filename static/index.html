@@ -326,6 +326,8 @@ input[type="text"].error { border-color: var(--red) !important; }
 #lokResultsGrid { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); }
 #page-lokalizacija .kreative-layout { grid-template-columns: 220px 1fr; }
 #page-lokalizacija .kreative-right { min-width: 0; overflow: hidden; }
+#page-lokalizacija ~ .main, body:has(#page-lokalizacija.active) .main { max-width: 100% !important; }
+body:has(#page-lokalizacija.active) .main { max-width: none !important; }
 .k-option-btn { width:100%; text-align:left; padding:8px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.12s; display:flex; flex-direction:column; gap:2px; }
 .k-option-btn:hover { border-color:var(--accent-border); background:var(--accent-dim); }
 .k-option-btn.active { border-color:var(--accent); background:var(--accent-dim); }
@@ -886,7 +888,7 @@ function switchPage(page) {
   // Wide layout
   const mainEl = document.querySelector('.main');
   if(mainEl) {
-    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative') {
+    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative' || page==='lokalizacija') {
       mainEl.classList.add('wide');
     } else if(page==='meta') {
       const formVisible = document.getElementById('metaFormSection').style.display !== 'none';
