@@ -1312,6 +1312,7 @@ async def localize_kreativa(data: dict):
     languages = data.get("languages", [])
     asana_task_id = data.get("asana_task_id")
     sku = data.get("sku", "SKU").strip().upper()
+    brand = data.get("brand", "").strip()
 
     if not images_data or not languages:
         return {"error": "Manjka slika ali jeziki."}
@@ -1334,10 +1335,12 @@ async def localize_kreativa(data: dict):
     async def translate_one(lang_code, img_b64, img_mime, img_idx):
         lang_name = LANG_NAMES.get(lang_code, lang_code)
         api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key={gemini_key}"
+        brand_note = f" Do NOT translate these brand/product names (keep exactly as-is): {brand}." if brand else ""
         prompt = (
             f"Edit this image to translate all visible text into {lang_name}. "
             f"Keep EVERYTHING exactly the same — same people, same background, same layout, same design, same product, same icons, same colors, same fonts. "
-            f"ONLY translate the text that is NOT a brand name or logo. "
+            f"ONLY translate the text that is NOT a brand name or logo."
+            f"{brand_note} "
             f"Do NOT translate or modify any brand names, logos, or product names. "
             f"Keep all text in the same position, same style, same size."
         )
