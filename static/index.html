@@ -323,6 +323,7 @@ input[type="text"].error { border-color: var(--red) !important; }
 .lok-lang-btn { display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); cursor:pointer; font-size:12px; color:var(--text-secondary); transition:all 0.1s; }
 .lok-lang-btn:has(input:checked) { border-color:var(--accent); background:var(--accent-dim); color:var(--accent); font-weight:500; }
 .lok-lang-btn input { display:none; }
+#lokResultsGrid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
 .k-option-btn { width:100%; text-align:left; padding:8px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.12s; display:flex; flex-direction:column; gap:2px; }
 .k-option-btn:hover { border-color:var(--accent-border); background:var(--accent-dim); }
 .k-option-btn.active { border-color:var(--accent); background:var(--accent-dim); }
@@ -768,14 +769,11 @@ input[type="text"].error { border-color: var(--red) !important; }
           <span class="slabel">HERO KREATIVA</span>
           <div id="lokDropZone" class="k-dropzone" style="margin-top:8px" onclick="document.getElementById('lokFileInput').click()">
             <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            <span style="font-size:12px">Klikni ali povleci hero kreativo sem</span>
-            <span style="font-size:11px;color:var(--text-tertiary)">PNG, JPG</span>
+            <span style="font-size:12px">Klikni ali povleci hero kreative sem</span>
+            <span style="font-size:11px;color:var(--text-tertiary)">PNG, JPG · več slik naenkrat</span>
           </div>
-          <input type="file" id="lokFileInput" accept="image/*" style="display:none" onchange="lokHandleFile(this.files[0])">
-          <div id="lokPreview" style="margin-top:8px;display:none">
-            <img id="lokPreviewImg" style="width:100%;border-radius:var(--radius);border:1px solid var(--border)" src="" alt="preview">
-            <button class="history-clear" onclick="lokClearFile()" style="margin-top:4px">✕ Odstrani</button>
-          </div>
+          <input type="file" id="lokFileInput" accept="image/*" multiple style="display:none" onchange="lokHandleFiles(this.files)">
+          <div id="lokPreview" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
         </div>
 
         <!-- Izberi jezike -->
@@ -2061,24 +2059,37 @@ const LOK_LANGS = {
   SK: 'Slovak', PL: 'Polish', RO: 'Romanian', BG: 'Bulgarian',
   GR: 'Greek', SL: 'Slovenian'
 };
-let lokImageData = null;
+let lokImages = []; // array of base64 data URLs
 
-function lokHandleFile(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    lokImageData = e.target.result;
-    document.getElementById('lokPreviewImg').src = lokImageData;
-    document.getElementById('lokPreview').style.display = 'block';
-    document.getElementById('lokDropZone').style.display = 'none';
-  };
-  reader.readAsDataURL(file);
+function lokHandleFiles(files) {
+  [...files].forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      lokImages.push(e.target.result);
+      lokRenderPreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function lokRenderPreviews() {
+  const el = document.getElementById('lokPreview');
+  el.innerHTML = lokImages.map((src, i) =>
+    '<div class="k-thumb-wrap">' +
+      '<img src="' + src + '" class="k-thumb selected" style="width:72px;height:72px;object-fit:cover;border-radius:var(--radius);border:2px solid var(--accent)">' +
+      '<button class="k-thumb-del" onclick="lokRemoveImage(' + i + ')">x</button>' +
+    '</div>'
+  ).join('');
+}
+
+function lokRemoveImage(idx) {
+  lokImages.splice(idx, 1);
+  lokRenderPreviews();
 }
 
 function lokClearFile() {
-  lokImageData = null;
-  document.getElementById('lokPreview').style.display = 'none';
-  document.getElementById('lokDropZone').style.display = 'flex';
+  lokImages = [];
+  lokRenderPreviews();
   document.getElementById('lokFileInput').value = '';
 }
 
@@ -2108,7 +2119,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!dz) return;
   dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
-  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); lokHandleFile(e.dataTransfer.files[0]); });
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); lokHandleFiles(e.dataTransfer.files); });
 });
 
 // Paste support
@@ -2117,16 +2128,16 @@ document.addEventListener('paste', e => {
   const items = e.clipboardData?.items || [];
   for (const item of items) {
     if (item.type.startsWith('image/')) {
-      lokHandleFile(item.getAsFile());
+      lokHandleFiles([item.getAsFile()]);
       break;
     }
   }
 });
 
 async function lokGenerate() {
-  if (!lokImageData) {
+  if (!lokImages.length) {
     const err = document.getElementById('lokError');
-    err.textContent = 'Naloži hero kreativo!'; err.classList.add('show'); return;
+    err.textContent = 'Naloži vsaj 1 hero kreativo!'; err.classList.add('show'); return;
   }
   const langs = lokGetSelected();
   if (!langs.length) {
@@ -2138,7 +2149,7 @@ async function lokGenerate() {
   btn.disabled = true;
   document.getElementById('lokLoading').style.display = 'block';
   document.getElementById('lokResultsGrid').innerHTML = '';
-  document.getElementById('lokLoadingText').textContent = 'Lokaliziram ' + langs.length + ' jezikov...';
+  document.getElementById('lokLoadingText').textContent = 'Lokaliziram ' + langs.length + ' jezikov × ' + lokImages.length + ' kreativ...';
 
   const asanaUrl = document.getElementById('lokAsanaUrl').value.trim();
   const asanaTaskId = asanaUrl.match(/\/task\/(\d+)/)?.[1] || null;
@@ -2147,7 +2158,7 @@ async function lokGenerate() {
   try {
     const res = await fetch('/localize-kreativa', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({image: lokImageData, languages: langs, asana_task_id: asanaTaskId, sku})
+      body: JSON.stringify({images: lokImages, languages: langs, asana_task_id: asanaTaskId, sku})
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
