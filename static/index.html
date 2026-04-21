@@ -324,9 +324,8 @@ input[type="text"].error { border-color: var(--red) !important; }
 .lok-lang-btn:has(input:checked) { border-color:var(--accent); background:var(--accent-dim); color:var(--accent); font-weight:500; }
 .lok-lang-btn input { display:none; }
 #lokResultsGrid { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); }
-#page-lokalizacija .kreative-layout { grid-template-columns: 300px 1fr; }
-#page-lokalizacija .kreative-right { width: 100%; }
-#page-lokalizacija .kreative-right .card { width: 100%; box-sizing: border-box; }
+#page-lokalizacija .kreative-layout { grid-template-columns: 220px 1fr; }
+#page-lokalizacija .kreative-right { min-width: 0; overflow: hidden; }
 .k-option-btn { width:100%; text-align:left; padding:8px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.12s; display:flex; flex-direction:column; gap:2px; }
 .k-option-btn:hover { border-color:var(--accent-border); background:var(--accent-dim); }
 .k-option-btn.active { border-color:var(--accent); background:var(--accent-dim); }
@@ -765,6 +764,12 @@ input[type="text"].error { border-color: var(--red) !important; }
         <div class="card" style="margin-bottom:12px">
           <span class="slabel">SKU KODA</span>
           <input type="text" id="lokSku" placeholder="npr. SIGNALSURE" class="meta-url-input" style="margin-top:6px;font-weight:600;font-size:14px;text-transform:uppercase">
+        </div>
+
+        <div class="card" style="margin-bottom:12px">
+          <span class="slabel">BRAND (ne prevajaj)</span>
+          <input type="text" id="lokBrand" placeholder="npr. MEGACOVER, EELHOE, SHAPEUPS" class="meta-url-input" style="margin-top:6px;font-size:13px">
+          <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">AI ne bo prevajal tega besedila</div>
         </div>
 
         <!-- Upload slike -->
@@ -2157,11 +2162,12 @@ async function lokGenerate() {
   const asanaUrl = document.getElementById('lokAsanaUrl').value.trim();
   const asanaTaskId = asanaUrl.match(/\/task\/(\d+)/)?.[1] || null;
   const sku = document.getElementById('lokSku').value.trim().toUpperCase() || 'SKU';
+  const brand = document.getElementById('lokBrand').value.trim();
 
   try {
     const res = await fetch('/localize-kreativa', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({images: lokImages, languages: langs, asana_task_id: asanaTaskId, sku})
+      body: JSON.stringify({images: lokImages, languages: langs, asana_task_id: asanaTaskId, sku, brand})
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
