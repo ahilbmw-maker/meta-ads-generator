@@ -1,1383 +1,2221 @@
-import os
-import json
-import re
-import asyncio
-import shutil
-import uuid
-import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
-from typing import Optional, List
-from urllib.parse import urlparse
-from pathlib import Path
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SLX Analytics</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="shortcut icon" href="/static/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f2f2f5; --surface: #fff; --surface2: #ebebf0;
+  --border: rgba(0,0,0,0.07); --border-hover: rgba(0,0,0,0.15);
+  --text: #111116; --text-secondary: #55555f; --text-tertiary: #9999a8;
+  --accent: #3a6fff; --accent-dim: rgba(58,111,255,0.1); --accent-border: rgba(58,111,255,0.3);
+  --tiktok: #010101; --tiktok-dim: rgba(1,1,1,0.07);
+  --green: #0a8c5a; --green-dim: rgba(10,140,90,0.1); --green-border: rgba(10,140,90,0.28);
+  --red: #e03030; --chip-off: #dddde5; --chip-on: #3a6fff;
+  --sidebar: 200px; --radius: 10px; --radius-lg: 14px;
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
 
-import httpx
-import openpyxl
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel
-import anthropic
+/* ── MOBILE BOTTOM TAB BAR ── */
+.mobile-tabbar { display: none; }
 
-app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-app.mount("/static", StaticFiles(directory="static"), name="static")
-client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-
-TEMPLATE_PATH = "static/tiktok_template.xlsx"
-EXPORTS_DIR = Path("exports")
-EXPORTS_DIR.mkdir(exist_ok=True)
-DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
-DATA_DIR.mkdir(exist_ok=True, parents=True)
-TT_HISTORY_FILE = DATA_DIR / "tiktok_history.json"
-META_HISTORY_FILE = DATA_DIR / "meta_history.json"
-KREATIVE_HISTORY_FILE = DATA_DIR / "kreative_history.json"
-FORECAST_ENTRIES_FILE = DATA_DIR / "forecast_entries.json"
-FORECAST_HISTORY_FILE = DATA_DIR / "forecast_history.json"
-
-# ─── BRAND DOMAIN MAPS ───────────────────────────────────────────────────────
-
-BRAND_DOMAINS = {
-    "maaarket": {"sl":"www.maaarket.si","hr":"www.maaarket.hr","rs":"www.maaarket.rs","hu":"www.maaarket.hu","cz":"www.maaarket.cz","sk":"www.maaarket.sk","pl":"www.maaarket.pl","gr":"www.maaarket.gr","ro":"www.maaarket.ro","bg":"www.maaarket.bg"},
-    "fluxigo":  {"sl":"www.fluxigo.si","hr":"www.fluxigo.hr","rs":"www.fluxigo.rs","hu":"www.fluxigo.hu","cz":"www.fluxigo.cz","sk":"www.fluxigo.sk","pl":"www.fluxigo.pl","gr":"www.fluxigo.gr","ro":"www.fluxigo.ro","bg":"www.fluxigo.bg"},
-    "easyzo":   {"sl":"www.easyzo.si","hr":"www.easyzo.hr","rs":"www.easyzo.rs","hu":"www.easyzo.hu","cz":"www.easyzo.cz","sk":"www.easyzo.sk","pl":"www.easyzo.pl","gr":"www.easyzo.gr","ro":"www.easyzo.ro","bg":"www.easyzo.bg"},
-    "zipply":   {"sl":"www.zipply.si","hr":"www.zipply.hr","rs":"www.zipply.rs","hu":"www.zipply.hu","cz":"www.zipply.cz","sk":"www.zipply.sk","pl":"www.zipply.pl","gr":"www.zipply.gr","ro":"www.zipply.ro","bg":"www.zipply.bg"},
-    "thundershop": {"sl":"www.thundershop.si","hr":"www.thundershop.hr","rs":"www.thundershop.rs","hu":"www.thundershop.hu","cz":"www.thundershop.cz","sk":"www.thundershop.sk","gr":"www.thundershop.gr","ro":"www.thundershop.ro","bg":"www.thundershop.bg"},
-    "colibrishop": {"sl":"www.colibrishop.si","hr":"www.colibrishop.hr","rs":"www.colibrishop.rs","cz":"www.colibrishop.cz","sk":"www.colibrishop.sk","gr":"www.colibrishop.gr","ro":"www.colibrishop.ro","bg":"www.colibrishop.bg"},
+@media(max-width: 600px) {
+  .hamburger { display: none !important; }
+  .overlay { display: none !important; }
+  .sidebar { display: none !important; }
+  .main { padding: 0.75rem 0.75rem 5rem; max-width: 100%; overflow-x: hidden; }
+  body { display: block; }
+  #page-meta { max-width: 100%; overflow-x: hidden; }
+  input[type="text"] { max-width: 100%; min-width: 0; }
+  .url-wrap { min-width: 0; overflow: hidden; }
+  .url-row { min-width: 0; }
+  .hint { display: none; }
+  .card { padding: 1rem; }
+  .country-body { grid-template-columns: 1fr; }
+  .field-col:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+  .results-hdr { flex-direction: column; align-items: flex-start; }
+  .results-hdr-right { width: 100%; justify-content: flex-end; }
+  .prod-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+  .prod-tab { flex-shrink: 0; }
+  .country-url-link { max-width: 160px; }
+  .counters { gap: 1rem; }
+  .input-grid2 { grid-template-columns: 1fr; }
+  .qbtn-sub { display: none; }
+  .mobile-tabbar {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 58px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    z-index: 9999;
+    align-items: stretch;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+  .tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    transition: all 0.12s;
+    padding: 6px 4px;
+    border: none;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .tab-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .tab-item span { font-size: 9px; font-weight: 500; color: var(--text-tertiary); }
+  .tab-item.active span { color: var(--accent); }
+  .tab-item.active svg { opacity: 1; }
+  .tab-item svg { opacity: 0.4; }
+  .tab-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); display: none; margin-top: 1px; }
+  .tab-item.active .tab-dot { display: block; }
+  /* Swipe container */
+  .pages-wrap { width: 100%; overflow: hidden; }
+  .pages-inner { display: flex; transition: transform 0.3s ease; will-change: transform; }
+  .pages-inner .page { display: block; min-width: 100%; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .pages-inner .page.active { opacity: 1; pointer-events: auto; }
 }
 
-MAAARKET_FEEDS = {
-    "sl":"https://api.maaarket.si/storage/exports/sl/google.xml",
-    "hr":"https://api.maaarket.hr/storage/exports/hr/google.xml",
-    "rs":"https://api.maaarket.rs/storage/exports/sr/google.xml",
-    "hu":"https://api.maaarket.hu/storage/exports/hu/google.xml",
-    "pl":"https://api.maaarket.pl/storage/exports/pl/google.xml",
-    "cz":"https://api.maaarket.cz/storage/exports/cs/google.xml",
-    "sk":"https://api.maaarket.sk/storage/exports/sk/google.xml",
-    "gr":"https://api.maaarket.gr/storage/exports/el/google.xml",
-    "bg":"https://api.maaarket.bg/storage/exports/bg/google.xml",
-    "ro":"https://api.maaarket.ro/storage/exports/ro/google.xml",
+/* ── SIDEBAR ── */
+.sidebar { width: var(--sidebar); flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1.25rem 0.75rem; gap: 4px; min-height: 100vh; }
+.sidebar-logo { display: flex; align-items: center; gap: 8px; padding: 0 0.5rem 1.25rem; border-bottom: 1px solid var(--border); margin-bottom: 0.75rem; }
+.sidebar-logo-icon { width: 28px; height: 28px; border-radius: 7px; background: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sidebar-logo-icon svg { width: 14px; height: 14px; fill: white; }
+.sidebar-logo-text { font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: -0.2px; line-height: 1.2; }
+.sidebar-logo-sub { font-size: 10px; color: var(--text-tertiary); }
+.nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: var(--radius); cursor: pointer; transition: all 0.12s; color: var(--text-secondary); font-size: 13px; font-weight: 500; border: 1px solid transparent; }
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--surface2); color: var(--text); border-color: var(--border); }
+.nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+.nav-item .nav-badge { margin-left: auto; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 4px; font-family: 'DM Mono', monospace; }
+.nav-meta svg { stroke: #1877F2; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.nav-meta.active { border-color: rgba(24,119,242,0.2); }
+.nav-tiktok svg { fill: var(--tiktok); stroke: none; }
+.nav-tiktok.active { border-color: rgba(1,1,1,0.12); }
+
+/* ── MAIN CONTENT ── */
+.main { flex: 1; padding: 2rem 2rem 5rem; max-width: 1000px; }
+.main.wide { max-width: 100%; padding: 1.5rem 1.5rem 5rem; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── SHARED COMPONENTS ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 12px; }
+.slabel { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; display: block; }
+.url-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.url-row { display: flex; align-items: center; gap: 8px; }
+.url-num { width: 22px; height: 22px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: 'DM Mono', monospace; }
+.url-wrap { flex: 1; position: relative; display: flex; align-items: center; }
+.url-icon { position: absolute; left: 11px; pointer-events: none; }
+.url-icon svg { width: 13px; height: 13px; stroke: var(--text-tertiary); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+input[type="text"] { width: 100%; height: 42px; padding: 0 12px 0 32px; font-size: 13.5px; font-family: 'DM Sans', sans-serif; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface2); color: var(--text); transition: all 0.15s; }
+input[type="text"].no-icon { padding-left: 12px; }
+input[type="text"]:focus { outline: none; border-color: var(--accent-border); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-dim); }
+input[type="text"]::placeholder { color: var(--text-tertiary); }
+input[type="text"].error { border-color: var(--red) !important; }
+.btn-gen { width: 100%; height: 46px; border-radius: var(--radius); border: none; background: var(--accent); color: white; font-size: 14px; font-family: 'DM Sans', sans-serif; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all 0.15s; }
+.btn-gen:hover { background: #2d5fee; }
+.btn-gen:active { transform: scale(0.98); }
+.btn-gen:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-gen svg { width: 14px; height: 14px; stroke: white; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.btn-tiktok { background: var(--tiktok); }
+.btn-tiktok:hover { background: #333; }
+.sep { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+.counters { display: flex; gap: 1.5rem; }
+.counter-group { flex: 1; }
+.counter-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cnt-btn { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-secondary); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s; font-family: 'DM Mono', monospace; }
+.cnt-btn:hover { border-color: var(--border-hover); color: var(--text); }
+.cnt-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+.cnt-val { font-size: 16px; font-weight: 600; min-width: 22px; text-align: center; font-family: 'DM Mono', monospace; }
+.cnt-max { font-size: 11px; color: var(--text-tertiary); }
+.chips { display: flex; gap: 3px; }
+.chip { height: 4px; flex: 1; border-radius: 2px; background: var(--chip-off); transition: background 0.2s; }
+.chip.on { background: var(--chip-on); }
+.counters-divider { width: 1px; background: var(--border); align-self: stretch; }
+.hint { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; background: var(--surface2); border-radius: 8px; margin-top: 1.25rem; }
+.hint svg { width: 13px; height: 13px; stroke: var(--text-tertiary); fill: none; stroke-width: 1.5; flex-shrink: 0; margin-top: 1px; }
+.hint-text { font-size: 12px; color: var(--text-tertiary); line-height: 1.6; }
+.error-msg { display: none; padding: 10px 14px; background: rgba(224,48,48,0.07); border: 1px solid rgba(224,48,48,0.2); border-radius: var(--radius); font-size: 13px; color: var(--red); margin-top: 10px; }
+.error-msg.show { display: block; }
+.loading { display: none; text-align: center; padding: 3rem 1rem; }
+.loading.show { display: block; }
+.spinner { width: 30px; height: 30px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 1rem; }
+.spinner.tiktok { border-top-color: var(--tiktok); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 13px; color: var(--text-tertiary); }
+.loading-progress { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+.prog-item { font-size: 11px; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text-tertiary); display: flex; align-items: center; gap: 5px; }
+.prog-item.done { color: var(--green); border-color: var(--green-border); background: var(--green-dim); }
+.prog-item.loading { color: var(--accent); border-color: var(--accent-border); background: var(--accent-dim); }
+
+/* Quality mode */
+.qbtn { flex: 1; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--radius); border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; transition: all 0.15s; text-align: left; font-family: 'DM Sans', sans-serif; }
+.qbtn:hover { border-color: var(--border-hover); background: var(--surface2); }
+.qbtn.on { border-color: var(--accent); background: var(--accent-dim); }
+.qbtn-icon { font-size: 18px; flex-shrink: 0; line-height: 1; }
+.qbtn-body { display: flex; flex-direction: column; gap: 2px; }
+.qbtn-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.qbtn-sub { font-size: 11px; color: var(--text-tertiary); }
+.qbtn.on .qbtn-title { color: var(--accent); }
+.qbtn.on .qbtn-sub { color: var(--accent); opacity: 0.7; }
+
+/* History */
+.history-section { margin-top: 1.5rem; }
+.history-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.history-title { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.8px; }
+.history-clear { font-size: 11px; color: var(--text-tertiary); background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.history-clear:hover { color: var(--red); }
+.history-list { display: flex; flex-direction: column; gap: 6px; }
+.history-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.12s; }
+.history-item:hover { border-color: var(--accent-border); background: var(--accent-dim); }
+.hi-icon { width: 28px; height: 28px; border-radius: 7px; background: var(--surface2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.hi-icon svg { width: 13px; height: 13px; stroke: var(--text-tertiary); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.hi-body { flex: 1; min-width: 0; }
+.hi-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hi-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+.hi-badge { font-size: 10px; font-weight: 600; color: var(--text-tertiary); background: var(--surface2); border-radius: 4px; padding: 2px 6px; white-space: nowrap; font-family: 'DM Mono', monospace; }
+.brand-badge { font-size: 10px; font-weight: 600; border-radius: 4px; padding: 2px 7px; white-space: nowrap; margin-left: 4px; }
+.brand-maaarket   { background:#e8f4fd; color:#1a73e8; }
+.brand-thundershop{ background:#fce8e8; color:#d93025; }
+.brand-colibrishop{ background:#fef3e2; color:#f09300; }
+.brand-zipply     { background:#e6f4ea; color:#1e8e3e; }
+.brand-easyzo     { background:#f3e8fd; color:#8430ce; }
+.brand-fluxigo    { background:#e8faf4; color:#0d8050; }
+.brand-other      { background:#f1f3f4; color:#5f6368; }
+.history-empty { font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 1.5rem; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); }
+
+/* Meta results */
+.results { display: none; }
+.results.show { display: block; }
+.results-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 8px; }
+.results-hdr-right { display: flex; gap: 8px; }
+.back-btn { height: 34px; padding: 0 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.12s; display: flex; align-items: center; gap: 5px; }
+.back-btn:hover { border-color: var(--border-hover); color: var(--text); }
+.back-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.back-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.prod-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.prod-tab { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); font-size: 13px; font-weight: 500; cursor: pointer; background: var(--surface); color: var(--text-secondary); transition: all 0.12s; display: flex; align-items: center; gap: 6px; }
+.prod-tab:hover { border-color: var(--border-hover); color: var(--text); }
+.prod-tab.on { background: var(--accent); color: white; border-color: var(--accent); }
+.prod-tab .tab-num { width: 16px; height: 16px; border-radius: 50%; background: rgba(255,255,255,0.25); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; }
+.prod-tab:not(.on) .tab-num { background: var(--surface2); color: var(--text-tertiary); }
+.prod-panel { display: none; }
+.prod-panel.on { display: block; }
+.country-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 10px; overflow: hidden; }
+.country-hdr { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.country-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px; font-family: 'DM Mono', monospace; letter-spacing: 0.3px; flex-shrink: 0; }
+.country-name { font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; }
+.country-url-row { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.country-url-link { font-size: 11px; color: var(--accent); text-decoration: none; font-family: 'DM Mono', monospace; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.country-url-link:hover { text-decoration: underline; }
+.url-missing { font-size: 11px; color: var(--text-tertiary); font-style: italic; margin-left: auto; }
+.url-cp-btn { height: 22px; padding: 0 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-tertiary); font-size: 10px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; display: flex; align-items: center; gap: 3px; white-space: nowrap; flex-shrink: 0; }
+.url-cp-btn:hover { border-color: var(--accent-border); color: var(--accent); }
+.url-cp-btn.ok { color: var(--green); border-color: var(--green-border); background: var(--green-dim); }
+.country-body { display: grid; grid-template-columns: 1fr 1fr; }
+.field-col { padding: 12px 16px; }
+.field-col:first-child { border-right: 1px solid var(--border); }
+.field-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.field-lbl { font-size: 10px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.7px; }
+.cp-btn { height: 24px; padding: 0 10px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-secondary); font-size: 11px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.cp-btn:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface); }
+.cp-btn.ok { color: var(--green); border-color: var(--green-border); background: var(--green-dim); }
+.cp-btn svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.field-text { font-size: 13px; color: var(--text); line-height: 1.65; white-space: pre-wrap; }
+.field-text.is-hl { font-size: 14px; font-weight: 600; }
+.pt-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.pt-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+
+/* TikTok results */
+.tt-results { display: none; }
+.tt-results.show { display: block; }
+
+/* TikTok history panel */
+.tt-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+.meta-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+.meta-history-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; }
+.meta-history-panel .history-list { max-height: 520px; overflow-y: auto; }
+.hi-regen { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 4px; border: 1px solid var(--accent-border); background: var(--accent-dim); color: var(--accent); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.hi-regen:hover { background: var(--accent); color: #fff; }
+.meta-history-search { width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-primary); margin-bottom: 10px; box-sizing: border-box; }
+.meta-history-search:focus { outline: none; border-color: var(--accent); }
+.tt-history { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; }
+.tt-history-hdr { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 8px; }
+.tt-search { width: 100%; height: 32px; padding: 0 10px; font-size: 12px; font-family: 'DM Sans', sans-serif; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface2); color: var(--text); margin-bottom: 8px; outline: none; box-sizing: border-box; }
+.tt-search:focus { border-color: var(--accent-border); }
+.tt-history-list { display: flex; flex-direction: column; gap: 4px; max-height: 520px; overflow-y: auto; }
+.tt-h-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; display: flex; align-items: center; gap: 8px; transition: all 0.12s; }
+.tt-h-item:hover { border-color: var(--accent-border); background: var(--accent-dim); }
+.tt-h-icon { width: 28px; height: 28px; border-radius: 7px; background: var(--surface2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tt-h-icon svg { width: 13px; height: 13px; stroke: var(--text-tertiary); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.tt-h-body { flex: 1; min-width: 0; }
+.tt-h-sku { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt-h-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+.tt-h-load { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; white-space: nowrap; flex-shrink: 0; font-family: 'DM Sans', sans-serif; }
+.tt-h-load:hover { border-color: var(--accent-border); color: var(--accent); }
+.tt-h-regen { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 4px; border: 1px solid var(--green-border,#b7e4c7); background: var(--green-dim,#f0faf4); color: var(--green,#1e8e3e); cursor: pointer; white-space: nowrap; flex-shrink: 0; font-family: 'DM Sans', sans-serif; }
+.tt-h-regen:hover { background: var(--green,#1e8e3e); color: white; }
+.tt-h-del { width: 22px; height: 22px; font-size: 13px; border: none; background: transparent; color: var(--text-tertiary); cursor: pointer; flex-shrink: 0; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+.tt-h-del:hover { color: var(--red,#d93025); background: #fce8e8; }
+.tt-empty { font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 1.5rem 0; }
+
+/* ── KREATIVE ── */
+.kreative-layout { display: grid; grid-template-columns: 380px 1fr; gap: 14px; align-items: start; }
+.kreative-left { display: flex; flex-direction: column; gap: 0; }
+.kreative-right {}
+.kinput-btn { flex: 1; padding: 6px 12px; font-size: 12px; font-weight: 500; border-radius: var(--radius); border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; }
+.kinput-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.kinput-btn:hover:not(.active) { border-color: var(--accent-border); color: var(--accent); }
+.k-dropzone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 1.5rem; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); transition: all 0.12s; }
+.k-dropzone:hover { border-color: var(--accent-border); background: var(--accent-dim); }
+.k-dropzone.dragover { border-color: var(--accent); background: var(--accent-dim); }
+.k-prompt-textarea { width: 100%; min-height: 120px; padding: 10px; font-size: 12px; font-family: 'DM Mono', monospace; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface2); color: var(--text); resize: vertical; outline: none; box-sizing: border-box; line-height: 1.5; }
+.k-prompt-textarea:focus { border-color: var(--accent-border); }
+.k-tag { font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-secondary); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; }
+.k-tag:hover { border-color: var(--accent-border); color: var(--accent); background: var(--accent-dim); }
+.k-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius); border: 2px solid transparent; cursor: pointer; transition: all 0.12s; }
+.k-thumb:hover { border-color: var(--accent); }
+.k-thumb.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+.k-thumb-wrap { position: relative; }
+.k-thumb-del { position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; background: var(--red, #d93025); color: white; border: none; border-radius: 50%; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+.k-results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 10px; }
+.k-result-item { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--surface2); position: relative; }
+.k-result-item img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+.k-result-actions { display: flex; gap: 4px; padding: 6px; }
+.k-result-btn { flex: 1; font-size: 11px; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.k-result-btn:hover { border-color: var(--accent-border); color: var(--accent); }
+.k-result-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.k-img-card { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--surface2); display: flex; flex-direction: column; transition: border-color 0.12s, box-shadow 0.12s; }
+.k-img-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+.k-img-card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; cursor: pointer; }
+.k-img-combo { font-size: 9px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; padding: 4px 8px; background: var(--surface2); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.3px; }
+.k-img-actions { display: flex; gap: 3px; padding: 5px; background: var(--surface); }
+.k-img-btn { flex: 1; font-size: 10px; font-weight: 500; padding: 4px 3px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; font-family: 'DM Sans', sans-serif; text-align: center; transition: all 0.1s; white-space: nowrap; }
+.k-img-btn:hover { border-color: var(--accent-border); color: var(--accent); }
+.k-img-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.k-img-btn.primary:hover { opacity: 0.85; }
+.k-img-btn.danger:hover { border-color: #dc2626; color: #dc2626; }
+.k-select-check { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; background: rgba(0,0,0,0.35); cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
+.k-img-card.selected .k-select-check { background: var(--accent); border-color: var(--accent); }
+.k-zoom-btn { position: absolute; bottom: 6px; right: 6px; width: 24px; height: 24px; border-radius: 6px; background: rgba(0,0,0,0.5); cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; transition: background 0.1s; }
+.k-zoom-btn:hover { background: rgba(0,0,0,0.8); }
+.k-bulk-bar { display: none; align-items: center; gap: 8px; padding: 8px 12px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: var(--radius); margin-bottom: 10px; font-size: 12px; flex-wrap: wrap; }
+.k-bulk-bar.show { display: flex; }
+.k-asana-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+.k-asana-modal.show { display: flex; }
+.k-asana-modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; width: 480px; max-width: 95vw; }
+.k-asana-modal-box input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface2); color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif; box-sizing: border-box; outline: none; }
+.k-asana-modal-box input:focus { border-color: var(--accent-border); }
+.k-hover-preview { display:none; position:fixed; z-index:2000; pointer-events:none; border-radius:12px; overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,0.55); border:2px solid rgba(255,255,255,0.15); transition: opacity 0.1s; }
+.k-hover-preview.show { display:block; }
+.k-hover-preview img { width:500px; height:500px; object-fit:cover; display:block; }
+.lok-lang-btn { display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); cursor:pointer; font-size:12px; color:var(--text-secondary); transition:all 0.1s; }
+.lok-lang-btn:has(input:checked) { border-color:var(--accent); background:var(--accent-dim); color:var(--accent); font-weight:500; }
+.lok-lang-btn input { display:none; }
+.k-option-btn { width:100%; text-align:left; padding:8px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.12s; display:flex; flex-direction:column; gap:2px; }
+.k-option-btn:hover { border-color:var(--accent-border); background:var(--accent-dim); }
+.k-option-btn.active { border-color:var(--accent); background:var(--accent-dim); }
+.k-opt-label { font-size:10px; font-weight:700; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.5px; }
+.k-option-btn.active .k-opt-label { color:var(--accent); }
+.k-opt-text { font-size:12px; font-weight:500; color:var(--text); }
+.k-result-header { padding:6px 8px; background:var(--surface2); border-bottom:1px solid var(--border); }
+@media(max-width:600px){ .kreative-layout { grid-template-columns: 1fr; } }
+.kreative-history-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; }
+.kreative-history-panel .history-list { max-height: 600px; overflow-y: auto; margin-top: 8px; }
+.tt-h-check { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+.tt-h-item.selected { border-color: var(--accent-border); background: var(--accent-dim); }
+.tt-master-bar { display: none; align-items: center; gap: 8px; padding: 8px 12px; margin-top: 8px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: var(--radius); }
+.tt-master-bar.show { display: flex; }
+.tt-master-count { font-size: 12px; font-weight: 600; color: var(--accent); flex: 1; }
+.tt-master-btn { font-size: 12px; font-weight: 600; padding: 5px 14px; border-radius: var(--radius); border: none; background: var(--accent); color: white; cursor: pointer; white-space: nowrap; }
+.tt-master-btn:hover { opacity: 0.85; }
+.tt-master-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+@media(max-width:600px){ .tt-layout { grid-template-columns: 1fr; } }
+.tt-download-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 12px; display: flex; align-items: center; gap: 16px; }
+.tt-download-icon { width: 48px; height: 48px; border-radius: 12px; background: var(--surface2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tt-download-icon svg { width: 22px; height: 22px; stroke: var(--text-secondary); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.tt-download-body { flex: 1; }
+.tt-download-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.tt-download-sub { font-size: 12px; color: var(--text-tertiary); }
+.tt-download-btn { height: 38px; padding: 0 18px; border-radius: var(--radius); border: none; background: var(--tiktok); color: white; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; }
+.tt-download-btn:hover { background: #333; }
+.tt-download-btn svg { width: 14px; height: 14px; stroke: white; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tt-preview { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 12px; }
+.tt-preview-hdr { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.tt-preview-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.6px; }
+.tt-lang-row { display: flex; align-items: center; gap: 0; border-bottom: 1px solid var(--border); }
+.tt-lang-row:last-child { border-bottom: none; }
+.tt-lang-badge { font-size: 11px; font-weight: 700; padding: 10px 14px; font-family: 'DM Mono', monospace; min-width: 80px; border-right: 1px solid var(--border); flex-shrink: 0; }
+.tt-text-cell { flex: 1; padding: 10px 14px; font-size: 12px; color: var(--text); line-height: 1.5; }
+.tt-cp-btn { height: 24px; padding: 0 10px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-secondary); font-size: 11px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; display: flex; align-items: center; gap: 4px; white-space: nowrap; margin: auto 14px auto 0; flex-shrink: 0; }
+.tt-cp-btn:hover { color: var(--text); border-color: var(--border-hover); }
+.tt-cp-btn.ok { color: var(--green); border-color: var(--green-border); background: var(--green-dim); }
+
+/* Lang colors */
+.lang-sl{background:#dbeafe;color:#1e40af} .lang-hr{background:#ffedd5;color:#9a3412}
+.lang-rs{background:#fee2e2;color:#991b1b} .lang-hu{background:#dcfce7;color:#166534}
+.lang-cz{background:#f3e8ff;color:#6b21a8} .lang-sk{background:#e0f2fe;color:#075985}
+.lang-pl{background:#fef9c3;color:#854d0e} .lang-gr{background:#e0e7ff;color:#3730a3}
+.lang-ro{background:#fef3c7;color:#92400e} .lang-bg{background:#d1fae5;color:#065f46}
+
+/* input-field helper */
+.ifield { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.ifield-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.8px; display: flex; align-items: center; gap: 6px; }
+.ifield-optional { font-size: 10px; font-weight: 400; color: var(--text-tertiary); text-transform: none; letter-spacing: 0; background: var(--surface2); padding: 1px 6px; border-radius: 4px; }
+.input-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Meni">
+  <span></span><span></span><span></span>
+</button>
+<div class="overlay" id="overlay" onclick="closeMenu()"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon" style="background:transparent;padding:0;overflow:visible;width:28px;height:28px;"><svg viewBox="0 0 248 278" style="width:28px;height:28px;" xmlns="http://www.w3.org/2000/svg"><g transform="translate(123.759601, 139.000000) scale(-1, 1) rotate(-180.000000) translate(-123.759601, -139.000000) translate(0.948541, 0.837558)" fill="#83CA06"><path d="M222.595046,103.073568 C217.759361,103.073568 213.822828,107.007908 213.822828,111.845787 C213.822828,116.683665 217.759361,120.618005 222.595046,120.618005 C227.430732,120.618005 231.367265,116.683665 231.367265,111.845787 C231.367265,107.007908 227.430732,103.073568 222.595046,103.073568 M148.031188,103.073568 C143.195503,103.073568 139.25897,107.007908 139.25897,111.845787 C139.25897,116.683665 143.195503,120.618005 148.031188,120.618005 C152.866874,120.618005 156.803407,116.683665 156.803407,111.845787 C156.803407,107.007908 152.866874,103.073568 148.031188,103.073568 M187.506172,76.7569124 C192.341857,76.7569124 196.27839,72.8225724 196.27839,67.9846939 C196.27839,63.1468153 192.341857,59.2124753 187.506172,59.2124753 C182.670486,59.2124753 178.733953,63.1468153 178.733953,67.9846939 C178.733953,72.8225724 182.670486,76.7569124 187.506172,76.7569124 M108.556205,17.5444371 C108.556205,12.7065586 104.621865,8.77221856 99.7839862,8.77221856 C94.9461076,8.77221856 91.0117676,12.7065586 91.0117676,17.5444371 C91.0117676,22.3823157 94.9461076,26.3166557 99.7839862,26.3166557 C104.621865,26.3166557 108.556205,22.3823157 108.556205,17.5444371 M53.7298387,59.2124753 C48.8919602,59.2124753 44.9576201,63.1468153 44.9576201,67.9846939 C44.9576201,72.8225724 48.8919602,76.7569124 53.7298387,76.7569124 C58.5677172,76.7569124 62.5020573,72.8225724 62.5020573,67.9846939 C62.5020573,63.1468153 58.5677172,59.2124753 53.7298387,59.2124753 M99.7839862,127.197169 C104.621865,127.197169 108.556205,123.262829 108.556205,118.424951 C108.556205,113.587072 104.621865,109.652732 99.7839862,109.652732 C94.9461076,109.652732 91.0117676,113.587072 91.0117676,118.424951 C91.0117676,123.262829 94.9461076,127.197169 99.7839862,127.197169 M20.8340191,109.652732 C15.9961406,109.652732 12.0618005,113.587072 12.0618005,118.424951 C12.0618005,123.262829 15.9961406,127.197169 20.8340191,127.197169 C25.6718976,127.197169 29.6062377,123.262829 29.6062377,118.424951 C29.6062377,113.587072 25.6718976,109.652732 20.8340191,109.652732 M18.6409645,166.672153 C13.8030859,166.672153 9.86874589,170.606493 9.86874589,175.444371 C9.86874589,180.28225 13.8030859,184.21659 18.6409645,184.21659 C23.478843,184.21659 27.413183,180.28225 27.413183,175.444371 C27.413183,170.606493 23.478843,166.672153 18.6409645,166.672153 M64.6951119,247.815174 C64.6951119,252.653053 68.6294519,256.587393 73.4673305,256.587393 C78.305209,256.587393 82.239549,252.653053 82.239549,247.815174 C82.239549,242.977296 78.305209,239.042956 73.4673305,239.042956 C68.6294519,239.042956 64.6951119,242.977296 64.6951119,247.815174 M115.135369,258.780448 C115.135369,263.618326 119.069709,267.552666 123.907587,267.552666 C128.743273,267.552666 132.679806,263.618326 132.679806,258.780448 C132.679806,253.942569 128.743273,250.008229 123.907587,250.008229 C119.069709,250.008229 115.135369,253.942569 115.135369,258.780448 M163.382571,247.815174 C163.382571,252.653053 167.319104,256.587393 172.154789,256.587393 C176.990475,256.587393 180.927008,252.653053 180.927008,247.815174 C180.927008,242.977296 176.990475,239.042956 172.154789,239.042956 C167.319104,239.042956 163.382571,242.977296 163.382571,247.815174 M213.822828,212.7263 C218.658513,212.7263 222.595046,208.79196 222.595046,203.954082 C222.595046,199.116203 218.658513,195.181863 213.822828,195.181863 C208.987142,195.181863 205.050609,199.116203 205.050609,203.954082 C205.050609,208.79196 208.987142,212.7263 213.822828,212.7263 M226.981155,162.286043 C231.816841,162.286043 235.753374,158.351703 235.753374,153.513825 C235.753374,148.675946 231.816841,144.741606 226.981155,144.741606 C222.14547,144.741606 218.208937,148.675946 218.208937,153.513825 C218.208937,158.351703 222.14547,162.286043 226.981155,162.286043 M222.595046,129.390224 C214.436883,129.390224 207.583587,123.786969 205.629575,116.231896 L164.996659,116.231896 C163.042647,123.786969 156.189352,129.390224 148.031188,129.390224 C138.357624,129.390224 130.486751,121.519351 130.486751,111.845787 C130.486751,103.689816 136.092199,96.8343277 143.645079,94.880316 L143.645079,72.3708032 L70.6975025,72.3708032 C69.1053448,78.5201284 64.2652732,83.3602 58.115948,84.9523576 L58.115948,114.038841 L82.8163224,114.038841 C84.7725272,106.485961 91.6258229,100.880513 99.7839862,100.880513 C109.45755,100.880513 117.328423,108.751387 117.328423,118.424951 C117.328423,126.583114 111.725169,133.43641 104.170095,135.392614 L104.170095,171.058262 L119.521478,171.058262 L128.293697,171.058262 L128.293697,179.830481 L128.293697,199.567972 L145.838134,199.567972 L145.838134,157.899934 L145.838134,153.513825 L145.838134,149.127716 L154.610352,149.127716 L210.015685,149.127716 C211.969696,141.574835 218.822992,135.969388 226.981155,135.969388 C236.654719,135.969388 244.525592,143.840261 244.525592,153.513825 C244.525592,163.187389 236.654719,171.058262 226.981155,171.058262 C218.822992,171.058262 211.969696,165.455007 210.015685,157.899934 L154.610352,157.899934 L154.610352,199.567972 L196.857357,199.567972 C198.811368,192.015092 205.664664,186.409645 213.822828,186.409645 C223.496392,186.409645 231.367265,194.280518 231.367265,203.954082 C231.367265,213.627646 223.496392,221.498519 213.822828,221.498519 C205.664664,221.498519 198.811368,215.895264 196.857357,208.340191 L176.540899,208.340191 L176.540899,230.849704 C184.093779,232.803715 189.699226,239.659204 189.699226,247.815174 C189.699226,257.488738 181.828353,265.359612 172.154789,265.359612 C162.481225,265.359612 154.610352,257.488738 154.610352,247.815174 C154.610352,239.659204 160.2158,232.803715 167.76868,230.849704 L167.76868,208.340191 L128.293697,208.340191 L128.293697,241.814977 C135.846577,243.768989 141.452024,250.624477 141.452024,258.780448 C141.452024,268.454012 133.581151,276.324885 123.907587,276.324885 C114.234023,276.324885 106.36315,268.454012 106.36315,258.780448 C106.36315,250.624477 111.966405,243.768989 119.521478,241.814977 L119.521478,179.830481 L77.8534398,179.830481 L77.8534398,230.849704 C85.408513,232.803715 91.0117676,239.659204 91.0117676,247.815174 C91.0117676,257.488738 83.1408945,265.359612 73.4673305,265.359612 C63.7937665,265.359612 55.9228934,257.488738 55.9228934,247.815174 C55.9228934,239.659204 61.526148,232.803715 69.0812212,230.849704 L69.0812212,179.830481 L35.6086282,179.830481 C33.6524235,187.385554 26.7991277,192.988808 18.6409645,192.988808 C8.96740043,192.988808 1.09652732,185.117935 1.09652732,175.444371 C1.09652732,165.770807 8.96740043,157.899934 18.6409645,157.899934 C26.7991277,157.899934 33.6524235,163.505382 35.6086282,171.058262 L95.3978769,171.058262 L95.3978769,135.392614 C89.2485517,133.800457 84.4084801,128.960385 82.8163224,122.81106 L37.8016829,122.81106 C35.8454781,130.366133 28.9921824,135.969388 20.8340191,135.969388 C11.1604551,135.969388 3.28958196,128.098515 3.28958196,118.424951 C3.28958196,108.751387 11.1604551,100.880513 20.8340191,100.880513 C28.9921824,100.880513 35.8454781,106.485961 37.8016829,114.038841 L49.3437294,114.038841 L49.3437294,84.9523576 C41.7886562,82.9961529 36.1854016,76.1428571 36.1854016,67.9846939 C36.1854016,58.3111299 44.0562747,50.4402567 53.7298387,50.4402567 C61.888002,50.4402567 68.7412977,56.0457044 70.6975025,63.5985846 L95.3978769,63.5985846 L95.3978769,34.5121009 C87.8428037,32.5558961 82.239549,25.7026004 82.239549,17.5444371 C82.239549,7.87087311 90.1104222,0 99.7839862,0 C109.45755,0 117.328423,7.87087311 117.328423,17.5444371 C117.328423,25.7026004 111.725169,32.5558961 104.170095,34.5121009 L104.170095,63.5985846 L170.540701,63.5985846 C172.494713,56.0457044 179.348009,50.4402567 187.506172,50.4402567 C197.179736,50.4402567 205.050609,58.3111299 205.050609,67.9846939 C205.050609,77.6582579 197.179736,85.529131 187.506172,85.529131 C179.348009,85.529131 172.494713,79.9258764 170.540701,72.3708032 L152.417298,72.3708032 L152.417298,94.880316 C158.566623,96.4702806 163.406694,101.310352 164.996659,107.459677 L205.629575,107.459677 C207.583587,99.9067972 214.436883,94.3013496 222.595046,94.3013496 C232.26861,94.3013496 240.139483,102.172223 240.139483,111.845787 C240.139483,121.519351 232.26861,129.390224 222.595046,129.390224"/></g></svg></div>
+    <div>
+      <div class="sidebar-logo-text">SLX Analytics</div>
+      <div class="sidebar-logo-sub">v1.0</div>
+    </div>
+  </div>
+
+  <div class="nav-item nav-meta active" id="nav-meta" onclick="switchPage('meta')">
+    <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+    Meta Ads
+    <span class="nav-badge" style="background:#e8f0fe;color:#1877F2">FB/IG</span>
+  </div>
+
+  <div class="nav-item nav-tiktok" id="nav-tiktok" onclick="switchPage('tiktok')">
+    <svg viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06z"/></svg>
+    TikTok Ads
+    <span class="nav-badge" style="background:#f0f0f0;color:#555">XLS</span>
+  </div>
+
+  <div class="nav-item nav-calc" id="nav-calc" onclick="switchPage('calc')">
+    <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+    Kalkulator
+    <span class="nav-badge" style="background:#f0fff4;color:#276749">€</span>
+  </div>
+
+  <div class="nav-item nav-forecast" id="nav-forecast" onclick="switchPage('forecast')">
+    <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Napoved
+    <span class="nav-badge" style="background:#fff7ed;color:#9a3412">📈</span>
+  </div>
+
+  <div class="nav-item nav-kreative" id="nav-kreative" onclick="switchPage('kreative')">
+    <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    Kreative
+    <span class="nav-badge" style="background:#fdf2f8;color:#9d174d">🎨</span>
+  </div>
+
+  <div class="nav-item nav-lokalizacija" id="nav-lokalizacija" onclick="switchPage('lokalizacija')">
+    <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    Lokalizacija
+    <span class="nav-badge" style="background:#f0fdf4;color:#166534">🌍</span>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- ═══ META PAGE ═══ -->
+  <div class="page active" id="page-meta">
+    <div id="metaFormSection">
+      <div class="meta-layout">
+
+        <!-- Leva kolona: forma -->
+        <div>
+          <div class="card">
+            <span class="slabel">URL izdelkov</span>
+            <div class="url-list">
+              <div class="url-row"><div class="url-num">1</div><div class="url-wrap"><span class="url-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><input type="text" class="meta-url-input" placeholder="https://www.maaarket.si/izdelek/..."/></div></div>
+              <div class="url-row"><div class="url-num">2</div><div class="url-wrap"><span class="url-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><input type="text" class="meta-url-input" placeholder="https://www.maaarket.si/izdelek/..."/></div></div>
+              <div class="url-row"><div class="url-num">3</div><div class="url-wrap"><span class="url-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><input type="text" class="meta-url-input" placeholder="https://www.maaarket.si/izdelek/..."/></div></div>
+            </div>
+
+            <!-- Quality mode -->
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <button class="qbtn" id="qmode-sonnet" onclick="setQMode('sonnet')"><span class="qbtn-icon">✦</span><span class="qbtn-body"><span class="qbtn-title">Kreativno</span><span class="qbtn-sub">Sonnet · vrhunska kvaliteta</span></span></button>
+              <button class="qbtn on" id="qmode-fast" onclick="setQMode('fast')"><span class="qbtn-icon">⚡</span><span class="qbtn-body"><span class="qbtn-title">Hitro</span><span class="qbtn-sub">Sonnet + Haiku · ~2× hitreje</span></span></button>
+            </div>
+
+            <button class="btn-gen" id="metaBtnGen" onclick="metaGenerate()">
+              <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Generiraj Meta oglase
+            </button>
+            <div class="error-msg" id="metaError"></div>
+
+            <div class="sep"></div>
+            <div class="counters">
+              <div class="counter-group">
+                <span class="slabel">Primary Texts</span>
+                <div class="counter-row"><button class="cnt-btn" id="pt-minus" onclick="change('pt',-1)">−</button><span class="cnt-val" id="pt-val">1</span><button class="cnt-btn" id="pt-plus" onclick="change('pt',1)">+</button><span class="cnt-max">max 5</span></div>
+                <div class="chips" id="pt-chips"></div>
+              </div>
+              <div class="counters-divider"></div>
+              <div class="counter-group">
+                <span class="slabel">Headlines</span>
+                <div class="counter-row"><button class="cnt-btn" id="hl-minus" onclick="change('hl',-1)">−</button><span class="cnt-val" id="hl-val">1</span><button class="cnt-btn" id="hl-plus" onclick="change('hl',1)">+</button><span class="cnt-max">max 5</span></div>
+                <div class="chips" id="hl-chips"></div>
+              </div>
+            </div>
+            <div class="hint"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="hint-text" id="metaHint">Generiram 1× PT in 1× HL v 10 jezikih za vsak URL.</span></div>
+          </div><!-- /card -->
+
+          <div class="loading" id="metaLoading">
+            <div class="spinner"></div>
+            <div class="loading-text" id="metaLoadingText">Generiram oglase...</div>
+            <div class="loading-progress" id="metaProgress"></div>
+          </div>
+
+          <div class="history-section" style="display:none">
+            <div class="history-hdr"><span class="history-title">Zadnji vnosi</span><button class="history-clear" onclick="clearHistory()">Počisti</button></div>
+            <div class="history-list" id="historyList"></div>
+          </div>
+        </div><!-- /leva kolona -->
+
+        <!-- Desna kolona: zgodovina -->
+        <div class="meta-history-panel">
+          <div class="history-hdr"><span class="history-title">Zgodovina vnosov</span></div>
+          <input type="text" class="meta-history-search" id="metaHistorySearch" placeholder="Išči po imenu ali URL..." oninput="metaRenderServerHistory()">
+          <div class="history-list" id="metaServerHistoryList"><div class="history-empty">Nalagam...</div></div>
+        </div><!-- /desna kolona -->
+
+      </div><!-- /meta-layout -->
+    </div><!-- /metaFormSection -->
+
+    <div class="results" id="metaResults">
+      <div class="results-hdr">
+        <div class="prod-tabs" id="prodTabs"></div>
+        <div class="results-hdr-right">
+          <button class="back-btn" id="metaRegenBtn" onclick="metaRegen()"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg> Regeneriraj</button>
+          <button class="back-btn" onclick="metaGoBack()"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg> Nov vnos</button>
+        </div>
+      </div>
+      <!-- Streaming progress bar — viden med prevajanjem -->
+      <div id="streamingBar" style="display:none;align-items:center;gap:10px;padding:8px 14px;margin-bottom:10px;background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:var(--radius);font-size:12px;color:var(--accent)">
+        <div class="spinner" style="width:14px;height:14px;border-width:2px;flex-shrink:0"></div>
+        <span id="streamingBarText">Prevajam...</span>
+      </div>
+      <div id="prodPanels"></div>
+    </div>
+  </div>
+
+  <!-- ═══ TIKTOK PAGE ═══ -->
+  <div class="page" id="page-tiktok">
+    <div id="ttFormSection">
+      <div class="tt-layout">
+        <div class="card" style="margin-bottom:0">
+        <div class="ifield">
+          <div class="ifield-label"><svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> URL izdelka (SL)</div>
+          <div class="url-wrap"><span class="url-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><input type="text" id="ttUrl" placeholder="https://www.maaarket.si/izdelek/..."/></div>
+        </div>
+
+        <div class="input-grid2">
+          <div class="ifield">
+            <div class="ifield-label">SKU koda</div>
+            <input type="text" class="no-icon" id="ttSku" placeholder="npr. DURACOVER" style="padding-left:12px"/>
+          </div>
+          <div class="ifield">
+            <div class="ifield-label">Brand <span class="ifield-optional">za Campaign Name</span></div>
+            <input type="text" class="no-icon" id="ttBrand" placeholder="npr. Maaarket" style="padding-left:12px"/>
+          </div>
+        </div>
+
+        <div class="ifield">
+          <div class="ifield-label">Video Names <span class="ifield-optional">iz TikTok library</span></div>
+          <!-- Upload screenshot -->
+          <div id="ttVideoUploadArea" style="border:1.5px dashed var(--border);border-radius:var(--radius);padding:14px 16px;cursor:pointer;transition:all 0.15s;background:var(--surface2);display:flex;align-items:center;gap:10px;margin-bottom:8px" onclick="document.getElementById('ttScreenshot').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="ttHandleDrop(event)">
+            <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--text-secondary)">Naloži screenshot TikTok Video Library</div>
+              <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">Klikni, povleci ali prilepi sliko (Ctrl+V) · PNG, JPG</div>
+            </div>
+            <input type="file" id="ttScreenshot" accept="image/*" style="display:none" onchange="ttProcessImage(this.files[0])">
+          </div>
+          <!-- Extracted preview -->
+          <div id="ttVideoPreview" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:8px">
+            <div style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+              Prepoznana imena <button onclick="ttClearVideos()" style="font-size:11px;color:var(--text-tertiary);background:none;border:none;cursor:pointer;font-family:DM Sans,sans-serif">Počisti</button>
+            </div>
+            <div id="ttVideoList" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px"></div>
+            <div style="font-size:11px;color:var(--text-tertiary);padding:6px 8px;background:var(--surface2);border-radius:6px;font-family:DM Mono,monospace;word-break:break-all" id="ttVideoFormatted"></div>
+          </div>
+          <!-- Manual fallback -->
+          <input type="text" class="no-icon" id="ttVideos" placeholder="[VIDEO (1).mp4],[VIDEO (2).mp4]..." style="padding-left:12px;font-size:12px"/>
+          <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">Ali ročno vpiši v zgornjem polju</div>
+        </div>
+
+        <button class="btn-gen btn-tiktok" id="ttBtnGen" onclick="ttGenerate()">
+          <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Generiraj TikTok oglase + XLS
+        </button>
+        <div class="error-msg" id="ttError"></div>
+        <div class="hint"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="hint-text">Claude generira 4 kratke variante (max 80 znakov) za vsako od 10 držav ter zapolni TikTok XLS template s texti, URL-ji in video imeni.</span></div>
+        </div>
+
+        <!-- HISTORY PANEL -->
+        <div class="tt-history">
+          <div class="tt-history-hdr">Zgodovina SKU-jev</div>
+          <input type="text" class="tt-search" id="ttHistorySearch" placeholder="Išči SKU..." oninput="ttRenderHistory()">
+          <div class="tt-history-list" id="ttHistoryList">
+            <div class="tt-empty">Še ni zgodovine.</div>
+          </div>
+          <!-- Master XLS bar -->
+          <div class="tt-master-bar" id="ttMasterBar">
+            <span class="tt-master-count" id="ttMasterCount">0 izbranih</span>
+            <button class="tt-master-btn" id="ttMasterBtn" onclick="ttGenerateMaster()">⬇ Ustvari Master XLS</button>
+          </div>
+          <div id="ttManualAdd" style="margin-top:8px">
+            <div id="ttManualBtn" onclick="ttToggleManual()" style="font-size:11px;color:var(--text-tertiary);cursor:pointer;text-align:center;padding:6px;border:1px dashed var(--border);border-radius:var(--radius);background:transparent;font-family:'DM Sans',sans-serif">+ Dodaj SKU ročno</div>
+            <div id="ttManualForm" style="display:none;margin-top:6px">
+              <textarea id="ttManualSkus" placeholder="SIGNALSURE&#10;SWEEPI&#10;ABPULLER&#10;..." style="width:100%;height:80px;font-size:11px;font-family:'DM Mono',monospace;padding:7px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);resize:none;outline:none"></textarea>
+              <div style="display:flex;gap:5px;margin-top:5px">
+                <button onclick="ttImportManual()" style="flex:1;height:28px;font-size:11px;font-family:'DM Sans',sans-serif;border:none;border-radius:5px;background:var(--accent);color:white;cursor:pointer;font-weight:500">Uvozi</button>
+                <button onclick="ttToggleManual()" style="height:28px;padding:0 10px;font-size:11px;font-family:'DM Sans',sans-serif;border:1px solid var(--border);border-radius:5px;background:transparent;color:var(--text-secondary);cursor:pointer">Prekliči</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /tt-layout -->
+
+      <div class="loading" id="ttLoading">
+        <div class="spinner tiktok"></div>
+        <div class="loading-text">Generiram TikTok tekste in pripavljam XLS...</div>
+      </div>
+    </div>
+
+    <div class="tt-results" id="ttResults">
+      <div class="tt-download-card">
+        <div class="tt-download-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg></div>
+        <div class="tt-download-body">
+          <div class="tt-download-title" id="ttFileName">TikTok Ads Export</div>
+          <div class="tt-download-sub">Pripravljeno za uvoz v TikTok Ads Manager</div>
+        </div>
+        <button class="tt-download-btn" id="ttDownloadBtn" onclick="ttDownload()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Prenesi XLS
+        </button>
+      </div>
+
+      <div class="tt-preview" id="ttPreview">
+        <div class="tt-preview-hdr"><span class="tt-preview-title">Predogled tekstov po državah</span></div>
+        <div id="ttPreviewBody"></div>
+      </div>
+
+      <button class="back-btn" onclick="ttGoBack()" style="margin-top:4px">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Nov vnos
+      </button>
+    </div>
+  </div>
+  <!-- ═══ FORECAST PAGE ═══ -->
+  <div class="page" id="page-forecast">
+    <iframe src="/static/revenue_forecast.html" style="width:100%;height:calc(100vh - 4rem);border:none;border-radius:var(--radius-lg)" allow="clipboard-write"></iframe>
+  </div>
+
+  <!-- ═══ CALCULATOR PAGE ═══ -->
+  <div class="page" id="page-calc">
+    <iframe src="/static/price_calculator.html" style="width:100%;height:calc(100vh - 4rem);border:none;border-radius:var(--radius-lg)" allow="clipboard-write"></iframe>
+  </div>
+
+  <!-- ═══ KREATIVE PAGE ═══ -->
+  <div class="page" id="page-kreative">
+    <div class="kreative-layout">
+
+      <!-- LEVO: Vnos + A/B/C izbira -->
+      <div class="kreative-left">
+
+        <!-- Blok 1: URL + Analiziraj -->
+        <div class="card" style="margin-bottom:12px">
+          <span class="slabel">URL IZDELKA</span>
+          <div class="url-wrap" style="margin-bottom:8px">
+            <span class="url-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+            <input type="text" id="kUrlInput" placeholder="https://www.maaarket.si/izdelek/..." style="width:100%"/>
+          </div>
+          <button class="btn-gen" id="kAnalyzeBtn" onclick="kAnalyze()" style="width:100%">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Analiziraj izdelek
+          </button>
+        </div>
+
+        <!-- Zgodovina kreativ -->
+        <div class="card" style="margin-bottom:12px">
+          <div class="history-hdr"><span class="history-title">Zgodovina kreativ</span></div>
+          <input type="text" class="meta-history-search" id="kHistorySearch" placeholder="Išči po imenu..." oninput="kRenderHistory()" style="margin-top:6px">
+          <div class="history-list" id="kHistoryList" style="max-height:200px;overflow-y:auto;margin-top:6px"><div class="history-empty">Nalagam...</div></div>
+        </div>
+
+        <!-- Loading analiza -->
+        <div id="kAnalyzeLoading" style="display:none" class="card" style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:10px;padding:4px 0">
+            <div class="spinner" style="width:16px;height:16px;border-width:2px"></div>
+            <span style="font-size:13px;color:var(--text-secondary)">Analiziram izdelek...</span>
+          </div>
+        </div>
+
+        <!-- Blok 2: A/B/C — prikaže se po analizi -->
+        <div id="kAbcSection" style="display:none">
+
+          <!-- C: Ime izdelka -->
+          <div class="card" style="margin-bottom:12px">
+            <span class="slabel">C — IME IZDELKA</span>
+            <input type="text" id="kProductName" class="meta-url-input" style="margin-top:6px;font-weight:600;font-size:14px" placeholder="npr. WEEDZAP"/>
+          </div>
+
+          <!-- A: Tekst opcije -->
+          <div class="card" style="margin-bottom:12px">
+            <span class="slabel">A — IZBERI TEKST (lahko več)</span>
+            <div id="kAOptions" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div>
+          </div>
+
+          <!-- B: Ozadje/Vibe opcije -->
+          <div class="card" style="margin-bottom:12px">
+            <span class="slabel">B — IZBERI OZADJE (lahko več)</span>
+            <div id="kBOptions" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div>
+          </div>
+
+          <!-- Slike -->
+          <div class="card" style="margin-bottom:12px">
+            <span class="slabel">REFERENČNE SLIKE IZDELKA</span>
+            <div id="kDropZone" class="k-dropzone" style="margin-top:8px" onclick="document.getElementById('kFileInput').click()">
+              <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span style="font-size:12px">Klikni, povleci ali prilepi slike (Ctrl+V)</span>
+            </div>
+            <input type="file" id="kFileInput" multiple accept="image/*" style="display:none" onchange="kHandleFiles(this.files)">
+            <div id="kUploadedImages" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+          </div>
+
+          <!-- Generiraj -->
+          <div class="card">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <span style="font-size:12px;color:var(--text-secondary)">Slike na kombinacijo:</span>
+              <button class="cnt-btn" onclick="kChangeCount(-1)">&#x2212;</button>
+              <span class="cnt-val" id="kCountVal">4</span>
+              <button class="cnt-btn" onclick="kChangeCount(1)">+</button>
+            </div>
+            <div id="kComboPreview" style="font-size:11px;color:var(--text-tertiary);margin-bottom:8px"></div>
+            <button class="btn-gen" id="kGenBtn" onclick="kGenerate()" style="width:100%">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Generiraj kreative
+            </button>
+            <div class="error-msg" id="kError"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- DESNO: Preview -->
+      <div class="kreative-right">
+        <div class="card" style="min-height:500px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <span class="slabel">GENERIRANE KREATIVE</span>
+            <span style="font-size:11px;color:var(--text-tertiary)" id="kResultCount"></span>
+          </div>
+          <div id="kLoading" style="display:none;text-align:center;padding:2rem">
+            <div class="spinner"></div>
+            <div style="margin-top:8px;font-size:13px;color:var(--text-secondary)" id="kLoadingText">Generiram...</div>
+          </div>
+          <div id="kBulkBar" class="k-bulk-bar">
+            <span id="kBulkCount" style="font-weight:600;color:var(--accent)">0 izbranih</span>
+            <button class="k-img-btn primary" style="flex:none;padding:4px 10px;font-size:11px" onclick="kBulkDownload()">⬇ Prenesi izbrane</button>
+            <button class="k-img-btn primary" style="flex:none;padding:4px 10px;font-size:11px;background:#7c3aed;border-color:#7c3aed" onclick="kOpenAsanaModal(null)">→ Asana (izbrane)</button>
+            <button class="k-img-btn" style="flex:none;padding:4px 8px;font-size:11px;margin-left:auto" onclick="kClearSelection()">✕ Počisti</button>
+          </div>
+          <div id="kResultsGrid" class="k-results-grid">
+            <div style="text-align:center;padding:4rem 2rem;color:var(--text-tertiary);font-size:13px">
+              <svg viewBox="0 0 24 24" style="width:48px;height:48px;stroke:var(--border);fill:none;stroke-width:1.2;display:block;margin:0 auto 12px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Vpiši URL in analiziraj izdelek,<br>nato izberi A+B kombinacije
+            </div>
+          </div>
+        </div>
+      </div><!-- /kreative-right -->
+
+    </div>
+  </div><!-- /page-kreative -->
+
+  <!-- ═══ LOKALIZACIJA PAGE ═══ -->
+  <div class="page" id="page-lokalizacija">
+    <div class="kreative-layout">
+
+      <!-- LEVO: Vnos -->
+      <div class="kreative-left">
+
+        <!-- Upload slike -->
+        <div class="card" style="margin-bottom:12px">
+          <span class="slabel">SKU KODA</span>
+          <input type="text" id="lokSku" placeholder="npr. SIGNALSURE" class="meta-url-input" style="margin-top:6px;font-weight:600;font-size:14px;text-transform:uppercase">
+        </div>
+
+        <!-- Upload slike -->
+        <div class="card" style="margin-bottom:12px">
+          <span class="slabel">HERO KREATIVA</span>
+          <div id="lokDropZone" class="k-dropzone" style="margin-top:8px" onclick="document.getElementById('lokFileInput').click()">
+            <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span style="font-size:12px">Klikni ali povleci hero kreativo sem</span>
+            <span style="font-size:11px;color:var(--text-tertiary)">PNG, JPG</span>
+          </div>
+          <input type="file" id="lokFileInput" accept="image/*" style="display:none" onchange="lokHandleFile(this.files[0])">
+          <div id="lokPreview" style="margin-top:8px;display:none">
+            <img id="lokPreviewImg" style="width:100%;border-radius:var(--radius);border:1px solid var(--border)" src="" alt="preview">
+            <button class="history-clear" onclick="lokClearFile()" style="margin-top:4px">✕ Odstrani</button>
+          </div>
+        </div>
+
+        <!-- Izberi jezike -->
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span class="slabel">IZBERI JEZIKE</span>
+            <button class="history-clear" onclick="lokSelectAll()">Vse</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <label class="lok-lang-btn"><input type="checkbox" value="HR" onchange="lokUpdateCount()"> 🇭🇷 Hrvaščina</label>
+            <label class="lok-lang-btn"><input type="checkbox" value="RS" onchange="lokUpdateCount()"> 🇷🇸 Srbščina</label>
+            <label class="lok-lang-btn"><input type="checkbox" value="HU" onchange="lokUpdateCount()"> 🇭🇺 Madžarščina</label>
+            <label class="lok-lang-btn"><input type="checkbox" value="CZ" onchange="lokUpdateCount()"> 🇨🇿 Češčina</label>
+            <label class="lok-lang-btn"><input type="checkbox" value="SK" onchange="lokUpdateCount()"> 🇸🇰 Slovaščina</label>
+            <label class="lok-lang-btn"><input type="checkbox" value="PL" onchange="lokUpdateCount()"> 🇵🇱 Poljščina</label>
+            <label class="lok-lang-btn"><input type="checkbox" value="RO" onchange="lokUpdateCount()"> 🇷🇴 Romunščina</label>
+            <label class="lok-lang-btn"><input type="checkbox" value="BG" onchange="lokUpdateCount()"> 🇧🇬 Bolgarščina</label>
+            <label class="lok-lang-btn"><input type="checkbox" value="GR" onchange="lokUpdateCount()"> 🇬🇷 Grščina</label>
+            <label class="lok-lang-btn"><input type="checkbox" value="SL" onchange="lokUpdateCount()"> 🇸🇮 Slovenščina</label>
+          </div>
+        </div>
+
+        <!-- Asana task (opcijsko) -->
+        <div class="card" style="margin-bottom:12px">
+          <span class="slabel">ASANA TASK (opcijsko)</span>
+          <input type="text" id="lokAsanaUrl" placeholder="https://app.asana.com/.../task/..." class="meta-url-input" style="margin-top:6px;font-size:12px">
+          <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">Če vpiše, se slike avtomatsko priložijo po jezikih</div>
+        </div>
+
+        <!-- Generiraj -->
+        <div class="card">
+          <div id="lokCountPreview" style="font-size:11px;color:var(--text-tertiary);margin-bottom:8px">Izberi jezike...</div>
+          <button class="btn-gen" id="lokGenBtn" onclick="lokGenerate()" style="width:100%">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            Lokaliziraj kreative
+          </button>
+          <div class="error-msg" id="lokError"></div>
+        </div>
+      </div>
+
+      <!-- DESNO: Rezultati -->
+      <div class="kreative-right">
+        <div class="card" style="min-height:500px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <span class="slabel">LOKALIZIRANE KREATIVE</span>
+            <span style="font-size:11px;color:var(--text-tertiary)" id="lokResultCount"></span>
+          </div>
+          <div id="lokLoading" style="display:none;text-align:center;padding:2rem">
+            <div class="spinner"></div>
+            <div style="margin-top:8px;font-size:13px;color:var(--text-secondary)" id="lokLoadingText">Lokaliziram...</div>
+          </div>
+          <div id="lokResultsGrid" class="k-results-grid">
+            <div style="text-align:center;padding:4rem 2rem;color:var(--text-tertiary);font-size:13px">
+              <svg viewBox="0 0 24 24" style="width:48px;height:48px;stroke:var(--border);fill:none;stroke-width:1.2;display:block;margin:0 auto 12px"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              Naloži hero kreativo in izberi jezike
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /page-lokalizacija -->
+
+</div>
+
+<script>
+// ── STATE ──
+const metaState = {pt:1, hl:1, qmode:'fast'};
+const MAX=5, HKEY='meta_ads_history_v2', HMAX=8;
+let metaLastReq = null;
+let ttLastFile = null;
+
+const LANGS = [
+  {code:'sl',label:'SI SL',name:'Slovenščina'},{code:'hr',label:'HR HR',name:'Hrvaščina'},
+  {code:'rs',label:'RS RS',name:'Srbščina'},{code:'hu',label:'HU HU',name:'Madžarščina'},
+  {code:'cz',label:'CZ CZ',name:'Češčina'},{code:'sk',label:'SK SK',name:'Slovaščina'},
+  {code:'pl',label:'PL PL',name:'Poljščina'},{code:'gr',label:'GR GR',name:'Grščina'},
+  {code:'ro',label:'RO RO',name:'Romunščina'},{code:'bg',label:'BG BG',name:'Bolgarščina'},
+];
+
+// ── NAVIGATION ──
+function toggleMenu(){
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+}
+function closeMenu(){
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+const PAGES = ['meta','tiktok','calc','forecast','kreative','lokalizacija'];
+let currentIdx = 0;
+
+function switchPage(page) {
+  const idx = PAGES.indexOf(page);
+  if(idx >= 0) currentIdx = idx;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if(document.getElementById('nav-' + page)) document.getElementById('nav-' + page).classList.add('active');
+  if(document.getElementById('tab-' + page)) document.getElementById('tab-' + page).classList.add('active');
+  // Wide layout
+  const mainEl = document.querySelector('.main');
+  if(mainEl) {
+    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative') {
+      mainEl.classList.add('wide');
+    } else if(page==='meta') {
+      const formVisible = document.getElementById('metaFormSection').style.display !== 'none';
+      mainEl.classList.toggle('wide', formVisible);
+    } else {
+      mainEl.classList.remove('wide');
+    }
+  }
+  closeMenu();
 }
 
-G = "http://base.google.com/ns/1.0"
-feed_by_lang: dict = {}
-slug_to_id: dict = {}
-last_fetch: Optional[datetime] = None
-CACHE_TTL_HOURS = 24
+// ── META COUNTERS ──
+function change(t, d) { metaState[t] = Math.min(MAX, Math.max(1, metaState[t]+d)); updateMeta(); }
+function setQMode(m) {
+  metaState.qmode = m;
+  document.getElementById('qmode-sonnet').classList.toggle('on', m==='sonnet');
+  document.getElementById('qmode-fast').classList.toggle('on', m==='fast');
+}
+function updateMeta() {
+  ['pt','hl'].forEach(t => {
+    document.getElementById(t+'-val').textContent = metaState[t];
+    document.getElementById(t+'-minus').disabled = metaState[t]<=1;
+    document.getElementById(t+'-plus').disabled = metaState[t]>=MAX;
+    const c = document.getElementById(t+'-chips'); c.innerHTML='';
+    for(let i=0;i<MAX;i++){const d=document.createElement('div');d.className='chip'+(i<metaState[t]?' on':'');c.appendChild(d);}
+  });
+  document.getElementById('metaHint').textContent = `Generiram ${metaState.pt}× PT in ${metaState.hl}× HL v 10 jezikih za vsak URL.`;
+}
 
+// ── META HISTORY ──
+// ── BRAND DETECTION ──
+function detectBrand(urls) {
+  const all = (urls||[]).filter(Boolean).join(' ').toLowerCase();
+  if(all.includes('maaarket'))    return {key:'maaarket',    label:'Maaarket'};
+  if(all.includes('thundershop')) return {key:'thundershop', label:'ThunderShop'};
+  if(all.includes('colibrishop')) return {key:'colibrishop', label:'ColibriShop'};
+  if(all.includes('zipply'))      return {key:'zipply',      label:'Zipply'};
+  if(all.includes('easyzo'))      return {key:'easyzo',      label:'Easyzo'};
+  if(all.includes('fluxigo'))     return {key:'fluxigo',     label:'Fluxigo'};
+  return {key:'other', label:'Drugo'};
+}
 
-def is_cache_stale():
-    return last_fetch is None or datetime.now() - last_fetch > timedelta(hours=CACHE_TTL_HOURS)
+// ── META HISTORY (server-side) ──
+let metaServerHistory = [];
 
+async function metaLoadServerHistory() {
+  try {
+    const res = await fetch('/meta-history');
+    metaServerHistory = await res.json();
+  } catch(e) { metaServerHistory = []; }
+  metaRenderServerHistory();
+}
 
-def extract_slug(url: str) -> Optional[str]:
-    path = urlparse(url).path.rstrip('/')
-    parts = [p for p in path.split('/') if p]
-    return parts[-1].lower() if parts else None
+async function metaSaveServerHistory() {
+  try {
+    console.log('[MetaHistory] Saving', metaServerHistory.length, 'entries...');
+    const res = await fetch('/meta-history', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({history: metaServerHistory})});
+    const json = await res.json();
+    console.log('[MetaHistory] Save response:', json);
+  } catch(e) { console.error('[MetaHistory] Save error:', e); }
+}
 
+function metaRenderServerHistory() {
+  const el = document.getElementById('metaServerHistoryList');
+  const q = (document.getElementById('metaHistorySearch')?.value||'').toLowerCase();
+  const filtered = metaServerHistory.filter(e =>
+    !q || (e.names||'').toLowerCase().includes(q) || (e.urls||[]).some(u=>(u||'').toLowerCase().includes(q))
+  );
+  if (!filtered.length) { el.innerHTML='<div class="history-empty">Ni zgodovine.</div>'; return; }
+  el.innerHTML = filtered.map(e => {
+    const brand = detectBrand(e.urls);
+    return `<div class="history-item" onclick="metaLoadServerEntry(${e.id})" style="cursor:pointer">
+    <div class="hi-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+    <div class="hi-body"><div class="hi-name">🛍 ${esc(e.names)}</div><div class="hi-meta">${e.date} · ${(e.urls||[]).filter(Boolean).length} URL-jev</div></div>
+    <span class="brand-badge brand-${brand.key}">${brand.label}</span>
+    <span class="hi-badge">${e.pt}PT · ${e.hl}HL</span>
+  </div>`;
+  }).join('');
+}
 
-def parse_feed(xml_content: str) -> dict:
-    products = {}
-    try:
-        root = ET.fromstring(xml_content)
-        channel = root.find('channel')
-        if channel is None:
-            return products
-        for item in channel.findall('item'):
-            gid_el = item.find(f'{{{G}}}id')
-            link_el = item.find(f'{{{G}}}link')
-            if gid_el is None or not gid_el.text or link_el is None or not link_el.text:
-                continue
-            g_id = gid_el.text.strip()
-            url = link_el.text.strip()
-            path = urlparse(url).path
-            products[g_id] = {"url": url, "path": path}
-    except ET.ParseError:
-        pass
-    return products
+function metaLoadServerEntry(id) {
+  const e = metaServerHistory.find(x => x.id === id);
+  if (!e) return;
+  if (e.results && e.results.length) {
+    // Show saved results directly
+    document.getElementById('metaFormSection').style.display = 'none';
+    document.getElementById('metaResults').classList.add('show');
+    setMetaWide(false);
+    renderMetaResults(e.results);
+  } else {
+    // Fallback: just load URLs into form
+    const inputs = [...document.querySelectorAll('.meta-url-input')];
+    (e.urls||[]).forEach((u,i) => { if(inputs[i]) inputs[i].value = u||''; });
+    for(let i=(e.urls||[]).length; i<inputs.length; i++) inputs[i].value='';
+  }
+}
 
+function metaRegenServerEntry(id) {
+  const e = metaServerHistory.find(x => x.id === id);
+  if (!e) return;
+  const inputs = [...document.querySelectorAll('.meta-url-input')];
+  (e.urls||[]).forEach((u,i) => { if(inputs[i]) inputs[i].value = u||''; });
+  for(let i=(e.urls||[]).length; i<inputs.length; i++) inputs[i].value='';
+  setTimeout(() => metaGenerate(), 100);
+}
 
-async def fetch_all_feeds():
-    global feed_by_lang, slug_to_id, last_fetch
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Fetching XML feeds...")
-    async with httpx.AsyncClient(timeout=30.0) as hc:
-        tasks = {lang: hc.get(url) for lang, url in MAAARKET_FEEDS.items()}
-        new_cache = {}
-        for lang, task in tasks.items():
-            try:
-                resp = await task
-                new_cache[lang] = parse_feed(resp.text) if resp.status_code == 200 else {}
-                print(f"  ✓ {lang}: {len(new_cache.get(lang,{}))} products")
-            except Exception as e:
-                new_cache[lang] = {}
-                print(f"  ✗ {lang}: {e}")
-    feed_by_lang = new_cache
-    new_slug_to_id = {}
-    for lang, lang_feed in feed_by_lang.items():
-        for g_id, data in lang_feed.items():
-            slug = extract_slug(data["url"])
-            if slug and slug not in new_slug_to_id:
-                new_slug_to_id[slug] = g_id
-    slug_to_id = new_slug_to_id
-    last_fetch = datetime.now()
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Done. Slug index: {len(slug_to_id)}")
+async function metaServerClearHistory() {
+  if(!confirm('Počistiti vso zgodovino Meta vnosov?')) return;
+  metaServerHistory = [];
+  await metaSaveServerHistory();
+  metaRenderServerHistory();
+}
 
+function getH(){try{return JSON.parse(localStorage.getItem(HKEY)||'[]');}catch(e){return[];}}
+function saveH(results,urls,pt,hl){
+  const validResults = (results||[]).filter(r => r && !r.error);
+  if(!validResults.length) { console.warn('[MetaHistory] No valid results to save'); return; }
+  const h=getH();
+  const entry = {id:Date.now(),names:validResults.map(r=>r.product||'?').join(', '),urls,pt,hl,
+    date:new Date().toLocaleDateString('sl-SI',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),results};
+  h.unshift(entry);
+  if(h.length>HMAX)h.splice(HMAX);
+  localStorage.setItem(HKEY,JSON.stringify(h));renderH();
+  // Save to server (without full results to save space)
+  const serverEntry = {id:entry.id, names:entry.names, urls:entry.urls, pt:entry.pt, hl:entry.hl, date:entry.date, results:validResults};
 
-async def ensure_cache_fresh():
-    if is_cache_stale():
-        await fetch_all_feeds()
+  metaServerHistory.unshift(serverEntry);
+  if(metaServerHistory.length>50) metaServerHistory.splice(50);
+  metaSaveServerHistory();
+  metaRenderServerHistory();
+}
+function renderH(){
+  const h=getH(),el=document.getElementById('historyList');
+  if(!h.length){el.innerHTML='<div class="history-empty">Še ni zgodovine.</div>';return;}
+  el.innerHTML=h.map(e=>`<div class="history-item" onclick="loadH(${e.id})">
+    <div class="hi-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+    <div class="hi-body"><div class="hi-name">🛍 ${esc(e.names)}</div><div class="hi-meta">${e.date} · ${e.urls.filter(Boolean).length} URL-jev</div></div>
+    <span class="hi-badge">${e.pt}PT · ${e.hl}HL</span>
+  </div>`).join('');
+}
+function loadH(id){const e=getH().find(x=>x.id===id);if(e)renderMetaResults(e.results);}
+function clearHistory(){localStorage.removeItem(HKEY);renderH();}
 
+// ── META GENERATE ──
+async function metaGenerate() {
+  const inputs = [...document.querySelectorAll('.meta-url-input')].map(i=>i.value.trim()).filter(Boolean);
+  if(!inputs.length){document.querySelectorAll('.meta-url-input')[0].classList.add('error');setTimeout(()=>document.querySelectorAll('.meta-url-input')[0].classList.remove('error'),1500);return;}
+  const btn=document.getElementById('metaBtnGen');
+  btn.disabled=true;
+  document.getElementById('metaError').classList.remove('show');
+  document.getElementById('metaLoading').classList.add('show');
+  const prog=document.getElementById('metaProgress');
+  prog.innerHTML=inputs.map((url,i)=>{
+    const name=url.split('/').filter(Boolean).pop()?.substring(0,22)||`Izdelek ${i+1}`;
+    return `<div class="prog-item${i===0?' loading':''}" id="mprog-${i}"><div class="prog-dot" style="width:6px;height:6px;border-radius:50%;background:currentColor"></div>${name}</div>`;
+  }).join('');
+  document.getElementById('metaLoadingText').textContent=`Generiram 1/${inputs.length}...`;
+  const reqBody={products:inputs.map(url=>({url,mode:'url'})),pt_count:metaState.pt,hl_count:metaState.hl,qmode:metaState.qmode};
+  metaLastReq={reqBody,urls:inputs};
+  if(metaState.qmode==='fast'){
+    await metaGenerateStream(inputs,reqBody,btn);
+  } else {
+    await metaGenerateClassic(inputs,reqBody,btn);
+  }
+}
 
-def detect_brand(url: str) -> Optional[str]:
-    if not url:
-        return None
-    domain = urlparse(url).netloc.lower().replace("www.", "")
-    for brand, lang_map in BRAND_DOMAINS.items():
-        for d in lang_map.values():
-            if domain == d.replace("www.", ""):
-                return brand
-    return None
+async function metaGenerateStream(inputs,reqBody,btn) {
+  const results=new Array(inputs.length).fill(null);
+  let rendered=false;
+  try{
+    const res=await fetch('/generate-multi-stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)});
+    if(!res.ok) throw new Error(`Server napaka ${res.status}`);
+    const reader=res.body.getReader();
+    const decoder=new TextDecoder();
+    let buffer='';
+    while(true){
+      const {done,value}=await reader.read();
+      if(done) break;
+      buffer+=decoder.decode(value,{stream:true});
+      const lines=buffer.split('\n');
+      buffer=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: ')) continue;
+        try{
+          const msg=JSON.parse(line.slice(6));
+          if(msg.type==='loading'){
+            document.getElementById('metaLoadingText').textContent=`Generiram ${msg.index+1}/${inputs.length}...`;
+          }
+          else if(msg.type==='progress'){
+            const langNames={'sl':'SL','hr':'HR','rs':'RS','hu':'HU','cz':'CZ','sk':'SK','pl':'PL','gr':'GR','ro':'RO','bg':'BG'};
+            if(msg.step==='sl'){
+              document.getElementById('metaLoadingText').textContent='Generiram SL tekste...';
+            } else if(msg.langs){
+              const names=msg.langs.map(l=>langNames[l]||l).join(', ');
+              document.getElementById('metaLoadingText').textContent=`Prevajam: ${names}...`;
+              document.getElementById('streamingBarText').textContent=`Prevajam: ${names}...`;
+            }
+          }
+          else if(msg.type==='partial'){
+            results[msg.index]=msg.data;
+            if(!rendered){
+              document.getElementById('metaFormSection').style.display='none';
+              document.getElementById('metaResults').classList.add('show');
+              setMetaWide(false);
+              document.getElementById('streamingBar').style.display='flex';
+              rendered=true;
+            }
+            renderMetaResults(results.filter(Boolean));
+          }
+          else if(msg.type==='result'){
+            results[msg.index]=msg.data;
+            const el=document.getElementById('mprog-'+msg.index);
+            if(el){el.classList.remove('loading');el.classList.add('done');}
+          }
+          else if(msg.type==='done'){
+            document.getElementById('streamingBar').style.display='none';
+            document.getElementById('metaLoadingText').textContent='Končano! ✅';
+            setTimeout(()=>{
+              document.getElementById('metaLoading').classList.remove('show');
+              saveH(results,inputs,metaState.pt,metaState.hl);
+              renderMetaResults(results.filter(Boolean));
+            },600);
+          }
+        }catch(e){console.warn('SSE parse error',e);}
+      }
+    }
+  }catch(e){
+    document.getElementById('metaLoading').classList.remove('show');
+    const err=document.getElementById('metaError');err.textContent='Napaka: '+(e.message||'Poskusi znova.');err.classList.add('show');btn.disabled=false;
+  }
+}
 
+async function metaGenerateClassic(inputs,reqBody,btn) {
+  try{
+    const res=await fetch('/generate-multi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)});
+    if(!res.ok){const txt=await res.text();throw new Error(`Server napaka ${res.status} — poskusi znova čez minuto`);}
+    const data=await res.json();
+    if(data.error)throw new Error(data.error);
+    inputs.forEach((_,i)=>{const el=document.getElementById('mprog-'+i);if(el){el.classList.remove('loading');el.classList.add('done');}});
+    document.getElementById('metaLoadingText').textContent='Končano!';
+    setTimeout(()=>{document.getElementById('metaLoading').classList.remove('show');saveH(data.results,inputs,metaState.pt,metaState.hl);renderMetaResults(data.results);},400);
+  }catch(e){
+    document.getElementById('metaLoading').classList.remove('show');
+    const err=document.getElementById('metaError');err.textContent='Napaka: '+(e.message||'Poskusi znova.');err.classList.add('show');btn.disabled=false;
+  }
+}
 
-def find_product_urls(source_url: Optional[str]) -> dict:
-    if not source_url:
-        return {}
-    brand = detect_brand(source_url) or "maaarket"
-    slug = extract_slug(source_url)
-    if not slug:
-        return {}
-    g_id = slug_to_id.get(slug)
-    if not g_id:
-        return {}
-    target_domains = BRAND_DOMAINS.get(brand, BRAND_DOMAINS["maaarket"])
-    result = {}
-    for lang, products in feed_by_lang.items():
-        if lang not in target_domains or g_id not in products:
-            continue
-        result[lang] = f"https://{target_domains[lang]}{products[g_id]['path']}"
-    return result
+async function metaRegen() {
+  if(!metaLastReq)return;
+  const btn=document.getElementById('metaRegenBtn');btn.disabled=true;
+  document.getElementById('prodPanels').innerHTML=`<div style="text-align:center;padding:3rem 1rem"><div class="spinner" style="margin:0 auto 1rem"></div><div style="font-size:13px;color:var(--text-tertiary)">Regeneriram...</div></div>`;
+  document.getElementById('prodTabs').innerHTML='';
+  try{
+    const res=await fetch('/generate-multi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(metaLastReq.reqBody)});
+    if(!res.ok){const txt=await res.text();throw new Error(`Server napaka ${res.status} — poskusi znova čez minuto`);}
+    const data=await res.json();
+    if(data.error)throw new Error(data.error);
+    saveH(data.results,metaLastReq.urls,metaLastReq.reqBody.pt_count,metaLastReq.reqBody.hl_count);
+    renderMetaResults(data.results);
+  }catch(e){
+    document.getElementById('prodPanels').innerHTML=`<div style="padding:1rem;color:var(--red);font-size:13px">Napaka: ${esc(e.message||'Poskusi znova.')}</div>`;
+  }
+  btn.disabled=false;
+}
 
+function renderMetaResults(results) {
+  const tabs=document.getElementById('prodTabs'),panels=document.getElementById('prodPanels');
+  tabs.innerHTML='';panels.innerHTML='';
 
-# ─── STARTUP ─────────────────────────────────────────────────────────────────
+  // Filter valid results
+  const valid = results.filter(d => d && !d.error);
 
-@app.on_event("startup")
-async def startup_event():
-    await fetch_all_feeds()
-    asyncio.create_task(daily_refresh())
+  if(!valid.length) {
+    // All failed — show error and go back to form
+    document.getElementById('metaFormSection').style.display='block';
+    document.getElementById('metaLoading').classList.remove('show');
+    const err=document.getElementById('metaError');
+    const errMsg = results.find(d=>d?.error)?.error || 'Napaka pri generiranju. Poskusi znova.';
+    err.textContent='Napaka: '+errMsg;
+    err.classList.add('show');
+    document.getElementById('metaBtnGen').disabled=false;
+    return;
+  }
 
+  document.getElementById('metaFormSection').style.display='none';
+  document.getElementById('metaResults').classList.add('show');
+  setMetaWide(false);
 
-async def daily_refresh():
-    while True:
-        await asyncio.sleep(CACHE_TTL_HOURS * 3600)
-        await fetch_all_feeds()
+  results.forEach((data,idx)=>{
+    if(!data||data.error) return;
+    const name=data.product||`Izdelek ${idx+1}`;
+    const tab=document.createElement('div');
+    tab.className='prod-tab'+(idx===0?' on':'');tab.id=`ptab-${idx}`;
+    tab.innerHTML=`<span class="tab-num">${idx+1}</span>${esc(name)}`;
+    tab.onclick=()=>swProd(idx);tabs.appendChild(tab);
+    const panel=document.createElement('div');
+    panel.className='prod-panel'+(idx===0?' on':'');panel.id=`ppanel-${idx}`;
+    panel.innerHTML=renderMetaPanel(data);panels.appendChild(panel);
+  });
+}
 
+function swProd(idx){
+  document.querySelectorAll('.prod-tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.prod-panel').forEach(p=>p.classList.remove('on'));
+  document.getElementById('ptab-'+idx).classList.add('on');
+  document.getElementById('ppanel-'+idx).classList.add('on');
+}
 
-# ─── PROMPT BUILDERS ─────────────────────────────────────────────────────────
+const copyStore={};let csId=0;
+function storeText(txt){const id='cs'+(++csId);copyStore[id]=txt;return id;}
+function copyById(id,btn){actualCopy(copyStore[id]||'',btn);}
 
-def build_meta_prompt(user_msg: str, pt_count: int, hl_count: int) -> str:
-    pt_ph = ", ".join([f'"PT {i+1}"' for i in range(pt_count)])
-    hl_ph = ", ".join([f'"HL {i+1}"' for i in range(hl_count)])
-    return f"""{user_msg}
+function renderMetaPanel(data) {
+  const urls=data.product_urls||{};
+  return LANGS.map(lang=>{
+    const d=data[lang.code];if(!d)return'';
+    const pts=Array.isArray(d.pt)?d.pt:[d.pt];
+    const hls=Array.isArray(d.hl)?d.hl:[d.hl];
+    const purl=urls[lang.code]||null;
+    const urlHtml=purl
+      ?`<div class="country-url-row"><a class="country-url-link" href="${esc(purl)}" target="_blank">${esc(purl)}</a><button class="url-cp-btn" onclick="copyById('${storeText(purl)}',this)">${cpIco()} URL</button></div>`
+      :`<span class="url-missing">URL ni najden</span>`;
+    function mkBtn(txt){return`<button class="cp-btn" onclick="copyById('${storeText(txt)}',this)">${cpIco()} Kopiraj</button>`;}
+    const ptHtml=pts.length===1
+      ?`<div class="field-top"><span class="field-lbl">Primary Text</span>${mkBtn(pts[0])}</div><div class="field-text">${esc(pts[0])}</div>`
+      :`<div class="field-lbl" style="margin-bottom:8px">Primary Texts</div>`+pts.map((pt,i)=>`<div class="pt-item"><div class="field-top"><span class="field-lbl" style="opacity:.6">#${i+1}</span>${mkBtn(pt)}</div><div class="field-text">${esc(pt)}</div></div>`).join('');
+    const hlHtml=hls.length===1
+      ?`<div class="field-top"><span class="field-lbl">Headline</span>${mkBtn(hls[0])}</div><div class="field-text is-hl">${esc(hls[0])}</div>`
+      :`<div class="field-lbl" style="margin-bottom:8px">Headlines</div>`+hls.map((hl,i)=>`<div class="pt-item"><div class="field-top"><span class="field-lbl" style="opacity:.6">#${i+1}</span>${mkBtn(hl)}</div><div class="field-text is-hl">${esc(hl)}</div></div>`).join('');
+    return`<div class="country-section"><div class="country-hdr"><span class="country-badge lang-${lang.code}">${lang.label}</span><span class="country-name">${lang.name}</span>${urlHtml}</div><div class="country-body"><div class="field-col">${ptHtml}</div><div class="field-col">${hlHtml}</div></div></div>`;
+  }).join('');
+}
 
-Ustvari Meta oglase za FB/Instagram v 10 jezikih.
+function setMetaWide(wide){
+  const m=document.querySelector('.main');
+  if(m) m.classList.toggle('wide', wide);
+}
+function metaGoBack(){
+  document.getElementById('metaResults').classList.remove('show');
+  document.getElementById('prodPanels').innerHTML='';document.getElementById('prodTabs').innerHTML='';
+  document.getElementById('metaFormSection').style.display='block';
+  setMetaWide(true);
+  document.getElementById('metaBtnGen').disabled=false;document.getElementById('metaError').classList.remove('show');
+}
 
-Primary Text ({pt_count}x na jezik): 2-3 vrstice, 2-3 emoji-ji, prodajni ton, brez cen, vsak DRUGAČEN.
-Headline ({hl_count}x na jezik): MAX 5 BESED, 1 emoji na začetku, brez cen, vsak DRUGAČEN.
-EMOJI PRAVILO: Uporabljaj SAMO te emoji-je ki so zagotovo podprti na vseh napravah:
-✅ ⭐ 🔥 💪 🎯 👍 ❤️ 💥 🚀 ✨ 💡 🎁 💰 👌 🙌 😍 💎 🏆 ⚡ 🌟 👏 💫 🛒 📦 🔑 💯 😊 🤩 🌿 🌱 🍃 🌸 🌻 🌞 🍀 🎉 🎊 🛍️ 💚 💙 🧡 💜 🤍 🖤
-NE uporabljaj: redkih, novejših ali manj znanih emoji-jev ki se lahko prikažejo kot □
+// ── TIKTOK VIDEO SCREENSHOT ──
+async function ttProcessImage(file) {
+  if (!file) return;
+  const area = document.getElementById('ttVideoUploadArea');
+  area.style.borderColor = 'var(--accent)';
+  area.innerHTML = `<div class="spinner tiktok" style="width:20px;height:20px;margin:0"></div><div style="font-size:13px;color:var(--text-secondary)">Berem imena videov...</div>`;
 
-Jeziki: SL (izvirnik), HR (latinica), RS (SAMO latinica!), HU, CZ, SK, PL, GR (grška pisava), RO (latinica), BG (SAMO cirilica!).
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const b64 = e.target.result.split(',')[1];
+    const mediaType = file.type || 'image/png';
+    try {
+      const res = await fetch('/extract-videos', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({image: b64, media_type: mediaType})
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      ttShowVideos(data.filenames, data.formatted);
+    } catch(e) {
+      ttResetUpload();
+      alert('Napaka: ' + (e.message || 'Poskusi znova.'));
+    }
+  };
+  reader.readAsDataURL(file);
+}
 
-Vrni SAMO JSON brez markdown:
-{{
-  "product": "ime",
-  "sl": {{"pt": [{pt_ph}], "hl": [{hl_ph}]}},
-  "hr": {{"pt": [{pt_ph}], "hl": [{hl_ph}]}},
-  "rs": {{"pt": [{pt_ph}], "hl": [{hl_ph}]}},
-  "hu": {{"pt": [{pt_ph}], "hl": [{hl_ph}]}},
-  "cz": {{"pt": [{pt_ph}], "hl": [{hl_ph}]}},
-  "sk": {{"pt": [{pt_ph}], "hl": [{hl_ph}]}},
-  "pl": {{"pt": [{pt_ph}], "hl": [{hl_ph}]}},
-  "gr": {{"pt": [{pt_ph}], "hl": [{hl_ph}]}},
-  "ro": {{"pt": [{pt_ph}], "hl": [{hl_ph}]}},
-  "bg": {{"pt": [{pt_ph}], "hl": [{hl_ph}]}}
-}}"""
+function ttHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('ttVideoUploadArea').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) ttProcessImage(file);
+}
 
+// Ctrl+V paste slike direktno
+document.addEventListener('paste', function(e) {
+  if(!document.getElementById('page-tiktok').classList.contains('active')) return;
+  const items = e.clipboardData?.items;
+  if(!items) return;
+  for(const item of items) {
+    if(item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if(file) {
+        ttProcessImage(file);
+        const area = document.getElementById('ttVideoUploadArea');
+        if(area){area.style.borderColor='var(--accent)';setTimeout(()=>area.style.borderColor='var(--border)',1000);}
+      }
+      break;
+    }
+  }
+});
 
-def build_tiktok_prompt(user_msg: str) -> str:
-    return f"""{user_msg}
+function ttShowVideos(filenames, formatted) {
+  // Reset upload area
+  ttResetUpload();
+  // Show preview
+  const preview = document.getElementById('ttVideoPreview');
+  const list = document.getElementById('ttVideoList');
+  const formattedEl = document.getElementById('ttVideoFormatted');
+  list.innerHTML = filenames.map(f =>
+    `<div style="font-size:12px;padding:4px 8px;background:var(--surface2);border-radius:5px;font-family:DM Mono,monospace;color:var(--text)">${esc(f)}</div>`
+  ).join('');
+  formattedEl.textContent = formatted;
+  document.getElementById('ttVideos').value = formatted;
+  preview.style.display = 'block';
+}
 
-Ustvari TikTok oglasne tekste v 10 jezikih.
+function ttClearVideos() {
+  document.getElementById('ttVideoPreview').style.display = 'none';
+  document.getElementById('ttVideos').value = '';
+  document.getElementById('ttScreenshot').value = '';
+}
 
-Pravila:
-- Točno 4 variante na jezik
-- Vsaka varianta MAX 80 znakov (strogo!)
-- Brez emojiev, brez # in {{}}
-- Kratek, direkten, akcijski stil
-- Vsaka varianta drugačen pristop (korist, socialni dokaz, nujnost, radovednost)
-- Brez "kakovost/dostava/zaloga" strukture — bodi kreativen
+function ttResetUpload() {
+  document.getElementById('ttVideoUploadArea').style.borderColor = 'var(--border)';
+  document.getElementById('ttVideoUploadArea').innerHTML = `
+    <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    <div>
+      <div style="font-size:13px;font-weight:500;color:var(--text-secondary)">Naloži screenshot TikTok Video Library</div>
+      <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">Klikni ali povleci sliko sem · PNG, JPG</div>
+    </div>
+    <input type="file" id="ttScreenshot" accept="image/*" style="display:none" onchange="ttProcessImage(this.files[0])">`;
+}
 
-Jeziki: SL (izvirnik), HR (latinica), RS (SAMO latinica!), HU, CZ, SK, PL, GR (grška pisava), RO (latinica), BG (SAMO cirilica!).
+// ── TIKTOK GENERATE ──
+function ttToggleManual(){
+  const form=document.getElementById('ttManualForm');
+  const btn=document.getElementById('ttManualBtn');
+  const open=form.style.display==='none';
+  form.style.display=open?'block':'none';
+  btn.style.display=open?'none':'block';
+  if(open) document.getElementById('ttManualSkus').focus();
+}
+function ttImportManual(){
+  const raw=document.getElementById('ttManualSkus').value;
+  const skus=raw.split('\n').map(s=>s.trim().toUpperCase()).filter(Boolean);
+  if(!skus.length) return;
+  let added=0;
+  skus.forEach(sku=>{
+    if(!ttHistory.find(x=>x.sku===sku)){
+      ttHistory.push({sku,brand:'',url:'',videos:'',date:new Date().toLocaleDateString('sl-SI',{day:'2-digit',month:'2-digit',year:'numeric'})});
+      added++;
+    }
+  });
+  ttSaveHistory();
+  ttRenderHistory();
+  document.getElementById('ttManualForm').style.display='none';
+  document.getElementById('ttManualBtn').style.display='block';
+  document.getElementById('ttManualSkus').value='';
+  alert(`Dodano ${added} SKU-jev!`);
+}
 
-Vrni SAMO JSON brez markdown, brez uvodnega besedila — vrednosti so že zformatirana TikTok vrednost z oglatimi oklepaji:
-{{
-  "product": "ime",
-  "sl": "[tekst1],[tekst2],[tekst3],[tekst4]",
-  "hr": "[tekst1],[tekst2],[tekst3],[tekst4]",
-  "rs": "[tekst1],[tekst2],[tekst3],[tekst4]",
-  "hu": "[tekst1],[tekst2],[tekst3],[tekst4]",
-  "cz": "[tekst1],[tekst2],[tekst3],[tekst4]",
-  "sk": "[tekst1],[tekst2],[tekst3],[tekst4]",
-  "pl": "[tekst1],[tekst2],[tekst3],[tekst4]",
-  "gr": "[tekst1],[tekst2],[tekst3],[tekst4]",
-  "ro": "[tekst1],[tekst2],[tekst3],[tekst4]",
-  "bg": "[tekst1],[tekst2],[tekst3],[tekst4]"
-}}
-POMEMBNO: Začni direktno z {{ in končaj z }} — nobenih dodatnih besed pred ali po JSON."""
+// ── TIKTOK HISTORY (server-side) ──
+let ttHistory = [];
 
+async function ttLoadHistory(){
+  try{
+    const res = await fetch('/tiktok-history');
+    ttHistory = await res.json();
+  }catch(e){ ttHistory = []; }
+  ttRenderHistory();
+}
 
-# ─── GENERATE HELPERS ────────────────────────────────────────────────────────
+async function ttSaveHistory(){
+  try{
+    const res = await fetch('/tiktok-history', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({history: ttHistory})});
+    const json = await res.json();
+    console.log('[TikTokHistory] Saved', ttHistory.length, 'entries:', json);
+  }catch(e){ console.warn('[TikTokHistory] Save failed', e); }
+}
 
-def parse_json_response(text: str) -> Optional[dict]:
-    text = re.sub(r"```json\s*", "", text)
-    text = re.sub(r"```\s*", "", text).strip()
-    match = re.search(r'\{[\s\S]*\}', text)
-    if not match:
-        return None
-    try:
-        return json.loads(match.group())
-    except json.JSONDecodeError:
-        return None
+function ttGetHistory(){ return ttHistory; }
 
+function ttSaveToHistory(sku, brand, url, videos, texts, urls){
+  const idx = ttHistory.findIndex(x => x.sku === sku);
+  if(idx >= 0) ttHistory.splice(idx, 1);
+  ttHistory.unshift({sku, brand, url, videos,
+    texts: texts||{}, urls: urls||{},
+    date: new Date().toLocaleDateString('sl-SI',{day:'2-digit',month:'2-digit',year:'numeric'})});
+  if(ttHistory.length > 100) ttHistory.splice(100);
+  ttSaveHistory();
+  ttRenderHistory();
+}
+let ttSelectedSkus = []; // ordered by click
 
-async def call_claude(prompt: str, model: str, tools=None, max_tokens: int = 8000) -> str:
-    loop = asyncio.get_event_loop()
-    kwargs = {"model": model, "max_tokens": max_tokens, "messages": [{"role": "user", "content": prompt}]}
-    if tools:
-        kwargs["tools"] = tools
+function ttToggleSelect(sku, checkbox) {
+  const item = checkbox.closest('.tt-h-item');
+  if (checkbox.checked) {
+    if (!ttSelectedSkus.includes(sku)) ttSelectedSkus.push(sku);
+    item.classList.add('selected');
+  } else {
+    ttSelectedSkus = ttSelectedSkus.filter(s => s !== sku);
+    item.classList.remove('selected');
+  }
+  ttUpdateMasterBar();
+}
 
-    for attempt in range(3):
-        try:
-            msg = await loop.run_in_executor(None, lambda: client.messages.create(**kwargs))
-            return "".join(b.text for b in msg.content if hasattr(b, "text"))
-        except anthropic.RateLimitError:
-            if attempt < 2:
-                wait = (attempt + 1) * 20
-                print(f"  Rate limit, waiting {wait}s...")
-                await asyncio.sleep(wait)
-            else:
-                raise
-        except Exception as e:
-            raise
-    return ""
+function ttUpdateMasterBar() {
+  const bar = document.getElementById('ttMasterBar');
+  const count = document.getElementById('ttMasterCount');
+  const btn = document.getElementById('ttMasterBtn');
+  if (ttSelectedSkus.length >= 1) {
+    bar.classList.add('show');
+    count.textContent = `${ttSelectedSkus.length} izbranih SKU-jev`;
+    btn.disabled = false;
+  } else {
+    bar.classList.remove('show');
+  }
+}
 
+async function ttGenerateMaster() {
+  const btn = document.getElementById('ttMasterBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Sestavljam...';
 
-async def generate_meta_sl_only(user_msg: str, mode: str, source_url: Optional[str],
-                                pt_count: int, hl_count: int) -> dict:
-    """Generira samo SL tekste brez prevajanja — za streaming mode."""
-    product_urls = find_product_urls(source_url)
-    tools = [{"type": "web_search_20250305", "name": "web_search"}] if mode == "url" else []
-    pt_ph = ", ".join([f'"PT {i+1}"' for i in range(pt_count)])
-    hl_ph = ", ".join([f'"HL {i+1}"' for i in range(hl_count)])
-    sl_prompt = f"""{user_msg}
+  // Build ordered list by click order, use cached texts
+  const skus = ttSelectedSkus.map(sku => {
+    const e = ttHistory.find(x => x.sku === sku);
+    return e || null;
+  }).filter(e => e && e.videos);
 
-Ustvari Meta oglase SAMO v slovenščini.
-Primary Text ({pt_count}x): 2-3 vrstice, 2-3 emoji-ji, prodajni ton, brez cen, vsak DRUGAČEN.
-Headline ({hl_count}x): MAX 5 BESED, 1 emoji na začetku, brez cen, vsak DRUGAČEN.
-EMOJI PRAVILO: Uporabljaj SAMO te emoji-je ki so zagotovo podprti na vseh napravah:
-✅ ⭐ 🔥 💪 🎯 👍 ❤️ 💥 🚀 ✨ 💡 🎁 💰 👌 🙌 😍 💎 🏆 ⚡ 🌟 👏 💫 🛒 📦 🔑 💯 😊 🤩 🌿 🌱 🍃 🌸 🌻 🌞 🍀 🎉 🎊 🛍️ 💚 💙 🧡 💜 🤍 🖤
-NE uporabljaj: redkih, novejših ali manj znanih emoji-jev ki se lahko prikažejo kot □
-Vrni SAMO JSON: {{"product": "ime", "pt": [{pt_ph}], "hl": [{hl_ph}]}}"""
+  if (!skus.length) {
+    alert('Nobeden od izbranih SKU-jev nima shranjenih video imen.');
+    btn.disabled = false;
+    btn.textContent = '⬇ Ustvari Master XLS';
+    return;
+  }
 
-    sl_text = await call_claude(sl_prompt, "claude-sonnet-4-6", tools if tools else None, 4000)
-    sl_data = parse_json_response(sl_text)
-    if not sl_data:
-        return {"error": "Napaka pri generiranju SL tekstov."}
-    return {
-        "product": sl_data.get("product", "Izdelek"),
-        "sl": {"pt": sl_data.get("pt", []), "hl": sl_data.get("hl", [])},
-        "product_urls": product_urls,
+  try {
+    const res = await fetch('/build-master-xlsx', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({skus: skus.map(e => ({
+        sku: e.sku, brand: e.brand, url: e.url,
+        videos: e.videos, texts: e.texts||{}, urls: e.urls||{}
+      }))})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    const a = document.createElement('a');
+    a.href = '/download/' + data.file.split('/').pop();
+    a.download = `master_${ttSelectedSkus.slice(0,5).join('_')}.xlsx`;
+    a.click();
+    btn.textContent = '✅ Prenešeno!';
+    setTimeout(() => { btn.textContent = '⬇ Ustvari Master XLS'; btn.disabled = false; }, 3000);
+  } catch(e) {
+    alert('Napaka: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = '⬇ Ustvari Master XLS';
+  }
+}
+
+function ttRenderHistory(){
+  const q = (document.getElementById('ttHistorySearch')?.value||'').toLowerCase();
+  const h = ttGetHistory().filter(x => !q || x.sku.toLowerCase().includes(q));
+  const el = document.getElementById('ttHistoryList');
+  if(!el) return;
+  if(!h.length){ el.innerHTML='<div class="tt-empty">'+(q?'Ni rezultatov.':'Še ni zgodovine.')+'</div>'; return; }
+  el.innerHTML = h.map((e,i) => {
+    const isSelected = ttSelectedSkus.includes(e.sku);
+    const hasVideos = !!e.videos;
+    return `
+    <div class="tt-h-item${isSelected?' selected':''}">
+      <input type="checkbox" class="tt-h-check" ${isSelected?'checked':''} ${!hasVideos?'disabled title="Ni video imen"':''} onchange="ttToggleSelect('${esc(e.sku)}', this)">
+      <div class="tt-h-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+      <div class="tt-h-body">
+        <div class="tt-h-sku">${esc(e.sku)}</div>
+        <div class="tt-h-meta">${esc(e.brand||'')}${e.brand?' · ':''}${esc(e.date)}</div>
+      </div>
+      <button class="tt-h-load" onclick="ttLoadFromHistory(${i})">Naloži</button>
+      <button class="tt-h-regen" onclick="ttRegenFromHistory(${i})">↺ Znova</button>
+      <button class="tt-h-del" onclick="ttDeleteHistory(${i})">×</button>
+    </div>`;
+  }).join('');
+}
+function ttLoadFromHistory(i){
+  const h = ttGetHistory();
+  const e = h[i]; if(!e) return;
+  document.getElementById('ttUrl').value = e.url||'';
+  document.getElementById('ttSku').value = e.sku||'';
+  document.getElementById('ttBrand').value = e.brand||'';
+  document.getElementById('ttVideos').value = e.videos||'';
+}
+function ttRegenFromHistory(i){
+  ttLoadFromHistory(i);
+  setTimeout(() => ttGenerate(), 100);
+}
+function ttDeleteHistory(i){
+  ttHistory.splice(i,1);
+  ttSaveHistory();
+  ttRenderHistory();
+}
+
+async function ttGenerate() {
+  const url=document.getElementById('ttUrl').value.trim();
+  const sku=document.getElementById('ttSku').value.trim();
+  const brand=document.getElementById('ttBrand').value.trim();
+  const videos=document.getElementById('ttVideos').value.trim();
+  if(!url){flash('ttUrl');return;}
+  if(!sku){flash('ttSku');return;}
+  if(!brand){flash('ttBrand');return;}
+  if(!videos){flash('ttVideos');return;}
+  const btn=document.getElementById('ttBtnGen');btn.disabled=true;
+  document.getElementById('ttError').classList.remove('show');
+  document.getElementById('ttLoading').classList.add('show');
+  try{
+    const res=await fetch('/generate-tiktok',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({source_url:url,sku,brand,video_names:videos})});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error);
+    // Shrani texte in URL-je v zgodovino za Master XLS
+    const texts = {};
+    const urls = data.product_urls || {};
+    ['sl','hr','rs','hu','cz','sk','pl','gr','ro','bg'].forEach(l => { if(data[l]) texts[l] = data[l]; });
+    ttSaveToHistory(sku, brand, url, videos, texts, urls);
+    document.getElementById('ttLoading').classList.remove('show');
+    renderTikTokResults(data);
+  }catch(e){
+    document.getElementById('ttLoading').classList.remove('show');
+    const err=document.getElementById('ttError');err.textContent='Napaka: '+(e.message||'Poskusi znova.');err.classList.add('show');btn.disabled=false;
+  }
+}
+
+function renderTikTokResults(data) {
+  document.getElementById('ttFormSection').style.display='none';
+  document.getElementById('ttResults').classList.add('show');
+  const filepath=data.file;
+  const filename=filepath.split('/').pop();
+  ttLastFile=filename;
+  document.getElementById('ttFileName').textContent=filename;
+  const body=document.getElementById('ttPreviewBody');
+  body.innerHTML='';
+  LANGS.forEach(lang=>{
+    const txt=data.data?.[lang.code];if(!txt)return;
+    const row=document.createElement('div');row.className='tt-lang-row';
+    const id=storeText(txt);
+    row.innerHTML=`<span class="tt-lang-badge lang-${lang.code}">${lang.label}</span><div class="tt-text-cell">${esc(txt)}</div><button class="tt-cp-btn" onclick="copyById('${id}',this)">${cpIco()} Kopiraj</button>`;
+    body.appendChild(row);
+  });
+}
+
+function ttDownload(){
+  if(ttLastFile) window.open('/download/'+ttLastFile,'_blank');
+}
+
+function ttGoBack(){
+  document.getElementById('ttResults').classList.remove('show');
+  document.getElementById('ttFormSection').style.display='block';
+  document.getElementById('ttBtnGen').disabled=false;
+  document.getElementById('ttError').classList.remove('show');
+}
+
+// ── COPY ──
+function actualCopy(txt,btn){
+  if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(txt).then(()=>showOk(btn)).catch(()=>fbCopy(txt,btn));}
+  else fbCopy(txt,btn);
+}
+function fbCopy(txt,btn){
+  const ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(ta);ta.focus();ta.select();ta.setSelectionRange(0,99999);
+  try{document.execCommand('copy');}catch(e){}document.body.removeChild(ta);showOk(btn);
+}
+function showOk(btn){
+  const orig=btn.innerHTML;
+  btn.innerHTML=`<svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"><polyline points="20 6 9 17 4 12"/></svg> Kopirano`;
+  btn.classList.add('ok');setTimeout(()=>{btn.innerHTML=orig;btn.classList.remove('ok');},2000);
+}
+function cpIco(){return`<svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;}
+function flash(id){const el=document.getElementById(id);if(!el)return;el.style.borderColor='var(--red)';el.focus();setTimeout(()=>el.style.borderColor='',1500);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── KREATIVE ──
+let kProductData = null;
+let kSelectedA = [];
+let kSelectedB = [];
+let kSelectedImages = [];
+let kCount = 4;
+
+function kChangeCount(d) {
+  kCount = Math.max(1, Math.min(12, kCount + d));
+  document.getElementById('kCountVal').textContent = kCount;
+  kUpdateComboPreview();
+}
+
+function kUpdateComboPreview() {
+  const nA = kSelectedA.length, nB = kSelectedB.length;
+  const el = document.getElementById('kComboPreview');
+  if (!el) return;
+  if (!nA || !nB) { el.textContent = 'Izberi vsaj 1x A in 1x B'; return; }
+  const total = nA * nB * kCount;
+  el.textContent = nA + ' tekst × ' + nB + ' ozadje × ' + kCount + ' slik = ' + total + ' kreativ';
+}
+
+function kToggleA(idx) {
+  const i = kSelectedA.indexOf(idx);
+  if (i >= 0) kSelectedA.splice(i, 1); else kSelectedA.push(idx);
+  document.querySelectorAll('.k-option-btn[data-type="a"]').forEach((btn, j) => {
+    btn.classList.toggle('active', kSelectedA.includes(j));
+  });
+  kUpdateComboPreview();
+}
+
+function kToggleB(idx) {
+  const i = kSelectedB.indexOf(idx);
+  if (i >= 0) kSelectedB.splice(i, 1); else kSelectedB.push(idx);
+  document.querySelectorAll('.k-option-btn[data-type="b"]').forEach((btn, j) => {
+    btn.classList.toggle('active', kSelectedB.includes(j));
+  });
+  kUpdateComboPreview();
+}
+
+function kRenderAB() {
+  if (!kProductData) return;
+  const aEl = document.getElementById('kAOptions');
+  const bEl = document.getElementById('kBOptions');
+  aEl.innerHTML = kProductData.aOptions.map((opt, i) =>
+    '<button class="k-option-btn' + (kSelectedA.includes(i) ? ' active' : '') + '" data-type="a" onclick="kToggleA(' + i + ')">' +
+    '<span class="k-opt-label">' + esc(opt.label) + '</span>' +
+    '<span class="k-opt-text">' + esc(opt.text) + '</span></button>'
+  ).join('');
+  bEl.innerHTML = kProductData.bOptions.map((opt, i) =>
+    '<button class="k-option-btn' + (kSelectedB.includes(i) ? ' active' : '') + '" data-type="b" onclick="kToggleB(' + i + ')">' +
+    '<span class="k-opt-label">' + esc(opt.label) + '</span>' +
+    '<span class="k-opt-text">' + esc(opt.text) + '</span></button>'
+  ).join('');
+}
+
+async function kAnalyze() {
+  const url = document.getElementById('kUrlInput').value.trim();
+  if (!url) return;
+  const btn = document.getElementById('kAnalyzeBtn');
+  btn.disabled = true;
+  document.getElementById('kAnalyzeLoading').style.display = 'block';
+  document.getElementById('kAbcSection').style.display = 'none';
+  document.getElementById('kError').classList.remove('show');
+  // Počisti prejšnje rezultate
+  document.getElementById('kResultsGrid').innerHTML = '<div style="text-align:center;padding:4rem 2rem;color:var(--text-tertiary);font-size:13px"><svg viewBox="0 0 24 24" style="width:48px;height:48px;stroke:var(--border);fill:none;stroke-width:1.2;display:block;margin:0 auto 12px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Vpiši URL in analiziraj izdelek,<br>nato izberi A+B kombinacije</div>';
+  document.getElementById('kResultCount').textContent = '';
+  document.getElementById('kBulkBar').classList.remove('show');
+  kSelectedImgCards.clear();
+  window.kCardsData = [];
+
+  try {
+    const res = await fetch('/analyze-product-kreative', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    kProductData = data;
+    kSelectedA = []; kSelectedB = [];
+    document.getElementById('kProductName').value = data.name || '';
+    kRenderAB();
+
+    if (data.images && data.images.length) {
+      document.getElementById('kFetchedImagesWrap').style.display = 'block';
+      document.getElementById('kFetchedImages').innerHTML = data.images.map(src =>
+        '<div class="k-thumb-wrap"><img src="' + esc(src) + '" class="k-thumb" onclick="kToggleFetched(\'' + esc(src) + '\')" title="Klikni za izbiro"></div>'
+      ).join('');
     }
 
+    document.getElementById('kAbcSection').style.display = 'block';
+    kUpdateComboPreview();
+    // Shrani v zgodovino
+    kSaveToHistory(url, data.name, data.aOptions, data.bOptions);
+  } catch(e) {
+    document.getElementById('kError').textContent = 'Napaka: ' + e.message;
+    document.getElementById('kError').classList.add('show');
+  }
 
-async def generate_meta_one(user_msg: str, mode: str, source_url: Optional[str],
-                            pt_count: int, hl_count: int, qmode: str) -> dict:
-    product_urls = find_product_urls(source_url)
-    tools = [{"type": "web_search_20250305", "name": "web_search"}] if mode == "url" else []
-
-    if qmode == "fast":
-        pt_ph = ", ".join([f'"PT {i+1}"' for i in range(pt_count)])
-        hl_ph = ", ".join([f'"HL {i+1}"' for i in range(hl_count)])
-        sl_prompt = f"""{user_msg}
-
-Ustvari Meta oglase SAMO v slovenščini.
-Primary Text ({pt_count}x): 2-3 vrstice, 2-3 emoji-ji, prodajni ton, brez cen, vsak DRUGAČEN.
-Headline ({hl_count}x): MAX 5 BESED, 1 emoji na začetku, brez cen, vsak DRUGAČEN.
-EMOJI PRAVILO: Uporabljaj SAMO te emoji-je ki so zagotovo podprti na vseh napravah:
-✅ ⭐ 🔥 💪 🎯 👍 ❤️ 💥 🚀 ✨ 💡 🎁 💰 👌 🙌 😍 💎 🏆 ⚡ 🌟 👏 💫 🛒 📦 🔑 💯 😊 🤩 🌿 🌱 🍃 🌸 🌻 🌞 🍀 🎉 🎊 🛍️ 💚 💙 🧡 💜 🤍 🖤 🟢 🔵 🟡
-NE uporabljaj: redkih, novejših ali manj znanih emoji-jev ki se lahko prikažejo kot □
-Vrni SAMO JSON: {{"product": "ime", "pt": [{pt_ph}], "hl": [{hl_ph}]}}"""
-
-        sl_text = await call_claude(sl_prompt, "claude-sonnet-4-6", tools if tools else None, 4000)
-        sl_data = parse_json_response(sl_text)
-        if not sl_data:
-            print(f"SL parse failed. Raw response: {sl_text[:500]}")
-            return {"error": "Napaka pri generiranju SL tekstov."}
-
-        sl_pts = sl_data.get("pt", [])
-        sl_hls = sl_data.get("hl", [])
-        trans_prompt = f"""Prevedi Meta oglase iz slovenščine v 9 jezikov. Ohrani ŠTEVILO in POZICIJO emoji-jev točno kot v originalu.
-
-Primary Texts: {json.dumps(sl_pts, ensure_ascii=False)}
-Headlines: {json.dumps(sl_hls, ensure_ascii=False)}
-
-PRAVILA PREVAJANJA PO JEZIKIH:
-
-HR (hrvaščina, latinica): Natural marketing ton. Pazi na "č/ć/š/ž/đ".
-
-RS (srbščina, SAMO LATINICA — NIKOLI cirilica!): Natural marketing ton. Pazi na "č/ć/š/ž/đ".
-
-HU (madžarščina): KRITIČNO - to ni indoevropski jezik, NE prevajaj dobesedno. Uporabljaj aglutinacijo (končnice) pravilno. CTA kot "Naroči zdaj" = "Rendeld meg most". Pazi da stavek ni predolg (madžarski stavki so lahko za 20-30% daljši).
-
-CZ (češčina): Natural. Pazi na sklonjenje samostalnikov (akuzativ po glagolih).
-
-SK (slovaščina): Podobno češčini. Natural.
-
-PL (poljščina): Pazi na sklone (7 padežev). CTA "Naroči" = "Zamów". Uporabi neformalni ti-vi.
-
-GR (grščina, grška pisava!): KRITIČNO - kompleksna slovnica s skloni (nominativ/akuzativ). CTA "Naroči zdaj" = "Παράγγειλε τώρα". Izogibaj se predolgih stavkov. Pazi na spol samostalnikov. Uporabljaj natural marketing grščino, ne dobesedni prevod.
-
-RO (romunščina, latinica): Natural. Pazi na "ă/â/î/ș/ț". CTA "Naroči" = "Comandă".
-
-BG (bolgarščina, SAMO CIRILICA — NIKOLI latinica!): Natural. CTA "Naroči" = "Поръчай".
-
-SPLOŠNA PRAVILA:
-- Ohrani prodajni/energičen ton
-- Prevodi morajo zveneti kot da jih je pisal materni govorec, ne robot
-- Ohrani ŠTEVILO emoji-jev (če ima SL 3 emoji, mora imeti tudi prevod 3)
-- Headlines: ohrani MAX 5 besed tudi v prevodu
-- Ne prevajaj blagovnih znamk, imen izdelkov, če so v originalu
-
-Vrni SAMO JSON:
-{{"hr":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"rs":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"hu":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"cz":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"sk":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"pl":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"gr":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"ro":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"bg":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}}}}"""
-
-        trans_text = await call_claude(trans_prompt, "claude-haiku-4-5-20251001", None, 6000)
-        trans_data = parse_json_response(trans_text)
-        if not trans_data:
-            return {"error": "Napaka pri prevajanju."}
-
-        result = {"product": sl_data.get("product","Izdelek"), "sl": {"pt": sl_pts, "hl": sl_hls}, "product_urls": product_urls}
-        result.update(trans_data)
-        return result
-    else:
-        prompt = build_meta_prompt(user_msg, pt_count, hl_count)
-        text = await call_claude(prompt, "claude-sonnet-4-6", tools if tools else None)
-        data = parse_json_response(text)
-        if not data:
-            return {"error": "Claude ni vrnil veljavnega JSON."}
-        data["product_urls"] = product_urls
-        return data
-
-
-async def generate_tiktok_one(user_msg: str, mode: str, source_url: Optional[str]) -> dict:
-    product_urls = find_product_urls(source_url)
-    tools = [{"type": "web_search_20250305", "name": "web_search"}] if mode == "url" else []
-    prompt = build_tiktok_prompt(user_msg)
-    text = await call_claude(prompt, "claude-sonnet-4-6", tools if tools else None)
-    data = parse_json_response(text)
-    if not data:
-        print(f"TikTok JSON parse failed. Raw (first 800 chars): {text[:800]}")
-        return {"error": "Claude ni vrnil veljavnega JSON."}
-    data["product_urls"] = product_urls
-    return data
-
-
-# ─── TIKTOK XLSX BUILDER ─────────────────────────────────────────────────────
-
-COUNTRY_TO_LANG = {
-    "BG": "bg", "CZ": "cz", "GR": "gr", "SK": "sk", "RS": "rs",
-    "RO": "ro", "HU": "hu", "HR": "hr", "PL": "pl", "SLO": "sl"
+  document.getElementById('kAnalyzeLoading').style.display = 'none';
+  btn.disabled = false;
 }
 
-
-def build_tiktok_xlsx(sku: str, brand: str, video_names: str,
-                      texts_by_lang: dict, urls_by_lang: dict) -> str:
-    if not Path(TEMPLATE_PATH).exists():
-        raise FileNotFoundError("TikTok template not found. Upload tiktok_template.xlsx to static/")
-
-    wb = openpyxl.load_workbook(TEMPLATE_PATH)
-    ws = wb['Ads']
-    headers = [cell.value for cell in ws[1]]
-
-    col_campaign = headers.index('Campaign Name') + 1
-    col_bc_id    = headers.index('Business Center ID of the identity') + 1
-    col_video    = headers.index('Video Name') + 1
-    col_text     = headers.index('Text') + 1
-    col_url      = headers.index('Web URL') + 1
-    col_ag       = headers.index('Ad Group Name') + 1
-
-    # Get base single BC ID from row 2
-    base_bc_raw = ws.cell(row=2, column=col_bc_id).value or ''
-    single_id = base_bc_raw.split(',')[0].strip()
-
-    # Count videos to build matching BC ID
-    videos = [v.strip() for v in re.findall(r'\[([^\]]+)\]', video_names)]
-    new_bc_id = ','.join([single_id] * len(videos)) if videos else single_id
-    today = datetime.now().strftime('%-d_%-m_%Y')
-    new_campaign = f'[{brand}] Smart+ {sku} - {today}'
-
-    for row in ws.iter_rows(min_row=2):
-        r = row[0].row
-        country = ws.cell(row=r, column=col_ag).value
-        if not country:
-            continue
-        lang = COUNTRY_TO_LANG.get(country)
-        ws.cell(row=r, column=col_campaign).value = new_campaign
-        ws.cell(row=r, column=col_bc_id).value = new_bc_id
-        ws.cell(row=r, column=col_video).value = video_names
-        if lang and lang in texts_by_lang:
-            ws.cell(row=r, column=col_text).value = texts_by_lang[lang]
-        if lang and lang in urls_by_lang:
-            ws.cell(row=r, column=col_url).value = urls_by_lang[lang]
-
-    out_path = str(EXPORTS_DIR / f"tiktok_{sku}_{uuid.uuid4().hex[:8]}.xlsx")
-    wb.save(out_path)
-    return out_path
-
-
-# ─── MODELS ──────────────────────────────────────────────────────────────────
-
-def build_master_xlsx(skus: list) -> str:
-    """Združi več SKU-jev v en master XLS — vsak SKU doda svoje vrstice (koliko jih je v template-u)."""
-    if not Path(TEMPLATE_PATH).exists():
-        raise FileNotFoundError("TikTok template not found.")
-
-    # Load template to get headers and template rows
-    wb_tmpl = openpyxl.load_workbook(TEMPLATE_PATH)
-    ws_tmpl = wb_tmpl['Ads']
-    headers = [cell.value for cell in ws_tmpl[1]]
-
-    col_campaign = headers.index('Campaign Name') + 1
-    col_bc_id    = headers.index('Business Center ID of the identity') + 1
-    col_video    = headers.index('Video Name') + 1
-    col_text     = headers.index('Text') + 1
-    col_url      = headers.index('Web URL') + 1
-    col_ag       = headers.index('Ad Group Name') + 1
-
-    base_bc_raw = ws_tmpl.cell(row=2, column=col_bc_id).value or ''
-    single_id = base_bc_raw.split(',')[0].strip()
-
-    # Collect template rows (row 2 onwards) as base structure
-    tmpl_rows = []
-    for row in ws_tmpl.iter_rows(min_row=2, values_only=False):
-        country = row[col_ag - 1].value
-        if not country:
-            continue
-        tmpl_rows.append({
-            'country': country,
-            'row_data': [cell.value for cell in row],
-            'row_styles': row,
-        })
-
-    # Create new workbook
-    wb_out = openpyxl.load_workbook(TEMPLATE_PATH)
-    ws_out = wb_out['Ads']
-
-    # Clear all data rows
-    for row in ws_out.iter_rows(min_row=2):
-        for cell in row:
-            cell.value = None
-
-    today = datetime.now().strftime('%-d_%-m_%Y')
-    out_row = 2
-
-    for sku_entry in skus:
-        sku = sku_entry.get('sku', '')
-        brand = sku_entry.get('brand', '')
-        video_names = sku_entry.get('videos', '')
-        texts_by_lang = sku_entry.get('texts', {})
-        urls_by_lang = sku_entry.get('urls', {})
-
-        videos = [v.strip() for v in re.findall(r'\[([^\]]+)\]', video_names)]
-        new_bc_id = ','.join([single_id] * len(videos)) if videos else single_id
-        new_campaign = f'[{brand}] Smart+ {sku} - {today}'
-
-        for tmpl_row in tmpl_rows:
-            country = tmpl_row['country']
-            lang = COUNTRY_TO_LANG.get(country)
-
-            # Copy template row values
-            orig_row = ws_tmpl[tmpl_row['row_styles'][0].row]
-            for col_idx, orig_cell in enumerate(orig_row, 1):
-                ws_out.cell(row=out_row, column=col_idx).value = orig_cell.value
-
-            # Fill in our data
-            ws_out.cell(row=out_row, column=col_campaign).value = new_campaign
-            ws_out.cell(row=out_row, column=col_bc_id).value = new_bc_id
-            ws_out.cell(row=out_row, column=col_video).value = video_names
-            if lang and lang in texts_by_lang:
-                ws_out.cell(row=out_row, column=col_text).value = texts_by_lang[lang]
-            if lang and lang in urls_by_lang:
-                ws_out.cell(row=out_row, column=col_url).value = urls_by_lang[lang]
-
-            out_row += 1
-
-    out_path = str(EXPORTS_DIR / f"master_{uuid.uuid4().hex[:8]}.xlsx")
-    wb_out.save(out_path)
-    return out_path
-
-
-class MasterXlsxRequest(BaseModel):
-    skus: List[dict]  # [{sku, brand, url, videos, texts, urls}]
-
-
-@app.post("/build-master-xlsx")
-async def build_master_xlsx_endpoint(req: MasterXlsxRequest):
-    """Sestavi master XLS iz že shranjenih tekstov — brez API klicev."""
-    skus_data = []
-    for entry in req.skus:
-        if not entry.get('videos'):
-            continue
-        skus_data.append({
-            'sku':    entry.get('sku', ''),
-            'brand':  entry.get('brand', ''),
-            'videos': entry.get('videos', ''),
-            'texts':  entry.get('texts', {}),
-            'urls':   entry.get('urls', {}),
-        })
-
-    if not skus_data:
-        return {"error": "Ni veljavnih SKU-jev (manjkajo video imena)."}
-
-    try:
-        path = build_master_xlsx(skus_data)
-        return {"status": "ok", "file": path}
-    except FileNotFoundError as e:
-        return {"error": str(e)}
-
-
-@app.post("/generate-master-xlsx")
-async def generate_master_xlsx(req: MasterXlsxRequest):
-    await ensure_cache_fresh()
-
-    skus_data = []
-    for entry in req.skus:
-        url = entry.get('url', '')
-        sku = entry.get('sku', '')
-        brand = entry.get('brand', '')
-        videos = entry.get('videos', '')
-
-        if not videos:
-            continue  # preskoči SKU brez video imen
-
-        # Generate TikTok texts
-        user_msg = f"Preberi to stran in ustvari TikTok oglase: {url}"
-        data = await generate_tiktok_one(user_msg, "url", url)
-        if "error" in data:
-            continue
-
-        texts_by_lang = {lang: data[lang] for lang in ["sl","hr","rs","hu","cz","sk","pl","gr","ro","bg"] if lang in data}
-        urls_by_lang = data.get("product_urls", {})
-
-        skus_data.append({
-            'sku': sku, 'brand': brand, 'videos': videos,
-            'texts': texts_by_lang, 'urls': urls_by_lang
-        })
-
-        if len(skus_data) < len(req.skus):
-            await asyncio.sleep(15)  # rate limit
-
-    if not skus_data:
-        return {"error": "Ni veljavnih SKU-jev za generiranje."}
-
-    try:
-        path = build_master_xlsx(skus_data)
-        return {"status": "ok", "file": path}
-    except FileNotFoundError as e:
-        return {"error": str(e)}
-
-
-    input: str
-    mode: str
-    pt_count: int = 1
-    hl_count: int = 1
-    source_url: Optional[str] = None
-    qmode: str = "sonnet"
-
-
-class MultiAdRequest(BaseModel):
-    products: List[dict]
-    pt_count: int = 1
-    hl_count: int = 1
-    qmode: str = "sonnet"
-
-
-class TikTokRequest(BaseModel):
-    source_url: str
-    sku: str
-    brand: str
-    video_names: str
-
-
-# ─── ROUTES ──────────────────────────────────────────────────────────────────
-
-@app.get("/tiktok-history")
-async def get_tiktok_history():
-    if TT_HISTORY_FILE.exists():
-        try:
-            return json.loads(TT_HISTORY_FILE.read_text(encoding="utf-8"))
-        except:
-            return []
-    return []
-
-@app.post("/tiktok-history")
-async def save_tiktok_history(data: dict):
-    try:
-        history = data.get("history", [])
-        TT_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
-        return {"status": "ok", "count": len(history)}
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/meta-history")
-async def get_meta_history():
-    if META_HISTORY_FILE.exists():
-        try:
-            return json.loads(META_HISTORY_FILE.read_text(encoding="utf-8"))
-        except:
-            return []
-    return []
-
-@app.post("/meta-history")
-async def save_meta_history(data: dict):
-    try:
-        history = data.get("history", [])
-        META_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
-        return {"status": "ok", "count": len(history)}
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/forecast-entries")
-async def get_forecast_entries():
-    if FORECAST_ENTRIES_FILE.exists():
-        try:
-            return json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
-        except:
-            return {}
-    return {}
-
-@app.post("/forecast-entries")
-async def save_forecast_entries(data: dict):
-    try:
-        FORECAST_ENTRIES_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        return {"status": "ok"}
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/forecast-history")
-async def get_forecast_history():
-    if FORECAST_HISTORY_FILE.exists():
-        try:
-            return json.loads(FORECAST_HISTORY_FILE.read_text(encoding="utf-8"))
-        except:
-            return {}
-    return {}
-
-@app.post("/forecast-history")
-async def save_forecast_history(data: dict):
-    try:
-        FORECAST_HISTORY_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        return {"status": "ok"}
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/")
-def root():
-    return FileResponse("static/index.html")
-
-
-@app.get("/cache-status")
-async def cache_status():
-    return {"last_fetch": last_fetch.isoformat() if last_fetch else None,
-            "stale": is_cache_stale(),
-            "products_per_lang": {lang: len(p) for lang, p in feed_by_lang.items()},
-            "slug_index_size": len(slug_to_id)}
-
-
-@app.post("/refresh-cache")
-async def refresh_cache():
-    await fetch_all_feeds()
-    return {"status": "ok", "last_fetch": last_fetch.isoformat()}
-
-
-@app.post("/generate")
-async def generate(req: AdRequest):
-    await ensure_cache_fresh()
-    user_msg = f"Preberi to stran in ustvari Meta oglase: {req.input}" if req.mode == "url" else f"Na podlagi tega opisa ustvari Meta oglase:\n\n{req.input}"
-    return await generate_meta_one(user_msg, req.mode, req.source_url, req.pt_count, req.hl_count, req.qmode)
-
-
-@app.post("/generate-multi")
-async def generate_multi(req: MultiAdRequest):
-    await ensure_cache_fresh()
-    results = []
-    for i, p in enumerate(req.products):
-        url = p.get("url", "").strip()
-        mode = p.get("mode", "url")
-        if not url:
-            results.append({"error": "Prazen URL"})
-            continue
-        user_msg = f"Preberi to stran in ustvari Meta oglase: {url}" if mode == "url" else f"Na podlagi tega opisa:\n\n{url}"
-        result = await generate_meta_one(user_msg, mode, url if mode == "url" else None,
-                                         req.pt_count, req.hl_count, req.qmode)
-        results.append(result)
-        if i < len(req.products) - 1:
-            await asyncio.sleep(15)
-    return {"results": results}
-
-
-@app.post("/generate-multi-stream")
-async def generate_multi_stream(req: MultiAdRequest):
-    """SSE streaming endpoint — pošilja rezultate batch po batch."""
-    await ensure_cache_fresh()
-
-    async def event_stream():
-        for i, p in enumerate(req.products):
-            url = p.get("url", "").strip()
-            mode = p.get("mode", "url")
-            if not url:
-                yield f"data: {json.dumps({'type': 'result', 'index': i, 'data': {'error': 'Prazen URL'}})}\n\n"
-                continue
-
-            # Notify frontend that this product is being processed
-            yield f"data: {json.dumps({'type': 'loading', 'index': i, 'url': url})}\n\n"
-
-            user_msg = f"Preberi to stran in ustvari Meta oglase: {url}" if mode == "url" else f"Na podlagi tega opisa:\n\n{url}"
-
-            if req.qmode == "fast":
-                # Step 1: SL generation
-                yield f"data: {json.dumps({'type': 'progress', 'index': i, 'step': 'sl'})}\n\n"
-                result = await generate_meta_sl_only(user_msg, mode, url if mode == "url" else None,
-                                                      req.pt_count, req.hl_count)
-                if "error" in result:
-                    yield f"data: {json.dumps({'type': 'result', 'index': i, 'data': result})}\n\n"
-                    if i < len(req.products) - 1:
-                        await asyncio.sleep(15)
-                    continue
-
-                # Send SL immediately
-                yield f"data: {json.dumps({'type': 'partial', 'index': i, 'langs': ['sl'], 'data': result})}\n\n"
-
-                sl_pts = result["sl"]["pt"]
-                sl_hls = result["sl"]["hl"]
-                product_urls = result.get("product_urls", {})
-                product_name = result.get("product", "Izdelek")
-
-                # Step 2: Parallel translation in 4 batches of 2-3 langs
-                pt_ph = ", ".join([f'"PT {i2+1}"' for i2 in range(req.pt_count)])
-                hl_ph = ", ".join([f'"HL {i2+1}"' for i2 in range(req.hl_count)])
-
-                lang_batches = [
-                    ["hr", "rs"],
-                    ["hu", "cz"],
-                    ["sk", "pl"],
-                    ["gr", "ro", "bg"],
-                ]
-
-                lang_info = {
-                    "hr": "HR (hrvaščina, latinica)",
-                    "rs": "RS (srbščina, SAMO latinica!)",
-                    "hu": "HU (madžarščina - aglutinacijski jezik, ne prevajaj dobesedno)",
-                    "cz": "CZ (češčina)",
-                    "sk": "SK (slovaščina)",
-                    "pl": "PL (poljščina)",
-                    "gr": "GR (grščina, grška pisava!)",
-                    "ro": "RO (romunščina, latinica)",
-                    "bg": "BG (bolgarščina, SAMO cirilica!)",
-                }
-
-                full_result = {
-                    "product": product_name,
-                    "product_urls": product_urls,
-                    "sl": {"pt": sl_pts, "hl": sl_hls},
-                }
-
-                for batch in lang_batches:
-                    yield f"data: {json.dumps({'type': 'progress', 'index': i, 'step': 'translating', 'langs': batch})}\n\n"
-
-                    batch_json_keys = ", ".join([
-                        f'"{lang}":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}}'
-                        for lang in batch
-                    ])
-                    batch_lang_lines = "\n".join([f"- {lang_info[lang]}" for lang in batch])
-
-                    batch_prompt = f"""Prevedi Meta oglase iz slovenščine v naslednje jezike. Ohrani ŠTEVILO in POZICIJO emoji-jev točno kot v originalu.
-
-Primary Texts: {json.dumps(sl_pts, ensure_ascii=False)}
-Headlines: {json.dumps(sl_hls, ensure_ascii=False)}
-
-Prevedi SAMO v te jezike:
-{batch_lang_lines}
-
-SPLOŠNA PRAVILA:
-- Ohrani prodajni/energičen ton
-- Prevodi morajo zveneti kot materni govorec
-- Ohrani ŠTEVILO emoji-jev
-- Headlines: MAX 5 besed
-- Ne prevajaj imen izdelkov/blagovnih znamk
-
-Vrni SAMO JSON: {{{batch_json_keys}}}"""
-
-                    batch_text = await call_claude(batch_prompt, "claude-haiku-4-5-20251001", None, 3000)
-                    batch_data = parse_json_response(batch_text)
-
-                    if batch_data:
-                        full_result.update(batch_data)
-                        yield f"data: {json.dumps({'type': 'partial', 'index': i, 'langs': batch, 'data': full_result})}\n\n"
-
-                yield f"data: {json.dumps({'type': 'result', 'index': i, 'data': full_result})}\n\n"
-
-            else:
-                # Kreativni način — en klic, pošlji ko konča
-                result = await generate_meta_one(user_msg, mode, url if mode == "url" else None,
-                                                  req.pt_count, req.hl_count, req.qmode)
-                yield f"data: {json.dumps({'type': 'result', 'index': i, 'data': result})}\n\n"
-
-            if i < len(req.products) - 1:
-                await asyncio.sleep(15)
-
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
-
-    return StreamingResponse(event_stream(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
-
-
-@app.post("/generate-tiktok")
-async def generate_tiktok(req: TikTokRequest):
-    await ensure_cache_fresh()
-    user_msg = f"Preberi to stran in ustvari TikTok oglase: {req.source_url}"
-    data = await generate_tiktok_one(user_msg, "url", req.source_url)
-    if "error" in data:
-        return data
-
-    product_urls = data.get("product_urls", {})
-    texts_by_lang = {lang: data[lang] for lang in ["sl","hr","rs","hu","cz","sk","pl","gr","ro","bg"] if lang in data}
-
-    try:
-        xlsx_path = build_tiktok_xlsx(
-            sku=req.sku,
-            brand=req.brand,
-            video_names=req.video_names,
-            texts_by_lang=texts_by_lang,
-            urls_by_lang=product_urls
-        )
-        return {"status": "ok", "file": xlsx_path, "data": data}
-    except FileNotFoundError as e:
-        return {"error": str(e)}
-
-
-@app.post("/extract-videos")
-async def extract_videos(data: dict):
-    """Extract video filenames from a base64 screenshot using Claude vision."""
-    image_b64 = data.get("image")
-    media_type = data.get("media_type", "image/png")
-    if not image_b64:
-        return {"error": "Ni slike."}
-    loop = asyncio.get_event_loop()
-    msg = await loop.run_in_executor(None, lambda: client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=500,
-        messages=[{"role": "user", "content": [
-            {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
-            {"type": "text", "text": "Extract all video filenames from this screenshot. Return ONLY a JSON array of filenames, nothing else. Example: [\"VIDEO (1).mp4\", \"VIDEO (2).mp4\"]. Extract exactly as written, preserve spaces and capitalization."}
-        ]}]
-    ))
-    text = msg.content[0].text.strip()
-    text = re.sub(r"```json\s*", "", text)
-    text = re.sub(r"```\s*", "", text).strip()
-    try:
-        filenames = json.loads(text)
-        formatted = ",".join([f"[{f}]" for f in filenames])
-        return {"filenames": filenames, "formatted": formatted}
-    except json.JSONDecodeError:
-        return {"error": "Ni uspelo prebrati imen. Poskusi znova z jasnejšo sliko."}
-
-
-@app.get("/download/{filename}")
-def download_file(filename: str):
-    path = EXPORTS_DIR / filename
-    if not path.exists():
-        return {"error": "File not found"}
-    return FileResponse(str(path), filename=filename,
-                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-
-@app.get("/kreative-history")
-async def get_kreative_history():
-    if KREATIVE_HISTORY_FILE.exists():
-        try:
-            return json.loads(KREATIVE_HISTORY_FILE.read_text(encoding="utf-8"))
-        except:
-            return []
-    return []
-
-@app.post("/kreative-history")
-async def save_kreative_history(data: dict):
-    try:
-        history = data.get("history", [])
-        KREATIVE_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
-        return {"status": "ok", "count": len(history)}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-# ─── KREATIVE ENDPOINTS ───────────────────────────────────────────────────────
-
-@app.post("/analyze-product-kreative")
-async def analyze_product_kreative(data: dict):
-    """Prebere stran izdelka in generira A/B/C opcije za kreative."""
-    url = data.get("url", "").strip()
-    if not url:
-        return {"error": "Manjka URL."}
-
-    # Fetch page
-    try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as hc:
-            resp = await hc.get(url, headers={"User-Agent": "Mozilla/5.0"})
-            html = resp.text if resp.status_code == 200 else ""
-    except Exception as e:
-        return {"error": f"Ne morem prebrati strani: {e}"}
-
-
-    # Build prompt for Claude to analyze product
-    tools = [{"type": "web_search_20250305", "name": "web_search"}]
-    analysis_prompt = f"""Preberi to spletno stran izdelka: {url}
-
-Na podlagi opisa izdelka generiraj strukturirane podatke za kreative FB oglasov.
-
-Vrni SAMO JSON (brez markdown) v tej obliki:
-{{
-  "name": "IME_IZDELKA_CAPS",
-  "aOptions": [
-    {{"label": "MAIN VERSION", "text": "benefit1, benefit2, benefit3"}},
-    {{"label": "HIGH-CONVERT", "text": "benefit1, benefit2, benefit3"}},
-    {{"label": "PROBLEM-SOLUTION", "text": "benefit1, benefit2, benefit3"}},
-    {{"label": "ULTRA SIMPLE", "text": "benefit1, benefit2"}},
-    {{"label": "SOCIAL PROOF", "text": "benefit1, benefit2, benefit3"}}
-  ],
-  "bOptions": [
-    {{"label": "BEST", "text": "kratko ime vibeа ozadja"}},
-    {{"label": "SECOND OPTION", "text": "kratko ime vibeа ozadja"}},
-    {{"label": "SCROLL STOPPER", "text": "kratko ime vibeа ozadja"}},
-    {{"label": "BONUS", "text": "kratko ime vibeа ozadja"}},
-    {{"label": "LIFESTYLE", "text": "kratko ime vibeа ozadja"}}
-  ]
-}}
-
-PRAVILA:
-- name: samo ime blagovne znamke/modela z CAPS
-- aOptions: PRODAJNI UDARCI (ne lastnosti!), max 2-3 besede vsak, v angleščini
-- bOptions: KONCEPT/VIBE specifičen za TA izdelek, max 3 besede, vedno akcija ali moment
-- VSE mora biti v angleščini
-- Vrni točno 5 aOptions in 5 bOptions
-
-PRIMERI (uči se iz teh vzorcev):
-
-WEEDZAP (weed removal tool):
-aOptions: "Pull the Root, Stop the Weed, No Chemicals" | "Weeds Gone, Root and All, One Tool" | "Weeds Keep Coming Back, Pull the Root, Done for Good" | "Twist, Pull, Gone"
-bOptions: "root pull satisfying moment" | "no chemicals angle" | "before/after garden" | "no back pain angle"
-
-ASHIRAFLUX (smokeless fire pit):
-aOptions: "Real Flame, No Smoke, Anywhere You Are" | "No Fireplace? No Problem, Instant Cozy, Zero Smoke" | "Missing That Fire Feeling, Warm Vibes Instantly" | "Fill, Light, Relax"
-bOptions: "evening atmosphere shot" | "smoke vs no smoke" | "first light moment" | "indoor safe angle"
-
-STAXA (steel organizer shelf):
-aOptions: "Double Your Space, Zero Clutter, Instant Order" | "Messy Counter, One Shelf, Problem Solved" | "No Room, Stack It Up, Space Created" | "Stack, Store, Done"
-bOptions: "before/after counter" | "multi-room tour" | "satisfying load test" | "steel vs plastic"
-
-SIZZELA (electric frying pan):
-aOptions: "No Stove Needed, Cook Anywhere, Instant Heat" | "One Pan, Any Meal, Zero Hassle" | "No Stove, No Smoke, No Problem" | "Plug & Sizzle, Done"
-bOptions: "sizzle sound moment" | "speed cooking demo" | "steam lid reveal" | "no stove freedom"
-
-PLANTDRILL (garden auger):
-aOptions: "Drill, Plant, Done, No Digging" | "One Bit, Perfect Holes, Zero Effort" | "Back-Breaking Digging, One Drill Bit, Done" | "Drill, Drop, Grow"
-bOptions: "speed demo" | "planting demo" | "satisfying drill moment"
-
-SMARTFITNESS (EMS stimulator):
-aOptions: "Train Anywhere, No Gym, Real Results" | "On the Couch, Still Training, Zero Effort" | "No Time to Work Out, Wear It, Feel It Work" | "Stick, Activate, Tone"
-bOptions: "lifestyle demo" | "before/after body" | "reaction moment"
-
-SOWSYNC (seed spacing tool):
-aOptions: "Plant Smart, Perfect Spacing, Grow Better" | "Even Rows, No Waste, Strong Growth" | "Messy Planting, Seed Tool, Better Yield" | "Place, Press, Plant"
-bOptions: "before/after planting" | "planting demo" | "grid effect"
-
-Sedaj generiraj za izdelek na tej strani po ISTEM vzorcu:"""
-
-    text = await call_claude(analysis_prompt, "claude-sonnet-4-6", tools, 2000)
-    result = parse_json_response(text)
-
-    if not result:
-        return {"error": "Ni uspelo analizirati izdelka. Poskusi znova."}
-
-    return result
-
-
-@app.post("/fetch-product-images")
-async def fetch_product_images(data: dict):
-    """Pobere slike izdelka s podane URL strani."""
-    url = data.get("url", "").strip()
-    if not url:
-        return {"error": "Manjka URL."}
-    try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as hc:
-            resp = await hc.get(url, headers={"User-Agent": "Mozilla/5.0"})
-            if resp.status_code != 200:
-                return {"error": f"Stran ni dostopna ({resp.status_code})."}
-            html = resp.text
-
-        # Extract img src attributes
-        import re as _re
-        srcs = _re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', html, _re.IGNORECASE)
-
-        # Filter: only product-like images (skip icons, logos, tiny tracking pixels)
-        from urllib.parse import urljoin
-        base = url
-        images = []
-        seen = set()
-        for src in srcs:
-            if not src or src.startswith("data:"):
-                continue
-            full = urljoin(base, src)
-            # Skip obviously non-product images
-            skip_words = ["logo", "icon", "favicon", "sprite", "banner", "flag",
-                         "payment", "badge", "star", "rating", "arrow", "tracking"]
-            if any(w in full.lower() for w in skip_words):
-                continue
-            # Only jpg/png/webp
-            if not any(ext in full.lower() for ext in [".jpg", ".jpeg", ".png", ".webp"]):
-                continue
-            if full not in seen:
-                seen.add(full)
-                images.append(full)
-            if len(images) >= 20:
-                break
-
-        return {"images": images, "count": len(images)}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.post("/generate-kreative")
-async def generate_kreative(data: dict):
-    """Generira kreative z Google Gemini (Nano Banana 2) API."""
-    import base64, struct, zlib
-
-    product_name = data.get("productName", "")
-    a_options = data.get("aOptions", [])
-    b_options = data.get("bOptions", [])
-    count = data.get("count", 4)
-    ref_images = data.get("images", [])  # base64 data URLs
-
-    if not product_name or not a_options or not b_options:
-        return {"error": "Manjkajo podatki (ime izdelka, A ali B opcije)."}
-
-    gemini_key = os.environ.get("GEMINI_API_KEY", "")
-    if not gemini_key:
-        return {"error": "GEMINI_API_KEY ni nastavljen v Render environment variables."}
-
-    # Build combinations
-    combos = []
-    for a in a_options:
-        for b in b_options:
-            prompt = (
-                f"From these reference images create a new FB ad creative. "
-                f"Try a more intense '{b.get('text', '')}' background. "
-                f"Do not include any text/words on the image except the device name in capital letters '{product_name}' — place it where it fits best or makes sense. "
-                f"If possible (if you recognize any suitable English naming styles), you can also create a logo from the name. "
-                f"Highlight (can be through icons or text in English) that it is: {a.get('text', '')}. "
-                f"Keep all text and icons well within the image borders — nothing should be cut off at the edges. Square 1:1 format."
-            )
-            combos.append({
-                "combo": f"{a.get('label','A')} × {b.get('label','B')}",
-                "prompt": prompt,
-            })
-
-    # Prepare reference image parts for Gemini
-    # Upload referenčne slike enkrat na Gemini Files API (ne pošiljamo base64 v vsak klic)
-    file_uris = []
-    if ref_images:
-        async with httpx.AsyncClient(timeout=60.0) as hc:
-            for img_data in ref_images[:4]:  # max 4 referenčne slike
-                try:
-                    if "," in img_data:
-                        header, b64 = img_data.split(",", 1)
-                        mime = header.split(":")[1].split(";")[0]
-                    else:
-                        b64 = img_data
-                        mime = "image/jpeg"
-                    img_bytes = __import__("base64").b64decode(b64)
-                    upload_url = f"https://generativelanguage.googleapis.com/upload/v1beta/files?key={gemini_key}"
-                    resp = await hc.post(
-                        upload_url,
-                        content=img_bytes,
-                        headers={"Content-Type": mime, "X-Goog-Upload-Content-Type": mime,
-                                 "X-Goog-Upload-Protocol": "raw"}
-                    )
-                    if resp.status_code == 200:
-                        uri = resp.json().get("file", {}).get("uri", "")
-                        if uri:
-                            file_uris.append({"fileData": {"mimeType": mime, "fileUri": uri}})
-                except Exception:
-                    continue
-
-    # Fallback: če Files API ne dela, uporabi inline za prvo sliko
-    if file_uris:
-        image_parts = file_uris
-    elif ref_images:
-        try:
-            img_data = ref_images[0]
-            if "," in img_data:
-                header, b64 = img_data.split(",", 1)
-                mime = header.split(":")[1].split(";")[0]
-            else:
-                b64 = img_data; mime = "image/jpeg"
-            image_parts = [{"inline_data": {"mime_type": mime, "data": b64}}]
-        except Exception:
-            image_parts = []
-    else:
-        image_parts = []
-
-    async def generate_one_image(combo_prompt, combo_label, idx):
-        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key={gemini_key}"
-        parts = list(image_parts) + [{"text": combo_prompt}]
-        payload = {
-            "contents": [{"parts": parts}],
-            "generationConfig": {"responseModalities": ["IMAGE", "TEXT"]}
-        }
-        try:
-            async with httpx.AsyncClient(timeout=120.0) as hc:
-                resp = await hc.post(api_url, json=payload, headers={"Content-Type": "application/json"})
-                result = resp.json()
-            if resp.status_code != 200:
-                return None, result.get("error", {}).get("message", str(result))
-            for candidate in result.get("candidates", []):
-                for part in candidate.get("content", {}).get("parts", []):
-                    if "inlineData" in part:
-                        inline = part["inlineData"]
-                        mime = inline.get("mimeType", "image/png")
-                        b64_data = inline.get("data", "")
-                        return f"data:{mime};base64,{b64_data}", None
-            return None, "Gemini ni vrnil slike: " + str(result)[:150]
-        except Exception as e:
-            return None, str(e)
-
-    async def generate_combo(combo):
-        """Generate `count` images for one combo in parallel."""
-        tasks = [generate_one_image(combo["prompt"], combo["combo"], i) for i in range(count)]
-        img_results = await asyncio.gather(*tasks)
-        imgs = [img for img, err in img_results if img]
-        errors = [err for img, err in img_results if err]
-        if not imgs:
-            return {"combo": combo["combo"], "images": [], "error": errors[0] if errors else "Ni slike"}
-        return {"combo": combo["combo"], "images": imgs}
-
-    # Vse kombinacije + vse slike vzporedno
-    results = await asyncio.gather(*[generate_combo(combo) for combo in combos])
-    return {"results": list(results)}
-
-
-# ─── ASANA ENDPOINTS ──────────────────────────────────────────────────────────
-
-ASANA_API = "https://app.asana.com/api/1.0"
-
-def asana_headers():
-    token = os.environ.get("ASANA_API_KEY", "")
-    return {"Authorization": f"Bearer {token}", "Accept": "application/json"}
-
-@app.get("/asana-search")
-async def asana_search(q: str = ""):
-    """Išče Asana taske po imenu."""
-    if not q:
-        return {"tasks": []}
-    token = os.environ.get("ASANA_API_KEY", "")
-    if not token:
-        return {"error": "ASANA_API_KEY ni nastavljen."}
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as hc:
-            # Get workspaces first
-            ws_resp = await hc.get(f"{ASANA_API}/workspaces", headers=asana_headers())
-            workspaces = ws_resp.json().get("data", [])
-            if not workspaces:
-                return {"error": "Ni najdenih workspace-ov."}
-            ws_gid = workspaces[0]["gid"]
-
-            # Search tasks
-            params = {"workspace": ws_gid, "text": q, "resource_type": "task",
-                      "opt_fields": "gid,name,projects.name"}
-            search_resp = await hc.get(f"{ASANA_API}/workspaces/{ws_gid}/tasks/search",
-                                        params=params, headers=asana_headers())
-            tasks_raw = search_resp.json().get("data", [])
-
-            tasks = []
-            for t in tasks_raw[:10]:
-                projects = t.get("projects", [])
-                proj_name = projects[0]["name"] if projects else ""
-                tasks.append({"gid": t["gid"], "name": t["name"], "project": proj_name})
-
-            return {"tasks": tasks}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.post("/asana-attach")
-async def asana_attach(data: dict):
-    """Priloži slike (base64 data URLs) na Asana task."""
-    task_id = data.get("task_id", "")
-    image_urls = data.get("image_urls", [])
-
-    if not task_id or not image_urls:
-        return {"error": "Manjka task_id ali slike."}
-
-    token = os.environ.get("ASANA_API_KEY", "")
-    if not token:
-        return {"error": "ASANA_API_KEY ni nastavljen."}
-
-    attached = 0
-    errors = []
-
-    async with httpx.AsyncClient(timeout=60.0) as hc:
-        for i, img_url in enumerate(image_urls):
-            try:
-                # Decode base64 data URL
-                if img_url.startswith("data:"):
-                    header, b64data = img_url.split(",", 1)
-                    mime = header.split(":")[1].split(";")[0]
-                    ext = mime.split("/")[1] if "/" in mime else "png"
-                    img_bytes = __import__("base64").b64decode(b64data)
-                else:
-                    # Regular URL — fetch it
-                    img_resp = await hc.get(img_url)
-                    img_bytes = img_resp.content
-                    mime = img_resp.headers.get("content-type", "image/png")
-                    ext = "png"
-
-                filename = f"kreativa_{i+1}.{ext}"
-
-                # Upload to Asana as attachment
-                files = {"file": (filename, img_bytes, mime)}
-                attach_resp = await hc.post(
-                    f"{ASANA_API}/tasks/{task_id}/attachments",
-                    headers={"Authorization": f"Bearer {token}"},
-                    files=files
-                )
-
-                if attach_resp.status_code in (200, 201):
-                    attached += 1
-                else:
-                    errors.append(f"Slika {i+1}: {attach_resp.text[:100]}")
-
-            except Exception as e:
-                errors.append(f"Slika {i+1}: {str(e)}")
-
-    return {"attached": attached, "errors": errors, "total": len(image_urls)}
-
-
-# ─── LOKALIZACIJA ENDPOINT ───────────────────────────────────────────────────
-
-LANG_NAMES = {
-    "HR": "Croatian", "RS": "Serbian (Latin script)",
-    "HU": "Hungarian", "CZ": "Czech", "SK": "Slovak",
-    "PL": "Polish", "RO": "Romanian", "BG": "Bulgarian",
-    "GR": "Greek", "SL": "Slovenian"
+function kToggleFetched(src) {
+  const idx = kSelectedImages.findIndex(x => x.src === src);
+  if (idx >= 0) kSelectedImages.splice(idx, 1);
+  else kSelectedImages.push({src, type: 'fetched'});
+  document.querySelectorAll('#kFetchedImages .k-thumb').forEach(img => {
+    img.classList.toggle('selected', !!kSelectedImages.find(x => x.src === img.src));
+  });
 }
 
-@app.post("/localize-kreativa")
-async def localize_kreativa(data: dict):
-    """Prevede tekst na hero kreativu v izbrane jezike z Gemini."""
-    image_data = data.get("image", "")
-    languages = data.get("languages", [])
-    asana_task_id = data.get("asana_task_id")
-    sku = data.get("sku", "SKU").strip().upper()
+function kHandleFiles(files) {
+  [...files].forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      kSelectedImages.push({src: e.target.result, type: 'uploaded', name: file.name});
+      kRenderUploadedImages();
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
-    if not image_data or not languages:
-        return {"error": "Manjka slika ali jeziki."}
+function kRenderUploadedImages() {
+  const el = document.getElementById('kUploadedImages');
+  const uploaded = kSelectedImages.filter(x => x.type === 'uploaded');
+  el.innerHTML = uploaded.map((img, i) =>
+    '<div class="k-thumb-wrap"><img src="' + img.src + '" class="k-thumb selected">' +
+    '<button class="k-thumb-del" onclick="kRemoveUploaded(' + kSelectedImages.indexOf(img) + ')">x</button></div>'
+  ).join('');
+}
 
-    gemini_key = os.environ.get("GEMINI_API_KEY", "")
-    if not gemini_key:
-        return {"error": "GEMINI_API_KEY ni nastavljen."}
+function kRemoveUploaded(idx) {
+  kSelectedImages.splice(idx, 1);
+  kRenderUploadedImages();
+}
 
-    # Decode base64 image
-    try:
-        if "," in image_data:
-            header, b64 = image_data.split(",", 1)
-            mime = header.split(":")[1].split(";")[0]
-        else:
-            b64 = image_data
-            mime = "image/jpeg"
-    except Exception as e:
-        return {"error": f"Napaka pri dekodiranju slike: {e}"}
+document.addEventListener('paste', e => {
+  if (!document.getElementById('page-kreative').classList.contains('active')) return;
+  const items = e.clipboardData?.items || [];
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      const reader = new FileReader();
+      reader.onload = ev => {
+        kSelectedImages.push({src: ev.target.result, type: 'uploaded', name: 'paste.png'});
+        kRenderUploadedImages();
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+});
 
-    async def translate_one(lang_code):
-        lang_name = LANG_NAMES.get(lang_code, lang_code)
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key={gemini_key}"
+document.addEventListener('DOMContentLoaded', () => {
+  const dz = document.getElementById('kDropZone');
+  if (!dz) return;
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); kHandleFiles(e.dataTransfer.files); });
+});
 
-        prompt = (
-            f"Edit this image to translate all visible text into {lang_name}. "
-            f"Keep EVERYTHING exactly the same — same people, same background, same layout, same design, same product, same icons, same colors, same fonts. "
-            f"ONLY translate the text that is NOT a brand name or logo. "
-            f"Do NOT translate or modify any brand names, logos, or product names. "
-            f"Keep all text in the same position, same style, same size. "
-            f"The result must look identical to the original, only with translated text."
-        )
+async function kGenerate() {
+  if (!kSelectedA.length || !kSelectedB.length) {
+    const err = document.getElementById('kError');
+    err.textContent = 'Izberi vsaj 1x A (tekst) in 1x B (ozadje)!';
+    err.classList.add('show'); return;
+  }
+  document.getElementById('kError').classList.remove('show');
+  const btn = document.getElementById('kGenBtn');
+  btn.disabled = true;
+  document.getElementById('kLoading').style.display = 'block';
+  document.getElementById('kResultsGrid').innerHTML = '';
 
-        payload = {
-            "contents": [{"parts": [
-                {"inline_data": {"mime_type": mime, "data": b64}},
-                {"text": prompt}
-            ]}],
-            "generationConfig": {"responseModalities": ["IMAGE", "TEXT"]}
-        }
+  const productName = document.getElementById('kProductName').value.trim();
+  const aOpts = kSelectedA.map(i => kProductData.aOptions[i]);
+  const bOpts = kSelectedB.map(i => kProductData.bOptions[i]);
+  const images = kSelectedImages.map(x => x.src);
+  const total = aOpts.length * bOpts.length;
+  document.getElementById('kLoadingText').textContent = 'Generiram ' + total + ' kombinacij (×' + kCount + ' slik)...';
 
-        try:
-            async with httpx.AsyncClient(timeout=120.0) as hc:
-                resp = await hc.post(url, json=payload, headers={"Content-Type": "application/json"})
-                result = resp.json()
+  try {
+    const res = await fetch('/generate-kreative', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({productName, aOptions: aOpts, bOptions: bOpts, count: kCount, images})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    kRenderResults(data.results || []);
+    document.getElementById('kResultCount').textContent = (data.results||[]).length + ' kombinacij';
+  } catch(e) {
+    document.getElementById('kError').textContent = 'Napaka: ' + e.message;
+    document.getElementById('kError').classList.add('show');
+  }
+  document.getElementById('kLoading').style.display = 'none';
+  btn.disabled = false;
+}
 
-            if resp.status_code != 200:
-                return {"lang": lang_code, "lang_name": lang_name, "url": None,
-                        "error": result.get("error", {}).get("message", str(result))[:200]}
+// ── HOVER PREVIEW ──
+const kPreviewEl = () => document.getElementById('kHoverPreview');
+const kPreviewImg = () => document.getElementById('kHoverPreviewImg');
+let kHoverTimer = null;
 
-            for candidate in result.get("candidates", []):
-                for part in candidate.get("content", {}).get("parts", []):
-                    if "inlineData" in part:
-                        out_mime = part["inlineData"].get("mimeType", "image/png")
-                        out_b64 = part["inlineData"].get("data", "")
-                        img_url = f"data:{out_mime};base64,{out_b64}"
-                        filename = f"{lang_code}1_{sku}.png"
+function kShowPreview(src, e) {
+  clearTimeout(kHoverTimer);
+  kHoverTimer = setTimeout(() => {
+    const el = kPreviewEl();
+    const img = kPreviewImg();
+    if (!el || !img) return;
+    img.src = src;
+    el.classList.add('show');
+    kPositionPreview(e);
+  }, 120);
+}
 
-                        # Priloži v Asano če je task ID
-                        asana_ok = False
-                        if asana_task_id:
-                            try:
-                                img_bytes = __import__("base64").b64decode(out_b64)
-                                token = os.environ.get("ASANA_API_KEY", "")
-                                async with httpx.AsyncClient(timeout=30.0) as hc2:
-                                    attach_resp = await hc2.post(
-                                        f"{ASANA_API}/tasks/{asana_task_id}/attachments",
-                                        headers={"Authorization": f"Bearer {token}"},
-                                        files={"file": (filename, img_bytes, out_mime)}
-                                    )
-                                asana_ok = attach_resp.status_code in (200, 201)
-                            except Exception:
-                                pass
+function kHidePreview() {
+  clearTimeout(kHoverTimer);
+  const el = kPreviewEl();
+  if (el) el.classList.remove('show');
+}
 
-                        return {"lang": lang_code, "lang_name": lang_name, "url": img_url, "filename": filename, "asana_ok": asana_ok}
+function kPositionPreview(e) {
+  const el = kPreviewEl();
+  if (!el || !el.classList.contains('show')) return;
+  const W = window.innerWidth, H = window.innerHeight;
+  const pw = 504, ph = 504;
+  let x = e.clientX + 16;
+  let y = e.clientY - ph / 2;
+  if (x + pw > W - 10) x = e.clientX - pw - 16;
+  if (y < 10) y = 10;
+  if (y + ph > H - 10) y = H - ph - 10;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+}
 
-            return {"lang": lang_code, "lang_name": lang_name, "url": None, "error": "Ni slike"}
-        except Exception as e:
-            return {"lang": lang_code, "lang_name": lang_name, "url": None, "error": str(e)}
+document.addEventListener('mousemove', e => {
+  if (kPreviewEl()?.classList.contains('show')) kPositionPreview(e);
+});
 
-    # Vse jezike vzporedno
-    results = await asyncio.gather(*[translate_one(lang) for lang in languages])
-    return {"results": list(results)}
+let kSelectedImgCards = new Set();
+let kAsanaPendingUrls = [];
+let kAsanaSelectedTaskId = null;
+let kAsanaSelectedTaskName = '';
+
+function kRenderResults(results) {
+  const grid = document.getElementById('kResultsGrid');
+  kSelectedImgCards.clear();
+  kUpdateBulkBar();
+  if (!results.length) { grid.innerHTML = '<div style="color:var(--text-tertiary);padding:2rem;text-align:center">Ni rezultatov.</div>'; return; }
+
+  const cards = [];
+  results.forEach(r => {
+    const imgs = (r.images || (r.url ? [r.url] : [])).filter(Boolean);
+    if (!imgs.length) {
+      cards.push({combo: r.combo, url: null, error: r.error, idx: cards.length});
+    } else {
+      imgs.forEach(url => cards.push({combo: r.combo, url, idx: cards.length}));
+    }
+  });
+  window.kCardsData = cards;
+
+  grid.innerHTML = cards.map(c => {
+    if (!c.url) return (
+      '<div class="k-img-card">' +
+      '<div class="k-img-combo">' + esc(c.combo||'?') + '</div>' +
+      '<div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:11px;padding:8px;text-align:center">' + esc(c.error||'Ni slike') + '</div>' +
+      '</div>'
+    );
+    return (
+      '<div class="k-img-card" id="kcard-' + c.idx + '">' +
+      '<div class="k-img-combo">' + esc(c.combo||'?') + '</div>' +
+      '<div style="position:relative">' +
+        '<img src="' + esc(c.url) + '" loading="lazy" onclick="kToggleSelect(' + c.idx + ')" title="Klikni za izbiro">' +
+        '<div class="k-select-check" onclick="kToggleSelect(' + c.idx + ')">' +
+          '<svg viewBox="0 0 12 12" style="width:9px;height:9px;stroke:white;fill:none;stroke-width:2.5"><polyline points="2,6 5,9 10,3"/></svg>' +
+        '</div>' +
+        '<div class="k-zoom-btn" onmouseenter="kShowPreview(\'' + esc(c.url) + '\',event)" onmouseleave="kHidePreview()" title="Predogled">' +
+          '<svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:white;fill:none;stroke-width:2.5"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>' +
+        '</div>' +
+      '</div>' +
+      '<div class="k-img-actions">' +
+        '<button class="k-img-btn" onclick="kToggleSelect(' + c.idx + ')">&#x2611;</button>' +
+        '<button class="k-img-btn" onclick="kDownloadCard(' + c.idx + ')" title="Prenesi">&#x2B07;</button>' +
+        '<button class="k-img-btn primary" onclick="kOpenAsanaModal([' + c.idx + '])" title="Pošlji v Asana">&#x2192; Asana</button>' +
+        '<button class="k-img-btn danger" onclick="kDeleteCard(' + c.idx + ')" title="Zbriši">&#x2715;</button>' +
+      '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  document.getElementById('kResultCount').textContent = cards.filter(c=>c.url).length + ' slik';
+}
+
+function kToggleSelect(idx) {
+  const card = document.getElementById('kcard-' + idx);
+  if (!card) return;
+  if (kSelectedImgCards.has(idx)) { kSelectedImgCards.delete(idx); card.classList.remove('selected'); }
+  else { kSelectedImgCards.add(idx); card.classList.add('selected'); }
+  kUpdateBulkBar();
+}
+
+function kUpdateBulkBar() {
+  const bar = document.getElementById('kBulkBar');
+  const cnt = document.getElementById('kBulkCount');
+  const n = kSelectedImgCards.size;
+  if (bar) bar.classList.toggle('show', n > 0);
+  if (cnt) cnt.textContent = n + ' izbranih';
+}
+
+function kClearSelection() {
+  kSelectedImgCards.forEach(idx => { const c = document.getElementById('kcard-' + idx); if(c) c.classList.remove('selected'); });
+  kSelectedImgCards.clear();
+  kUpdateBulkBar();
+}
+
+function kDeleteCard(idx) {
+  const card = document.getElementById('kcard-' + idx);
+  if (card) { card.style.transition='opacity 0.2s'; card.style.opacity='0'; setTimeout(()=>card.remove(),200); }
+  kSelectedImgCards.delete(idx);
+  kUpdateBulkBar();
+}
+
+function kDownloadCard(idx) {
+  const c = window.kCardsData?.[idx];
+  if (!c?.url) return;
+  const a = document.createElement('a');
+  const name = (c.combo||'kreativa').replace(/[^a-zA-Z0-9]/g,'_');
+  a.href = c.url; a.download = name + '_' + (idx+1) + '.png'; a.click();
+}
+
+function kBulkDownload() {
+  kSelectedImgCards.forEach(idx => kDownloadCard(idx));
+}
+
+// ── ASANA MODAL ──
+function kOpenAsanaModal(idxArray) {
+  // idxArray = null means use selected, else specific indices
+  const indices = idxArray || [...kSelectedImgCards];
+  kAsanaPendingUrls = indices.map(i => window.kCardsData?.[i]?.url).filter(Boolean);
+  if (!kAsanaPendingUrls.length) return;
+  kAsanaSelectedTaskId = null;
+  kAsanaSelectedTaskName = '';
+  document.getElementById('kAsanaUrlInput').value = '';
+  document.getElementById('kAsanaSearchResults').innerHTML = '';
+  document.getElementById('kAsanaSelected').textContent = '';
+  document.getElementById('kAsanaStatus').textContent = kAsanaPendingUrls.length + ' slikč pripravljenih za priložitev';
+  document.getElementById('kAsanaModal').classList.add('show');
+}
+
+function kCloseAsanaModal() {
+  document.getElementById('kAsanaModal').classList.remove('show');
+}
+
+async function kAsanaSearch() {
+  const q = document.getElementById('kAsanaUrlInput').value.trim();
+  if (!q) return;
+
+  // Check if it's a URL — extract task ID directly
+  const urlMatch = q.match(/\/task\/(\d+)/);
+  if (urlMatch) {
+    kAsanaSelectedTaskId = urlMatch[1];
+    document.getElementById('kAsanaSelected').textContent = '✓ Task ID: ' + kAsanaSelectedTaskId;
+    document.getElementById('kAsanaSearchResults').innerHTML = '';
+    return;
+  }
+
+  // Search by name
+  const el = document.getElementById('kAsanaSearchResults');
+  el.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);padding:4px">Iščem...</div>';
+  try {
+    const res = await fetch('/asana-search?q=' + encodeURIComponent(q));
+    const data = await res.json();
+    if (data.error) { el.innerHTML = '<div style="font-size:12px;color:#dc2626">' + esc(data.error) + '</div>'; return; }
+    const tasks = data.tasks || [];
+    if (!tasks.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);padding:4px">Ni zadetkov.</div>'; return; }
+    el.innerHTML = tasks.map(t =>
+      '<div onclick="kSelectAsanaTask(\'' + esc(t.gid) + '\',\'' + esc(t.name) + '\')" style="padding:6px 8px;border-radius:4px;cursor:pointer;font-size:12px;border:1px solid var(--border);margin-bottom:4px;background:var(--surface2)">' +
+        '<div style="font-weight:500">' + esc(t.name) + '</div>' +
+        '<div style="font-size:10px;color:var(--text-tertiary)">' + esc(t.project||'') + '</div>' +
+      '</div>'
+    ).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:12px;color:#dc2626">Napaka: ' + esc(e.message) + '</div>';
+  }
+}
+
+function kSelectAsanaTask(gid, name) {
+  kAsanaSelectedTaskId = gid;
+  kAsanaSelectedTaskName = name;
+  document.getElementById('kAsanaSelected').textContent = '✓ Izbran: ' + name;
+  document.getElementById('kAsanaSearchResults').innerHTML = '';
+  document.getElementById('kAsanaUrlInput').value = name;
+}
+
+async function kAsanaAttach() {
+  // Also try extracting task ID from URL input
+  if (!kAsanaSelectedTaskId) {
+    const val = document.getElementById('kAsanaUrlInput').value.trim();
+    const urlMatch = val.match(/\/task\/(\d+)/);
+    if (urlMatch) kAsanaSelectedTaskId = urlMatch[1];
+  }
+  if (!kAsanaSelectedTaskId) {
+    document.getElementById('kAsanaStatus').textContent = '⚠ Izberi task ali prilepi URL!';
+    return;
+  }
+
+  const btn = document.getElementById('kAsanaSubmitBtn');
+  btn.disabled = true;
+  const statusEl = document.getElementById('kAsanaStatus');
+  statusEl.textContent = 'Priložujem ' + kAsanaPendingUrls.length + ' slik...';
+
+  try {
+    const res = await fetch('/asana-attach', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({task_id: kAsanaSelectedTaskId, image_urls: kAsanaPendingUrls})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    statusEl.textContent = '✓ Priloženo ' + (data.attached||0) + ' slik v Asana!';
+    setTimeout(kCloseAsanaModal, 1500);
+  } catch(e) {
+    statusEl.textContent = '✕ Napaka: ' + e.message;
+  }
+  btn.disabled = false;
+}
+
+function kDownload(url, n) {
+  const a = document.createElement('a');
+  a.href = url; a.download = 'kreativa_' + n + '.png'; a.click();
+}
+
+function kSendToAsana(url) {
+  kOpenAsanaModal(null);
+}
+
+// ── KREATIVE HISTORY ──
+let kHistory = [];
+
+async function kLoadHistory() {
+  try {
+    const res = await fetch('/kreative-history');
+    const data = await res.json();
+    kHistory = Array.isArray(data) ? data : [];
+  } catch(e) { kHistory = []; }
+  kRenderHistory();
+}
+
+async function kSaveHistory() {
+  try {
+    await fetch('/kreative-history', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({history: kHistory})});
+  } catch(e) {}
+}
+
+function kRenderHistory() {
+  const el = document.getElementById('kHistoryList');
+  if (!el) return;
+  const q = (document.getElementById('kHistorySearch')?.value||'').toLowerCase();
+  const filtered = kHistory.filter(e => !q || (e.name||'').toLowerCase().includes(q) || (e.url||'').toLowerCase().includes(q));
+  if (!filtered.length) { el.innerHTML = '<div class="history-empty">Ni zgodovine.</div>'; return; }
+  el.innerHTML = filtered.map(e => `
+    <div class="history-item" onclick="kLoadFromHistory('${esc(e.id)}')" style="cursor:pointer">
+      <div class="hi-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+      <div class="hi-body">
+        <div class="hi-name">🎨 ${esc(e.name||'?')}</div>
+        <div class="hi-meta">${e.date} · ${e.aCount||0}A × ${e.bCount||0}B</div>
+      </div>
+    </div>`).join('');
+}
+
+function kSaveToHistory(url, name, aOptions, bOptions) {
+  const id = Date.now().toString();
+  const date = new Date().toLocaleDateString('sl-SI',{day:'2-digit',month:'2-digit',year:'numeric'});
+  // Remove duplicate by URL
+  kHistory = kHistory.filter(e => e.url !== url);
+  kHistory.unshift({id, url, name, aOptions, bOptions, aCount: aOptions.length, bCount: bOptions.length, date});
+  if (kHistory.length > 50) kHistory.splice(50);
+  kSaveHistory();
+  kRenderHistory();
+}
+
+function kLoadFromHistory(id) {
+  const e = kHistory.find(x => x.id === id);
+  if (!e) return;
+  // Restore URL
+  document.getElementById('kUrlInput').value = e.url || '';
+  // Restore product data
+  kProductData = {name: e.name, aOptions: e.aOptions, bOptions: e.bOptions};
+  kSelectedA = []; kSelectedB = [];
+  document.getElementById('kProductName').value = e.name || '';
+  kRenderAB();
+  document.getElementById('kAbcSection').style.display = 'block';
+  kUpdateComboPreview();
+}
+
+// ── LOKALIZACIJA ──
+const LOK_LANGS = {
+  HR: 'Croatian', RS: 'Serbian (Latin)', HU: 'Hungarian', CZ: 'Czech',
+  SK: 'Slovak', PL: 'Polish', RO: 'Romanian', BG: 'Bulgarian',
+  GR: 'Greek', SL: 'Slovenian'
+};
+let lokImageData = null;
+
+function lokHandleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    lokImageData = e.target.result;
+    document.getElementById('lokPreviewImg').src = lokImageData;
+    document.getElementById('lokPreview').style.display = 'block';
+    document.getElementById('lokDropZone').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function lokClearFile() {
+  lokImageData = null;
+  document.getElementById('lokPreview').style.display = 'none';
+  document.getElementById('lokDropZone').style.display = 'flex';
+  document.getElementById('lokFileInput').value = '';
+}
+
+function lokGetSelected() {
+  return [...document.querySelectorAll('#page-lokalizacija input[type=checkbox]:checked')].map(cb => cb.value);
+}
+
+function lokSelectAll() {
+  const cbs = document.querySelectorAll('#page-lokalizacija input[type=checkbox]');
+  const allChecked = [...cbs].every(cb => cb.checked);
+  cbs.forEach(cb => cb.checked = !allChecked);
+  lokUpdateCount();
+}
+
+function lokUpdateCount() {
+  const langs = lokGetSelected();
+  const el = document.getElementById('lokCountPreview');
+  if (!el) return;
+  if (!langs.length) { el.textContent = 'Izberi jezike...'; return; }
+  const cost = (langs.length * 0.067).toFixed(2);
+  el.innerHTML = langs.length + ' jezikov · ~$' + cost;
+}
+
+// Drag & drop
+document.addEventListener('DOMContentLoaded', () => {
+  const dz = document.getElementById('lokDropZone');
+  if (!dz) return;
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); lokHandleFile(e.dataTransfer.files[0]); });
+});
+
+// Paste support
+document.addEventListener('paste', e => {
+  if (!document.getElementById('page-lokalizacija').classList.contains('active')) return;
+  const items = e.clipboardData?.items || [];
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      lokHandleFile(item.getAsFile());
+      break;
+    }
+  }
+});
+
+async function lokGenerate() {
+  if (!lokImageData) {
+    const err = document.getElementById('lokError');
+    err.textContent = 'Naloži hero kreativo!'; err.classList.add('show'); return;
+  }
+  const langs = lokGetSelected();
+  if (!langs.length) {
+    const err = document.getElementById('lokError');
+    err.textContent = 'Izberi vsaj 1 jezik!'; err.classList.add('show'); return;
+  }
+  document.getElementById('lokError').classList.remove('show');
+  const btn = document.getElementById('lokGenBtn');
+  btn.disabled = true;
+  document.getElementById('lokLoading').style.display = 'block';
+  document.getElementById('lokResultsGrid').innerHTML = '';
+  document.getElementById('lokLoadingText').textContent = 'Lokaliziram ' + langs.length + ' jezikov...';
+
+  const asanaUrl = document.getElementById('lokAsanaUrl').value.trim();
+  const asanaTaskId = asanaUrl.match(/\/task\/(\d+)/)?.[1] || null;
+  const sku = document.getElementById('lokSku').value.trim().toUpperCase() || 'SKU';
+
+  try {
+    const res = await fetch('/localize-kreativa', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({image: lokImageData, languages: langs, asana_task_id: asanaTaskId, sku})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    lokRenderResults(data.results || []);
+    document.getElementById('lokResultCount').textContent = (data.results||[]).length + ' lokalizacij';
+  } catch(e) {
+    document.getElementById('lokError').textContent = 'Napaka: ' + e.message;
+    document.getElementById('lokError').classList.add('show');
+  }
+  document.getElementById('lokLoading').style.display = 'none';
+  btn.disabled = false;
+}
+
+function lokRenderResults(results) {
+  const grid = document.getElementById('lokResultsGrid');
+  if (!results.length) { grid.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-tertiary)">Ni rezultatov.</div>'; return; }
+  grid.innerHTML = results.map((r, i) => {
+    if (!r.url) return (
+      '<div class="k-img-card"><div class="k-img-combo">' + esc(r.lang||'?') + '</div>' +
+      '<div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:11px;padding:8px">' + esc(r.error||'Ni slike') + '</div></div>'
+    );
+    return (
+      '<div class="k-img-card">' +
+      '<div class="k-img-combo">' + esc(r.filename||r.lang) + (r.asana_ok ? ' ✓ Asana' : '') + '</div>' +
+      '<div style="position:relative"><img src="' + esc(r.url) + '" loading="lazy" onmouseenter="kShowPreview(\'' + esc(r.url) + '\',event)" onmouseleave="kHidePreview()"></div>' +
+      '<div class="k-img-actions">' +
+        '<button class="k-img-btn" onclick="lokDownload(\'' + esc(r.url) + '\',\'' + esc(r.filename||r.lang) + '\')">⬇</button>' +
+        '<button class="k-img-btn primary" onclick="kOpenAsanaModal(null)">→ Asana</button>' +
+      '</div></div>'
+    );
+  }).join('');
+}
+
+updateMeta();renderH();ttRenderHistory();ttLoadHistory();metaLoadServerHistory();kLoadHistory();setMetaWide(true);
+
+</script>
+<!-- HOVER PREVIEW -->
+<div class="k-hover-preview" id="kHoverPreview">
+  <img id="kHoverPreviewImg" src="" alt="">
+</div>
+
+<!-- ASANA MODAL -->
+<div class="k-asana-modal" id="kAsanaModal" onclick="if(event.target===this)kCloseAsanaModal()">
+  <div class="k-asana-modal-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span style="font-weight:700;font-size:14px">Priloži v Asana task</span>
+      <button onclick="kCloseAsanaModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-tertiary)">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Prilepi Asana task URL ali poišči task:</div>
+    <input type="text" id="kAsanaUrlInput" placeholder="https://app.asana.com/0/.../task/..." style="margin-bottom:8px">
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <button class="btn-gen" style="flex:1;font-size:12px" onclick="kAsanaSearch()">
+        <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Išči task po imenu
+      </button>
+    </div>
+    <div id="kAsanaSearchResults" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div>
+    <div id="kAsanaSelected" style="font-size:11px;color:var(--accent);margin-bottom:10px;min-height:16px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-gen" id="kAsanaSubmitBtn" onclick="kAsanaAttach()" style="flex:1">
+        <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        Priloži slike
+      </button>
+      <button onclick="kCloseAsanaModal()" style="padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius);background:none;cursor:pointer;font-size:12px;color:var(--text-secondary)">Prekliči</button>
+    </div>
+    <div id="kAsanaStatus" style="font-size:12px;margin-top:8px;min-height:18px"></div>
+  </div>
+</div>
+
+</body>
+</html>
