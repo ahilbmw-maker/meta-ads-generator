@@ -1489,3 +1489,14 @@ async def narocilnice_lookup(data: dict):
             results[sku] = found_url
     
     return {"urls": results}
+
+
+@app.post("/narocilnice-history-set")
+async def set_narocilnice_history(data: dict):
+    """Nastavi celotno zgodovino (za brisanje)."""
+    try:
+        history = data.get("history", [])
+        NAROCILNICE_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"status": "ok", "count": len(history)}
+    except Exception as e:
+        return {"error": str(e)}
