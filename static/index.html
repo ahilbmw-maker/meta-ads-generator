@@ -339,8 +339,9 @@ input[type="text"].error { border-color: var(--red) !important; }
 .narc-hist-item:hover { border-color:var(--accent-border); background:var(--accent-dim); }
 .narc-hist-date { font-size:10px; color:var(--text-tertiary); }
 .narc-lang-filter { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px; }
-.narc-lang-btn { padding:3px 10px; border-radius:20px; border:1px solid var(--border); background:var(--surface2); font-size:11px; font-weight:500; cursor:pointer; color:var(--text-secondary); transition:all 0.1s; }
+.narc-lang-btn { padding:4px 10px; border-radius:20px; border:1px solid var(--border); background:var(--surface2); font-size:11px; font-weight:500; cursor:pointer; color:var(--text-secondary); transition:all 0.1s; font-family:'DM Sans',sans-serif; }
 .narc-lang-btn.active { background:var(--accent); color:white; border-color:var(--accent); }
+.narc-lang-btn:hover:not(.active) { border-color:var(--accent-border); color:var(--accent); }
 #page-lokalizacija ~ .main, body:has(#page-lokalizacija.active) .main { max-width: 100% !important; }
 body:has(#page-lokalizacija.active) .main { max-width: none !important; }
 .k-option-btn { width:100%; text-align:left; padding:8px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.12s; display:flex; flex-direction:column; gap:2px; }
@@ -886,6 +887,7 @@ body:has(#page-lokalizacija.active) .main { max-width: none !important; }
         <div class="card">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
             <span class="slabel">ZGODOVINA</span>
+            <button class="history-clear" onclick="narcDeleteAllHistory()" style="color:#dc2626">🗑 Zbriši vse</button>
           </div>
           <div id="narcHistList"><div class="history-empty">Ni zgodovine.</div></div>
         </div>
@@ -896,9 +898,13 @@ body:has(#page-lokalizacija.active) .main { max-width: none !important; }
 
         <!-- Lang filter — collapsible -->
         <div class="card">
-          <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="narcToggleLangPanel()">
-            <span class="slabel">🌍 FILTRIRAJ TRGOVINE / DRŽAVE <span id="narcLangCount" style="font-weight:400;color:var(--text-tertiary)"></span></span>
-            <span id="narcLangChevron" style="font-size:12px;color:var(--text-tertiary)">▼</span>
+          <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:2px 0" onclick="narcToggleLangPanel()">
+            <div style="display:flex;align-items:center;gap:8px">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--text-secondary);fill:none;stroke-width:2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <span class="slabel" style="cursor:pointer">TRGOVINE / DRŽAVE</span>
+              <span id="narcLangCount" style="font-size:11px;font-weight:400;color:var(--text-tertiary)"></span>
+            </div>
+            <span id="narcLangChevron" style="font-size:11px;color:var(--text-tertiary)">▼ Uredi</span>
           </div>
           <div id="narcLangPanel" style="display:none;margin-top:10px">
             <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
@@ -912,7 +918,7 @@ body:has(#page-lokalizacija.active) .main { max-width: none !important; }
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
           <span class="slabel" id="narcTableTitle">NAROČILNICE — negativne razlike</span>
           <div style="display:flex;align-items:center;gap:8px">
-            <input type="text" id="narcSearch" placeholder="Išči SKU, naziv..." style="padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:12px;width:180px" oninput="narcRenderTable()">
+            <input type="text" id="narcSearch" placeholder="Išči SKU, naziv, ID..." style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:13px;width:280px;font-family:'DM Sans',sans-serif" oninput="narcRenderTable()">
             <span style="font-size:11px;color:var(--text-tertiary)" id="narcCount"></span>
           </div>
         </div>
@@ -2346,9 +2352,7 @@ function narcRenderLangFilter() {
   if (!el) return;
   narcUpdateLangCount();
   el.innerHTML = NARC_LANGS.map(l =>
-    `<label class="narc-lang-btn${narcSelectedLangs.has(l.key) ? ' active' : ''}" onclick="narcToggleLang('${l.key}',this)">
-      <input type="checkbox" style="display:none" ${narcSelectedLangs.has(l.key) ? 'checked' : ''}> ${l.flag} ${l.label}
-    </label>`
+    `<button class="narc-lang-btn${narcSelectedLangs.has(l.key) ? ' active' : ''}" onclick="narcToggleLang('${l.key}',this)" type="button">${l.flag} ${l.label}</button>`
   ).join('');
 }
 
@@ -2432,7 +2436,7 @@ function narcUpdateLangCount() {
 
 function narcProcess() {}
 
-function narcProcessText(text) {
+function narcProcessText(text, saveToHistory = true) {
   text = text.trim();
   if (!text) return;
 
@@ -2467,10 +2471,9 @@ function narcProcessText(text) {
   narcRenderTable();
   document.getElementById('narcTableTitle').textContent = 'NAROČILNICE — ' + narcData.length + ' negativnih razlik';
   narcClickedRows.clear();
-  narcFetchShopUrls(); // async lookup shop URLs
+  narcFetchShopUrls();
 
-  // Save to history
-  narcSaveHistory(text);
+  if (saveToHistory) narcSaveHistory(text);
 }
 
 function narcSort(col) {
@@ -2585,11 +2588,40 @@ async function narcLoadHistory() {
     const el = document.getElementById('narcHistList');
     if (!data.length) { el.innerHTML = '<div class="history-empty">Ni zgodovine.</div>'; return; }
     el.innerHTML = data.slice().reverse().map((h, i) =>
-      `<div class="narc-hist-item" onclick="narcLoadFromHistory(${data.length-1-i})">
-        <div style="font-weight:500">📄 Uvoz #${data.length - i}</div>
-        <div class="narc-hist-date">${esc(h.date)} · ${h.rows || 0} vrstic</div>
+      `<div class="narc-hist-item" style="display:flex;align-items:center;gap:6px">
+        <div style="flex:1" onclick="narcLoadFromHistory(${data.length-1-i})" style="cursor:pointer">
+          <div style="font-weight:500;font-size:12px">📄 Uvoz #${data.length - i}</div>
+          <div class="narc-hist-date">${esc(h.date)} · ${h.rows || 0} vrstic</div>
+        </div>
+        <button onclick="narcDeleteHistoryItem(${data.length-1-i})" style="background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:14px;padding:2px 4px;flex-shrink:0" title="Zbriši ta vnos">🗑</button>
       </div>`
     ).join('');
+  } catch(e) {}
+}
+
+async function narcDeleteHistoryItem(idx) {
+  if (!confirm('Zbriši ta uvoz iz zgodovine?')) return;
+  try {
+    const res = await fetch('/narocilnice-history');
+    let data = await res.json();
+    data.splice(idx, 1);
+    await fetch('/narocilnice-history-set', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({history: data})
+    });
+    narcLoadHistory();
+  } catch(e) {}
+}
+
+async function narcDeleteAllHistory() {
+  if (!confirm('Zbrisati VSEH ' + '? To dejanje je nepovratno.')) return;
+  if (!confirm('Ste prepričani? Vsa zgodovina uvozov bo izgubljena.')) return;
+  try {
+    await fetch('/narocilnice-history-set', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({history: []})
+    });
+    narcLoadHistory();
   } catch(e) {}
 }
 
@@ -2598,7 +2630,7 @@ async function narcLoadFromHistory(idx) {
     const res = await fetch('/narocilnice-history');
     const data = await res.json();
     if (!data[idx]) return;
-    narcProcessText(data[idx].csv);
+    narcProcessText(data[idx].csv, false);
   } catch(e) {}
 }
 
