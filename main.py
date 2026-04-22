@@ -1500,3 +1500,26 @@ async def set_narocilnice_history(data: dict):
         return {"status": "ok", "count": len(history)}
     except Exception as e:
         return {"error": str(e)}
+
+
+
+# ─── FORECAST EOD (End-of-day končna naročila) ───────────────────────────────
+
+FORECAST_EOD_FILE = DATA_DIR / "forecast_eod.json"
+
+@app.get("/forecast-eod")
+async def get_forecast_eod():
+    if FORECAST_EOD_FILE.exists():
+        try:
+            return json.loads(FORECAST_EOD_FILE.read_text(encoding="utf-8"))
+        except:
+            pass
+    return {}
+
+@app.post("/forecast-eod")
+async def save_forecast_eod(data: dict):
+    try:
+        FORECAST_EOD_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"status": "ok", "count": len(data)}
+    except Exception as e:
+        return {"error": str(e)}
