@@ -1500,3 +1500,124 @@ async def set_narocilnice_history(data: dict):
         return {"status": "ok", "count": len(history)}
     except Exception as e:
         return {"error": str(e)}
+
+
+# ─── AUTO-FETCH NAROČILNICE IZ SILUXAR ERP ───────────────────────────────────
+
+SILUXAR_AUTH = "Basic c2lsdXhhcjpLNyN2OSFScDRtUTgldExi"
+SILUXAR_BASE = "https://www.siluxar.si"
+
+NARC_LANG_PARAMS = (
+    "filter_lang_sl=1&filter_lang_hr=1&filter_lang_rs=1&filter_lang_at=1"
+    "&filter_lang_de=1&filter_lang_fr=1&filter_lang_es=1&filter_lang_en=1"
+    "&filter_lang_ba=1&filter_lang_hu=1&filter_lang_cs=1&filter_lang_sk=1"
+    "&filter_lang_el=1&filter_lang_ma-sl=1&filter_lang_ma-hr=1&filter_lang_ma-rs=1"
+    "&filter_lang_ma-ba=1&filter_lang_ma-hu=1&filter_lang_ma-it=1&filter_lang_ma-cz=1"
+    "&filter_lang_ma-sk=1&filter_lang_ma-pl=1&filter_lang_ma-at=1&filter_lang_ma-de=1"
+    "&filter_lang_ma-el=1&filter_lang_ma-ro=1&filter_lang_ma-bg=1&filter_lang_it=1"
+    "&filter_lang_ro=1"
+)
+
+@app.get("/auto-fetch-narocilnice")
+async def auto_fetch_narocilnice():
+    """Avtomatsko potegne CSV naročilnic iz siluxar.si ERP."""
+    try:
+        today = datetime.now()
+        to_date = today.strftime("%Y-%m-%d")
+        from_date = (today - timedelta(days=365)).strftime("%Y-%m-%d")
+
+        headers = {
+            "Authorization": SILUXAR_AUTH,
+            "X-Requested-With": "XMLHttpRequest",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Referer": f"{SILUXAR_BASE}/narocilnice",
+            "Origin": SILUXAR_BASE,
+        }
+
+        # Korak 1: GET na narocilnice z datumskim filtrom (nastavi session + filtre)
+        page_url = (
+            f"{SILUXAR_BASE}/narocilnice?order_status_id=&order_shipping_id=0"
+            f"&supplier=18&author=&filter_buyer=&filter_buyer_address=&filter_buyer_phone="
+            f"&filter_product=&filter_orderid=&filter_comments=0&filter_cancellations=0"
+            f"&filter_notpaid=0&filter_isvip=0&filter_buyer_deferred=0&sent_to_erp="
+            f"&payment_type=&order_tag=&filter_ids=&from={from_date}&to={to_date}"
+            f"&{NARC_LANG_PARAMS}"
+        )
+
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as hc:
+            # Korak 1: Inicializacija seje z GET (nastavi session cookie + filtre)
+            get_resp = await hc.get(
+                page_url,
+                headers={
+                    "Authorization": SILUXAR_AUTH,
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Referer": SILUXAR_BASE,
+                }
+            )
+            # Prevzemi session cookie
+            session_cookies = dict(get_resp.cookies)
+
+            # Korak 2: POST export request
+            post_resp = await hc.post(
+                f"{SILUXAR_BASE}/narocilnice",
+                headers=headers,
+                data="module=acc&mode=export&type=stockcsvalt-grouped",
+                cookies=session_cookies,
+            )
+
+            if post_resp.status_code != 200:
+                return {"error": f"POST /narocilnice vrnil {post_resp.status_code}: {post_resp.text[:300]}"}
+
+            # Odgovor je verjetno JSON z imenom fajla ali redirect
+            resp_text = post_resp.text.strip()
+            print(f"[auto-fetch] POST response ({post_resp.status_code}): {resp_text[:200]}")
+
+            # Poskusi parsati JSON za filename
+            filename = None
+            try:
+                resp_json = json.loads(resp_text)
+                filename = resp_json.get("file") or resp_json.get("filename") or resp_json.get("name")
+            except Exception:
+                # Morda je direktno ime fajla v odgovoru
+                if "export.csv" in resp_text:
+                    import re as _re
+                    m = _re.search(r'[\w\-:.]+export\.csv', resp_text)
+                    if m:
+                        filename = m.group()
+
+            if not filename:
+                # Fallback: poskusi z današnjim datumom
+                filename = f"{today.strftime('%Y-%m-%d_%H:%M:%S')}-export.csv"
+
+            # Korak 3: Prenesi CSV
+            dl_url = f"{SILUXAR_BASE}/download.php?file={filename}"
+            dl_resp = await hc.get(
+                dl_url,
+                headers={"Authorization": SILUXAR_AUTH},
+                cookies=session_cookies,
+            )
+
+            if dl_resp.status_code != 200:
+                return {
+                    "error": f"Download vrnil {dl_resp.status_code}",
+                    "tried_file": filename,
+                    "post_response": resp_text[:300],
+                }
+
+            csv_text = dl_resp.text
+            if not csv_text.strip():
+                return {"error": "Prazen CSV.", "tried_file": filename}
+
+            return {
+                "status": "ok",
+                "filename": filename,
+                "csv": csv_text,
+                "from": from_date,
+                "to": to_date,
+                "rows": len(csv_text.strip().split('\n')) - 1,
+            }
+
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "trace": traceback.format_exc()[-500:]}
