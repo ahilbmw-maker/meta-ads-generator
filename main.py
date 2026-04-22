@@ -1504,7 +1504,7 @@ async def set_narocilnice_history(data: dict):
 
 # ─── AUTO-FETCH NAROČILNICE IZ SILUXAR ERP ───────────────────────────────────
 
-SILUXAR_AUTH = "Basic c2lsdXhhcjpLNyN2OSFScDRtUTgldExi"
+SILUXAR_AUTH = os.environ.get("SILUXAR_AUTH", "")
 SILUXAR_BASE = "https://www.siluxar.si"
 
 NARC_LANG_PARAMS = (
@@ -1520,83 +1520,109 @@ NARC_LANG_PARAMS = (
 
 @app.get("/auto-fetch-narocilnice")
 async def auto_fetch_narocilnice():
-    """Avtomatsko potegne CSV naročilnic iz siluxar.si ERP."""
+    """Avtomatsko potegne CSV narocilnic iz siluxar.si ERP."""
+    import traceback as _tb
+    today = datetime.now()
+    to_date = today.strftime("%Y-%m-%d")
+    from_date = (today - timedelta(days=365)).strftime("%Y-%m-%d")
+
+    UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+
+    page_url = (
+        f"{SILUXAR_BASE}/narocilnice?order_status_id=&order_shipping_id=0"
+        f"&supplier=18&author=&filter_buyer=&filter_buyer_address=&filter_buyer_phone="
+        f"&filter_product=&filter_orderid=&filter_comments=0&filter_cancellations=0"
+        f"&filter_notpaid=0&filter_isvip=0&filter_buyer_deferred=0&sent_to_erp="
+        f"&payment_type=&order_tag=&filter_ids=&from={from_date}&to={to_date}"
+        f"&{NARC_LANG_PARAMS}"
+    )
+
+    print(f"[auto-fetch] START -- {from_date} -> {to_date}")
+
     try:
-        today = datetime.now()
-        to_date = today.strftime("%Y-%m-%d")
-        from_date = (today - timedelta(days=365)).strftime("%Y-%m-%d")
+        async with httpx.AsyncClient(timeout=45.0, follow_redirects=True) as hc:
 
-        headers = {
-            "Authorization": SILUXAR_AUTH,
-            "X-Requested-With": "XMLHttpRequest",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "Referer": f"{SILUXAR_BASE}/narocilnice",
-            "Origin": SILUXAR_BASE,
-        }
+            # Korak 1: GET -- vzpostavi sejo in nastavi filtre
+            print(f"[auto-fetch] STEP1 GET {SILUXAR_BASE}/narocilnice ...")
+            try:
+                get_resp = await hc.get(
+                    page_url,
+                    headers={
+                        "Authorization": SILUXAR_AUTH,
+                        "User-Agent": UA,
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                        "Accept-Language": "sl,en-GB;q=0.9,en;q=0.8",
+                        "Referer": SILUXAR_BASE,
+                    }
+                )
+                print(f"[auto-fetch] STEP1 status={get_resp.status_code} cookies={list(get_resp.cookies.keys())}")
+            except Exception as e:
+                print(f"[auto-fetch] STEP1 FAILED: {e}")
+                return {"error": f"Ne morem doseci siluxar.si (STEP1): {e}"}
 
-        # Korak 1: GET na narocilnice z datumskim filtrom (nastavi session + filtre)
-        page_url = (
-            f"{SILUXAR_BASE}/narocilnice?order_status_id=&order_shipping_id=0"
-            f"&supplier=18&author=&filter_buyer=&filter_buyer_address=&filter_buyer_phone="
-            f"&filter_product=&filter_orderid=&filter_comments=0&filter_cancellations=0"
-            f"&filter_notpaid=0&filter_isvip=0&filter_buyer_deferred=0&sent_to_erp="
-            f"&payment_type=&order_tag=&filter_ids=&from={from_date}&to={to_date}"
-            f"&{NARC_LANG_PARAMS}"
-        )
-
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as hc:
-            # Korak 1: Inicializacija seje z GET (nastavi session cookie + filtre)
-            get_resp = await hc.get(
-                page_url,
-                headers={
-                    "Authorization": SILUXAR_AUTH,
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "Referer": SILUXAR_BASE,
-                }
-            )
-            # Prevzemi session cookie
             session_cookies = dict(get_resp.cookies)
 
-            # Korak 2: POST export request
-            post_resp = await hc.post(
-                f"{SILUXAR_BASE}/narocilnice",
-                headers=headers,
-                data="module=acc&mode=export&type=stockcsvalt-grouped",
-                cookies=session_cookies,
-            )
+            # Korak 2: POST -- sprozi export
+            print(f"[auto-fetch] STEP2 POST export ...")
+            try:
+                post_resp = await hc.post(
+                    f"{SILUXAR_BASE}/narocilnice",
+                    headers={
+                        "Authorization": SILUXAR_AUTH,
+                        "User-Agent": UA,
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                        "Accept": "application/json, text/javascript, */*; q=0.01",
+                        "Referer": f"{SILUXAR_BASE}/narocilnice",
+                        "Origin": SILUXAR_BASE,
+                    },
+                    data="module=acc&mode=export&type=stockcsvalt-grouped",
+                    cookies=session_cookies,
+                )
+                resp_text = post_resp.text.strip()
+                print(f"[auto-fetch] STEP2 status={post_resp.status_code} response={repr(resp_text[:300])}")
+            except Exception as e:
+                print(f"[auto-fetch] STEP2 FAILED: {e}")
+                return {"error": f"Export request failed (STEP2): {e}"}
 
             if post_resp.status_code != 200:
-                return {"error": f"POST /narocilnice vrnil {post_resp.status_code}: {post_resp.text[:300]}"}
+                return {"error": f"POST vrnil {post_resp.status_code}: {resp_text[:200]}"}
 
-            # Odgovor je verjetno JSON z imenom fajla ali redirect
-            resp_text = post_resp.text.strip()
-            print(f"[auto-fetch] POST response ({post_resp.status_code}): {resp_text[:200]}")
-
-            # Poskusi parsati JSON za filename
+            # Parsiraj filename iz odgovora
             filename = None
             try:
                 resp_json = json.loads(resp_text)
                 filename = resp_json.get("file") or resp_json.get("filename") or resp_json.get("name")
+                print(f"[auto-fetch] STEP2 parsed JSON filename={filename}")
             except Exception:
-                # Morda je direktno ime fajla v odgovoru
                 if "export.csv" in resp_text:
                     import re as _re
                     m = _re.search(r'[\w\-:.]+export\.csv', resp_text)
                     if m:
                         filename = m.group()
+                        print(f"[auto-fetch] STEP2 regex filename={filename}")
 
             if not filename:
-                # Fallback: poskusi z današnjim datumom
+                print(f"[auto-fetch] STEP2 no filename, using timestamp fallback")
                 filename = f"{today.strftime('%Y-%m-%d_%H:%M:%S')}-export.csv"
 
             # Korak 3: Prenesi CSV
             dl_url = f"{SILUXAR_BASE}/download.php?file={filename}"
-            dl_resp = await hc.get(
-                dl_url,
-                headers={"Authorization": SILUXAR_AUTH},
-                cookies=session_cookies,
-            )
+            print(f"[auto-fetch] STEP3 GET {dl_url} ...")
+            try:
+                dl_resp = await hc.get(
+                    dl_url,
+                    headers={
+                        "Authorization": SILUXAR_AUTH,
+                        "User-Agent": UA,
+                        "Referer": f"{SILUXAR_BASE}/narocilnice",
+                    },
+                    cookies=session_cookies,
+                )
+                print(f"[auto-fetch] STEP3 status={dl_resp.status_code} len={len(dl_resp.text)}")
+            except Exception as e:
+                print(f"[auto-fetch] STEP3 FAILED: {e}")
+                return {"error": f"Download failed (STEP3): {e}", "tried_file": filename}
 
             if dl_resp.status_code != 200:
                 return {
@@ -1607,17 +1633,20 @@ async def auto_fetch_narocilnice():
 
             csv_text = dl_resp.text
             if not csv_text.strip():
-                return {"error": "Prazen CSV.", "tried_file": filename}
+                return {"error": "Prazen CSV.", "tried_file": filename, "post_response": resp_text[:300]}
 
+            row_count = len(csv_text.strip().split('\n')) - 1
+            print(f"[auto-fetch] SUCCESS -- {row_count} vrstic, file={filename}")
             return {
                 "status": "ok",
                 "filename": filename,
                 "csv": csv_text,
                 "from": from_date,
                 "to": to_date,
-                "rows": len(csv_text.strip().split('\n')) - 1,
+                "rows": row_count,
             }
 
     except Exception as e:
-        import traceback
-        return {"error": str(e), "trace": traceback.format_exc()[-500:]}
+        print(f"[auto-fetch] UNHANDLED: {e}")
+        print(_tb.format_exc())
+        return {"error": str(e), "trace": _tb.format_exc()[-500:]}
