@@ -226,12 +226,93 @@ input::placeholder{color:var(--text3)}
 </div>
 
 <script>
-const W=[1.1,1.1,1.1,1.1,1.1,1.1,1.1,3.7,5.9,5.3,9.8,9.8,7.1,7.1,7.1,5.9,5.9,5.3,4.8,4.3,4.5,4.2,3.2,2.4];
-const WT=W.reduce((a,b)=>a+b,0);
-const WN=W.map(w=>w/WT);
+const API_BASE = window.location.origin.includes('siluxar') ? 'https://ads.slxanalytics.org' : '';
+const W_DEFAULT=[1.1,1.1,1.1,1.1,1.1,1.1,1.1,3.7,5.9,5.3,9.8,9.8,7.1,7.1,7.1,5.9,5.9,5.3,4.8,4.3,4.5,4.2,3.2,2.4];
 const HNAMES=['polnoč','1h','2h','3h','4h','5h','6h','7h zjutraj','8h zjutraj','9h zjutraj','10h','11h','12h','13h','14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'];
+const MIN_DAYS_PERSONAL = 7;
+
+// Aktivni weights — na začetku default, po učenju osebni
+let WN = W_DEFAULT.map(w=>w/W_DEFAULT.reduce((a,b)=>a+b,0));
+let personalModelActive = false;
 
 function cumW(h,m){let s=0;for(let i=0;i<h;i++)s+=WN[i];s+=WN[Math.min(h,23)]*(m/60);return s;}
+
+// Izračuna hourly weights iz zgodovinskih podatkov
+function buildPersonalWeights(hist){
+  const hourTotals = new Array(24).fill(0);
+  const hourCounts = new Array(24).fill(0);
+  const days = Object.keys(hist);
+  
+  for(const day of days){
+    const dayEntries = hist[day];
+    if(!dayEntries || dayEntries.length < 2) continue;
+    
+    // Sortiraj vnose po uri
+    const sorted = [...dayEntries].sort((a,b) => (a.h*60+a.m) - (b.h*60+b.m));
+    
+    // Zadnji vnos = končne vrednosti dneva
+    const lastEntry = sorted[sorted.length-1];
+    const totalOrd = lastEntry.ord;
+    if(!totalOrd || totalOrd <= 0) continue;
+    
+    // Za vsak interval med vnosi izračunaj koliko naročil je prišlo v tisti uri
+    let prevOrd = 0;
+    let prevMin = 0;
+    for(const e of sorted){
+      const curMin = e.h*60 + e.m;
+      const curOrd = e.ord;
+      const deltaOrd = curOrd - prevOrd;
+      const deltaMin = curMin - prevMin;
+      if(deltaMin <= 0 || deltaOrd < 0){ prevOrd=curOrd; prevMin=curMin; continue; }
+      
+      // Porazdeli delta naročila po urah tega intervala
+      const startH = Math.floor(prevMin/60);
+      const endH = Math.min(23, Math.floor((curMin-1)/60));
+      for(let h=startH; h<=endH; h++){
+        const hStart = Math.max(prevMin, h*60);
+        const hEnd = Math.min(curMin, (h+1)*60);
+        const fraction = (hEnd-hStart)/deltaMin;
+        hourTotals[h] += deltaOrd * fraction / totalOrd;
+        hourCounts[h]++;
+      }
+      prevOrd=curOrd; prevMin=curMin;
+    }
+  }
+  
+  // Zgladimo z minimumom da ne dobimo 0 za nočne ure
+  const smoothed = hourTotals.map((v,i) => Math.max(v, W_DEFAULT[i]*0.1/W_DEFAULT.reduce((a,b)=>a+b,0)));
+  const total = smoothed.reduce((a,b)=>a+b,0);
+  if(total <= 0) return null;
+  return smoothed.map(v=>v/total);
+}
+
+async function loadPersonalModel(){
+  try{
+    const resp = await fetch(API_BASE + '/forecast-history');
+    const text = await resp.text();
+    let hist;
+    try{ hist = JSON.parse(text); } catch(e){ console.warn('[forecast] history not JSON:', text.slice(0,80)); return 0; }
+    if(!hist || typeof hist !== 'object') return 0;
+    const days = Object.keys(hist).filter(d => {
+      const entries = hist[d];
+      return entries && entries.length >= 2;
+    });
+    
+    if(days.length >= MIN_DAYS_PERSONAL){
+      const personal = buildPersonalWeights(hist);
+      if(personal){
+        WN = personal;
+        personalModelActive = true;
+        console.log('[forecast] Osebni model aktiven iz', days.length, 'dni');
+        return days.length;
+      }
+    }
+    return days.length;
+  }catch(e){
+    console.warn('[forecast] Personal model error:', e);
+    return 0;
+  }
+}
 
 let mode='linear';
 let entries=[];
@@ -242,13 +323,13 @@ let chart2=null;
 async function loadEntries(){
   try{
     const today = new Date().toLocaleDateString('sl-SI');
-    const data = await fetch('/forecast-entries').then(r=>r.json());
+    const data = await fetch(API_BASE + '/forecast-entries').then(r=>r.json());
     if(data && data.date === today && data.entries && data.entries.length > 0){
       entries = data.entries || [];
       return;
     }
     // Poskusi iz history
-    const hist = await fetch('/forecast-history').then(r=>r.json());
+    const hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json());
     if(hist && hist[today] && hist[today].length > 0){
       entries = hist[today].map(e => ({
         label: String(e.h).padStart(2,'0') + ':' + String(e.m).padStart(2,'0'),
@@ -267,14 +348,14 @@ async function saveEntries(){
   await collectHistoricalData(today);
   // Potem shrani entries
   try{
-    await fetch('/forecast-entries', {method:'POST', headers:{'Content-Type':'application/json'},
+    await fetch(API_BASE + '/forecast-entries', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({date:today, entries})});
   }catch(e){}
 }
 
 async function collectHistoricalData(today){
   try{
-    const hist = await fetch('/forecast-history').then(r=>r.json());
+    const hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json());
     hist[today] = entries.map(e=>({
       h: parseInt(e.label.split(':')[0]),
       m: parseInt(e.label.split(':')[1]),
@@ -284,7 +365,7 @@ async function collectHistoricalData(today){
     // Ohrani zadnjih 30 dni
     const keys = Object.keys(hist).sort();
     if(keys.length>30) delete hist[keys[0]];
-    await fetch('/forecast-history', {method:'POST', headers:{'Content-Type':'application/json'},
+    await fetch(API_BASE + '/forecast-history', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(hist)});
     updateDataCounter(hist);
   }catch(e){}
@@ -292,13 +373,17 @@ async function collectHistoricalData(today){
 
 async function updateDataCounter(hist){
   try{
-    if(!hist) hist = await fetch('/forecast-history').then(r=>r.json());
-    const days = Object.keys(hist).length;
+    if(!hist) hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json());
+    const validDays = Object.keys(hist).filter(d => hist[d] && hist[d].length >= 2);
+    const days = validDays.length;
     const el = document.getElementById('data-counter');
     if(!el) return;
-    if(days<7){
-      el.textContent=`Zbiranje podatkov za učenje modela: ${days}/7 dni`;
+    if(days<MIN_DAYS_PERSONAL){
+      el.textContent=`Zbiranje podatkov za učenje modela: ${days}/${MIN_DAYS_PERSONAL} dni`;
       el.style.color='var(--text3)';
+    } else if(personalModelActive){
+      el.textContent=`🧠 Osebni model aktiven — naučen iz ${days} dni`;
+      el.style.color='var(--green)';
     } else {
       el.textContent=`✓ Dovolj podatkov za osebni model (${days} dni)`;
       el.style.color='var(--green)';
@@ -329,7 +414,7 @@ async function loadHistoryDate(val){
     return;
   }
   try{
-    const hist = await fetch('/forecast-history').then(r=>r.json());
+    const hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json());
     const dayData = hist[val] || [];
     entries = dayData.map(e => ({
       label: String(e.h).padStart(2,'0') + ':' + String(e.m).padStart(2,'0'),
@@ -386,7 +471,7 @@ function calc(){
     predOrd=Math.round(ord/cw);predRev=predOrd*avg;
     document.getElementById('weighted-info').style.display='block';
     document.getElementById('hour-label').textContent=HNAMES[Math.min(h,23)];
-    document.getElementById('hl-lbl').textContent='predviden dnevni promet (uteženni)';
+    document.getElementById('hl-lbl').textContent=personalModelActive?'predviden dnevni promet (osebni model 🧠)':'predviden dnevni promet (uteženni)';
   }
   lastPredRev=predRev;
   lastPredOrd=predOrd;
@@ -491,6 +576,7 @@ function renderLog(){
 
 // Init
 (async()=>{
+  await loadPersonalModel();
   await loadEntries();
   renderChart();
   renderLog();
