@@ -94,6 +94,18 @@ input::placeholder{color:var(--text3)}
 .log-del:hover{color:var(--red,#e03030)}
 
 .footer{text-align:center;font-size:11px;color:var(--text3);margin-top:1.5rem}
+.eod-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-top:12px}
+.eod-title{font-size:13px;font-weight:600;margin-bottom:4px}
+.eod-sub{font-size:11px;color:var(--text3);margin-bottom:12px}
+.eod-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.eod-date{font-size:12px;font-weight:500;color:var(--text2);min-width:90px}
+.eod-input{width:110px;height:36px;padding:0 10px;font-size:14px;font-family:"DM Sans",sans-serif;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text);text-align:center;-moz-appearance:textfield}
+.eod-input::-webkit-inner-spin-button,.eod-input::-webkit-outer-spin-button{-webkit-appearance:none}
+.eod-input:focus{outline:none;border-color:var(--blue-border);background:var(--surface);box-shadow:0 0 0 3px var(--blue-dim)}
+.eod-saved{font-size:11px;color:var(--green);margin-left:4px}
+.eod-save-btn{padding:8px 18px;background:var(--blue);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;margin-top:10px;transition:all 0.15s}
+.eod-save-btn:hover{background:#2d5fee}
+.eod-toggle{font-size:11px;color:var(--blue);background:none;border:none;cursor:pointer;font-family:"DM Sans",sans-serif;text-decoration:underline;margin-top:6px}
 </style>
 </head>
 <body>
@@ -219,6 +231,19 @@ input::placeholder{color:var(--text3)}
     </div>
   </div>
 
+  <div id="eodSection" style="display:none">
+    <div class="eod-panel">
+      <div class="eod-title">📋 Končna naročila po dnevih</div>
+      <div class="eod-sub">Vpiši dejanska končna naročila za pretekle dni — model se bo bolje naučil "tail" prometa po 22h</div>
+      <div id="eodRows"></div>
+      <button class="eod-save-btn" onclick="saveEodData()">💾 Shrani končne vrednosti</button>
+      <div id="eodStatus" style="font-size:11px;margin-top:8px;color:var(--green);display:none"></div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:8px">
+    <button class="eod-toggle" onclick="toggleEodPanel()">📋 Vpiši končna naročila po dnevih</button>
+  </div>
+
   <div class="footer">
     <div id="data-counter" style="margin-bottom:4px;font-size:11px"></div>
     Model temelji na 7-dnevnem povprečju · 0 API klicev
@@ -238,7 +263,7 @@ let personalModelActive = false;
 function cumW(h,m){let s=0;for(let i=0;i<h;i++)s+=WN[i];s+=WN[Math.min(h,23)]*(m/60);return s;}
 
 // Izračuna hourly weights iz zgodovinskih podatkov
-function buildPersonalWeights(hist){
+function buildPersonalWeights(hist, eodData={}){
   const hourTotals = new Array(24).fill(0);
   const hourCounts = new Array(24).fill(0);
   const days = Object.keys(hist);
@@ -255,7 +280,26 @@ function buildPersonalWeights(hist){
     const totalOrd = lastEntry.ord;
     if(!totalOrd || totalOrd <= 0) continue;
     
+    // Če imamo EOD podatek, dodamo še interval od zadnjega vnosa do polnoči
+    const eodOrd = eodData[day];
+    if(eodOrd && eodOrd > totalOrd){
+      const lastE = sorted[sorted.length-1];
+      const lastMin = lastE.h*60 + lastE.m;
+      const deltaOrd = eodOrd - totalOrd;
+      const deltaMin = 1440 - lastMin;
+      if(deltaMin > 0 && deltaOrd > 0){
+        const eodTotalOrd = eodOrd; // use EOD as new total
+        for(let h = lastE.h; h <= 23; h++){
+          const hStart = Math.max(lastMin, h*60);
+          const hEnd = Math.min(1440, (h+1)*60);
+          const fraction = (hEnd - hStart) / deltaMin;
+          hourTotals[h] += deltaOrd * fraction / eodTotalOrd;
+        }
+      }
+    }
+    
     // Za vsak interval med vnosi izračunaj koliko naročil je prišlo v tisti uri
+    const effectiveTotalOrd = (eodData[day] && eodData[day] > totalOrd) ? eodData[day] : totalOrd;
     let prevOrd = 0;
     let prevMin = 0;
     for(const e of sorted){
@@ -272,7 +316,7 @@ function buildPersonalWeights(hist){
         const hStart = Math.max(prevMin, h*60);
         const hEnd = Math.min(curMin, (h+1)*60);
         const fraction = (hEnd-hStart)/deltaMin;
-        hourTotals[h] += deltaOrd * fraction / totalOrd;
+        hourTotals[h] += deltaOrd * fraction / effectiveTotalOrd;
         hourCounts[h]++;
       }
       prevOrd=curOrd; prevMin=curMin;
@@ -293,17 +337,26 @@ async function loadPersonalModel(){
     let hist;
     try{ hist = JSON.parse(text); } catch(e){ console.warn('[forecast] history not JSON:', text.slice(0,80)); return 0; }
     if(!hist || typeof hist !== 'object') return 0;
+    
+    // Naloži EOD podatke
+    let eodData = {};
+    try{
+      const eodResp = await fetch(API_BASE + '/forecast-eod');
+      const eodText = await eodResp.text();
+      eodData = JSON.parse(eodText);
+    }catch(e){}
+    
     const days = Object.keys(hist).filter(d => {
       const entries = hist[d];
       return entries && entries.length >= 2;
     });
     
     if(days.length >= MIN_DAYS_PERSONAL){
-      const personal = buildPersonalWeights(hist);
+      const personal = buildPersonalWeights(hist, eodData);
       if(personal){
         WN = personal;
         personalModelActive = true;
-        console.log('[forecast] Osebni model aktiven iz', days.length, 'dni');
+        console.log('[forecast] Osebni model aktiven iz', days.length, 'dni, EOD:', Object.keys(eodData).length, 'dni');
         return days.length;
       }
     }
@@ -573,6 +626,81 @@ function renderLog(){
       <button class="log-del" onclick="removeEntry(${i})" title="Odstrani">×</button>
     </div>`).join('');
 }
+
+// ─── END-OF-DAY PANEL ────────────────────────────────────────────────────────
+
+function toggleEodPanel(){
+  const sec = document.getElementById('eodSection');
+  const open = sec.style.display === 'none';
+  sec.style.display = open ? 'block' : 'none';
+  if(open) renderEodRows();
+}
+
+async function renderEodRows(){
+  const hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json()).catch(()=>({}));
+  const eodData = await fetch(API_BASE + '/forecast-eod').then(r=>r.json()).catch(()=>({}));
+  
+  // Zadnjih 14 dni (brez danes)
+  const today = new Date().toLocaleDateString('sl-SI');
+  const dates = [];
+  for(let i=1; i<=14; i++){
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    dates.push(d.toLocaleDateString('sl-SI'));
+  }
+  
+  const el = document.getElementById('eodRows');
+  el.innerHTML = dates.map(date => {
+    const hasData = hist[date] && hist[date].length > 0;
+    const lastEntry = hasData ? hist[date][hist[date].length-1] : null;
+    const lastOrd = lastEntry ? lastEntry.ord : null;
+    const savedEod = eodData[date] || null;
+    const grayStyle = !hasData ? 'opacity:0.4' : '';
+    return `<div class="eod-row" style="${grayStyle}">
+      <span class="eod-date">${date}</span>
+      <input type="number" class="eod-input" id="eod_${date.replace(/\./g,'_')}" 
+        placeholder="${lastOrd ? lastOrd + ' (zadnji)' : 'naročila'}" 
+        value="${savedEod || ''}" min="0">
+      ${savedEod ? '<span class="eod-saved">✓ shranjeno</span>' : ''}
+      ${lastOrd && !savedEod ? '<span style="font-size:10px;color:var(--text3)">zadnji vnos: '+lastOrd+'</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+async function saveEodData(){
+  const eodData = await fetch(API_BASE + '/forecast-eod').then(r=>r.json()).catch(()=>({}));
+  
+  const today = new Date().toLocaleDateString('sl-SI');
+  let saved = 0;
+  for(let i=1; i<=14; i++){
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const date = d.toLocaleDateString('sl-SI');
+    const key = 'eod_' + date.replace(/\./g,'_');
+    const inp = document.getElementById(key);
+    if(inp && inp.value && parseInt(inp.value) > 0){
+      eodData[date] = parseInt(inp.value);
+      saved++;
+    }
+  }
+  
+  await fetch(API_BASE + '/forecast-eod', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(eodData)
+  });
+  
+  const st = document.getElementById('eodStatus');
+  st.style.display = 'block';
+  st.textContent = '✓ Shranjeno ' + saved + ' dni — model se bo posodobil';
+  
+  // Reload personal model z novimi podatki
+  await loadPersonalModel();
+  await updateDataCounter();
+  calc();
+  renderEodRows();
+}
+
+// ─── END-OF-DAY PANEL ────────────────────────────────────────────────────────
 
 // Init
 (async()=>{
