@@ -884,6 +884,11 @@ input[type="text"].error { border-color: var(--red) !important; }
             <span style="font-size:12px">Klikni ali povleci CSV sem</span>
           </div>
           <input type="file" id="narcFileInput" accept=".csv" style="display:none" onchange="narcHandleFile(this.files[0])">
+          <button id="narcAutoFetchBtn" onclick="narcAutoFetch()" style="margin-top:10px;width:100%;padding:9px 0;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;transition:opacity 0.15s">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2.2;flex-shrink:0"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span id="narcAutoFetchLabel">Auto-fetch iz ERP</span>
+          </button>
+          <div id="narcAutoFetchStatus" style="margin-top:6px;font-size:11px;color:var(--text-tertiary);text-align:center;display:none"></div>
         </div>
 
         <div class="card">
@@ -2630,6 +2635,48 @@ async function narcLoadFromHistory(idx) {
     if (!data[idx]) return;
     narcProcessText(data[idx].csv, false);
   } catch(e) {}
+}
+
+async function narcAutoFetch() {
+  const btn = document.getElementById('narcAutoFetchBtn');
+  const label = document.getElementById('narcAutoFetchLabel');
+  const status = document.getElementById('narcAutoFetchStatus');
+  if (!btn || !label) return;
+
+  btn.disabled = true;
+  btn.style.opacity = '0.65';
+  label.textContent = 'Fetcham iz ERP…';
+  status.style.display = 'block';
+  status.style.color = 'var(--text-tertiary)';
+  status.textContent = 'Vzpostavljam sejo s siluxar.si…';
+
+  try {
+    const res = await fetch('/auto-fetch-narocilnice');
+    const data = await res.json();
+
+    if (data.error) {
+      status.style.color = 'var(--red)';
+      status.textContent = '✗ ' + data.error;
+      label.textContent = 'Auto-fetch iz ERP';
+      btn.disabled = false; btn.style.opacity = '1';
+      return;
+    }
+
+    const today = new Date();
+    const from = new Date(new Date().setFullYear(today.getFullYear() - 1)).toISOString().split('T')[0];
+    const to = today.toISOString().split('T')[0];
+    status.style.color = 'var(--green)';
+    status.textContent = '✓ ' + data.rows + ' vrstic · ' + from + ' → ' + to;
+    label.textContent = 'Auto-fetch iz ERP';
+    btn.disabled = false; btn.style.opacity = '1';
+
+    narcProcessText(data.csv, true);
+  } catch(e) {
+    status.style.color = 'var(--red)';
+    status.textContent = '✗ Napaka: ' + e.message;
+    label.textContent = 'Auto-fetch iz ERP';
+    btn.disabled = false; btn.style.opacity = '1';
+  }
 }
 
 updateMeta();renderH();ttRenderHistory();ttLoadHistory();metaLoadServerHistory();kLoadHistory();narcLoadHistory();narcRenderLangFilter();setMetaWide(true);
