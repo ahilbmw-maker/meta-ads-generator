@@ -2489,16 +2489,7 @@ let narcClickedRows = new Set();
 let narcShopUrls = {}; // sku -> maaarket url
 
 async function narcFetchShopUrls() {
-  if (!narcData.length) return;
-  try {
-    const res = await fetch('/narocilnice-lookup', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({skus: narcData.map(r => ({sku: r.sku, naziv: r.naziv}))})
-    });
-    const data = await res.json();
-    narcShopUrls = data.urls || {};
-    narcRenderTable();
-  } catch(e) {}
+  // XML lookup removed — too complex, not needed
 }
 
 function narcToggleRow(sku, forceOn) {
@@ -2559,15 +2550,12 @@ function narcRenderTable() {
 
    tbody.innerHTML = rows.map(r => {
     const url = narcBuildUrl(r.sku);
-    const shopUrl = narcShopUrls[r.sku.toUpperCase()] || narcShopUrls[r.sku] || null;
     const isDone = narcClickedRows.has(r.sku);
-    const rowBg = isDone ? "background:rgba(16,185,129,0.12)" : "";
-    const shopLink = shopUrl ? '<a href="' + esc(shopUrl) + '" target="_blank" title="Odpri v Maaarket" style="margin-left:6px;font-size:10px;color:var(--text-tertiary);text-decoration:none">🛒</a>' : "";
-    const checkBtn = '<button onclick="narcToggleRow(\'' + esc(r.sku) + '\')" class="narc-check-btn' + (isDone ? " done" : "") + '">' + (isDone ? "✓" : "○") + '</button>';
+    const rowBg = isDone ? 'background:rgba(16,185,129,0.12)' : '';
+    const checkBtn = '<button onclick="narcToggleRow(\'' + esc(r.sku) + '\')" class="narc-check-btn' + (isDone ? ' done' : '') + '">' + (isDone ? '\u2713' : '\u25cb') + '</button>';
     return '<tr data-sku="' + esc(r.sku) + '" style="' + rowBg + '">' +
       '<td>' + esc(r.id) + '</td>' +
-      '<td><a href="' + esc(url) + '" target="_blank" class="narc-sku-link" onclick="narcToggleRow(\'' + esc(r.sku) + '\'", true)">' + esc(r.sku) + '</a>' + shopLink + '</td>' +
-      '<td><a href="' + esc(url) + '" target="_blank" class="narc-sku-link" onclick="narcToggleRow(\'' + esc(r.sku) + '\', true)">' + esc(r.sku) + '</a>' + shopLink + '</td>' +
+      '<td><a href="' + esc(url) + '" target="_blank" class="narc-sku-link">' + esc(r.sku) + '</a></td>' +
       '<td class="' + (r.kolicina < 0 ? "neg" : "") + '">' + r.kolicina + '</td>' +
       '<td class="neg">' + r.razlika + '</td>' +
       '<td class="' + (r.slo < 0 ? "neg" : "") + '">' + r.slo + '</td>' +
@@ -2652,6 +2640,16 @@ document.addEventListener('DOMContentLoaded', () => {
   dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
   dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); narcHandleFile(e.dataTransfer.files[0]); });
+
+  // Event delegation for SKU links
+  document.getElementById('narcTableBody').addEventListener('click', e => {
+    const link = e.target.closest('.narc-sku-link');
+    if (link) {
+      const tr = link.closest('tr');
+      const sku = tr ? tr.getAttribute('data-sku') : null;
+      if (sku) narcToggleRow(sku, true);
+    }
+  });
 });
 
 
