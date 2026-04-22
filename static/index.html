@@ -327,10 +327,10 @@ input[type="text"].error { border-color: var(--red) !important; }
 #page-lokalizacija .kreative-layout { grid-template-columns: 300px 1fr; }
 #page-lokalizacija .kreative-right { min-width: 0; overflow: hidden; }
 /* Narocilnice */
-.narc-table { width:100%; border-collapse:collapse; font-size:12px; }
-.narc-table th { background:var(--surface2); padding:8px 10px; text-align:left; font-size:11px; font-weight:600; color:var(--text-tertiary); border-bottom:2px solid var(--border); white-space:nowrap; cursor:pointer; user-select:none; }
+.narc-table { width:100%; border-collapse:collapse; font-size:13px; }
+.narc-table th { background:var(--surface2); padding:10px 12px; text-align:left; font-size:12px; font-weight:600; color:var(--text-tertiary); border-bottom:2px solid var(--border); white-space:nowrap; cursor:pointer; user-select:none; }
 .narc-table th:hover { color:var(--accent); }
-.narc-table td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:middle; }
+.narc-table td { padding:9px 12px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:middle; }
 .narc-table tr:hover td { background:var(--accent-dim); }
 .narc-table td.neg { color:#dc2626; font-weight:600; }
 .narc-sku-link { color:var(--accent); text-decoration:none; font-weight:600; }
@@ -881,11 +881,6 @@ body:has(#page-lokalizacija.active) .main { max-width: none !important; }
             <span style="font-size:12px">Klikni ali povleci CSV sem</span>
           </div>
           <input type="file" id="narcFileInput" accept=".csv" style="display:none" onchange="narcHandleFile(this.files[0])">
-          <textarea id="narcCsvText" placeholder="Ali prilepi CSV vsebino sem..." class="k-prompt-textarea" style="margin-top:8px;min-height:80px;font-size:11px"></textarea>
-          <button class="btn-gen" onclick="narcProcess()" style="width:100%;margin-top:8px">
-            <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 0 2-2h11"/></svg>
-            Uvozi in prikaži
-          </button>
         </div>
 
         <div class="card">
@@ -896,8 +891,24 @@ body:has(#page-lokalizacija.active) .main { max-width: none !important; }
         </div>
       </div>
 
-      <!-- DESNO: Tabela -->
-      <div class="card" style="min-width:0;overflow:hidden">
+      <!-- DESNO: Lang filter + Tabela -->
+      <div style="min-width:0;overflow:hidden;display:flex;flex-direction:column;gap:12px">
+
+        <!-- Lang filter — collapsible -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="narcToggleLangPanel()">
+            <span class="slabel">🌍 FILTRIRAJ TRGOVINE / DRŽAVE <span id="narcLangCount" style="font-weight:400;color:var(--text-tertiary)"></span></span>
+            <span id="narcLangChevron" style="font-size:12px;color:var(--text-tertiary)">▼</span>
+          </div>
+          <div id="narcLangPanel" style="display:none;margin-top:10px">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+              <button class="history-clear" onclick="event.stopPropagation();narcToggleAllLangs()">Izberi vse / Počisti</button>
+            </div>
+            <div id="narcLangFilter" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+          </div>
+        </div>
+
+        <div class="card" style="min-width:0;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
           <span class="slabel" id="narcTableTitle">NAROČILNICE — negativne razlike</span>
           <div style="display:flex;align-items:center;gap:8px">
@@ -916,6 +927,7 @@ body:has(#page-lokalizacija.active) .main { max-width: none !important; }
                 <th onclick="narcSort('razlika')">Prodano razlika ↕</th>
                 <th onclick="narcSort('slo')">Skladišče SLO ↕</th>
                 <th onclick="narcSort('rs')">Skladišče RS ↕</th>
+                <th>✓</th>
               </tr>
             </thead>
             <tbody id="narcTableBody">
@@ -923,7 +935,13 @@ body:has(#page-lokalizacija.active) .main { max-width: none !important; }
             </tbody>
           </table>
         </div>
-      </div>
+        <div id="narcFinishBtn" style="display:none;margin-top:12px;text-align:center">
+          <button onclick="narcFinish()" style="padding:10px 32px;background:#10b981;color:white;border:none;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
+            ✓ Zaključi — vse obdelano
+          </button>
+        </div>
+      </div><!-- /card tabela -->
+      </div><!-- /desno wrapper -->
 
     </div>
   </div><!-- /page-narocilnice -->
@@ -2289,20 +2307,79 @@ let narcData = [];
 let narcSortCol = 'razlika';
 let narcSortAsc = true;
 
+const NARC_LANGS = [
+  {key:'sl', label:'Silux.SI', flag:'🇸🇮'},
+  {key:'hr', label:'Silux.HR', flag:'🇭🇷'},
+  {key:'rs', label:'Silux.RS', flag:'🇷🇸'},
+  {key:'at', label:'Silux.AT', flag:'🇦🇹'},
+  {key:'de', label:'Silux.DE', flag:'🇩🇪'},
+  {key:'fr', label:'Silux.FR', flag:'🇫🇷'},
+  {key:'es', label:'Silux.ES', flag:'🇪🇸'},
+  {key:'en', label:'Silux.UK', flag:'🇬🇧'},
+  {key:'ba', label:'Silux.BA', flag:'🇧🇦'},
+  {key:'hu', label:'Silux.HU', flag:'🇭🇺'},
+  {key:'cs', label:'Silux.CZ', flag:'🇨🇿'},
+  {key:'sk', label:'Silux.SK', flag:'🇸🇰'},
+  {key:'el', label:'Silux.GR', flag:'🇬🇷'},
+  {key:'it', label:'Silux.IT', flag:'🇮🇹'},
+  {key:'ro', label:'Silux.RO', flag:'🇷🇴'},
+  {key:'ma-sl', label:'Maaarket.SI', flag:'🛒🇸🇮'},
+  {key:'ma-hr', label:'Maaarket.HR', flag:'🛒🇭🇷'},
+  {key:'ma-rs', label:'Maaarket.RS', flag:'🛒🇷🇸'},
+  {key:'ma-ba', label:'Maaarket.BA', flag:'🛒🇧🇦'},
+  {key:'ma-hu', label:'Maaarket.HU', flag:'🛒🇭🇺'},
+  {key:'ma-it', label:'Maaarket.IT', flag:'🛒🇮🇹'},
+  {key:'ma-cz', label:'Maaarket.CZ', flag:'🛒🇨🇿'},
+  {key:'ma-sk', label:'Maaarket.SK', flag:'🛒🇸🇰'},
+  {key:'ma-pl', label:'Maaarket.PL', flag:'🛒🇵🇱'},
+  {key:'ma-at', label:'Maaarket.AT', flag:'🛒🇦🇹'},
+  {key:'ma-de', label:'Maaarket.DE', flag:'🛒🇩🇪'},
+  {key:'ma-el', label:'Maaarket.GR', flag:'🛒🇬🇷'},
+  {key:'ma-ro', label:'Maaarket.RO', flag:'🛒🇷🇴'},
+  {key:'ma-bg', label:'Maaarket.BG', flag:'🛒🇧🇬'},
+];
+
+let narcSelectedLangs = new Set(NARC_LANGS.map(l => l.key)); // all selected by default
+
+function narcRenderLangFilter() {
+  const el = document.getElementById('narcLangFilter');
+  if (!el) return;
+  narcUpdateLangCount();
+  el.innerHTML = NARC_LANGS.map(l =>
+    `<label class="narc-lang-btn${narcSelectedLangs.has(l.key) ? ' active' : ''}" onclick="narcToggleLang('${l.key}',this)">
+      <input type="checkbox" style="display:none" ${narcSelectedLangs.has(l.key) ? 'checked' : ''}> ${l.flag} ${l.label}
+    </label>`
+  ).join('');
+}
+
+function narcToggleLang(key, el) {
+  if (narcSelectedLangs.has(key)) narcSelectedLangs.delete(key);
+  else narcSelectedLangs.add(key);
+  el.classList.toggle('active', narcSelectedLangs.has(key));
+  narcUpdateLangCount();
+}
+
+function narcToggleAllLangs() {
+  if (narcSelectedLangs.size === NARC_LANGS.length) narcSelectedLangs.clear();
+  else NARC_LANGS.forEach(l => narcSelectedLangs.add(l.key));
+  narcRenderLangFilter();
+}
+
 function narcBuildUrl(sku) {
   const today = new Date();
   const to = today.toISOString().split('T')[0];
-  const from = new Date(today.setFullYear(today.getFullYear() - 1)).toISOString().split('T')[0];
-  return `https://www.siluxar.si/narocilnice?order_status_id=&order_shipping_id=0&supplier=18&author=&filter_buyer=&filter_buyer_address=&filter_buyer_phone=&filter_product=${encodeURIComponent(sku)}&filter_orderid=&filter_comments=0&filter_cancellations=0&filter_notpaid=0&filter_isvip=0&filter_buyer_deferred=0&sent_to_erp=&payment_type=&order_tag=&filter_ids=&from=${from}&to=${to}&filter_lang_sl=1&filter_lang_hr=1&filter_lang_rs=1&filter_lang_at=1&filter_lang_de=1&filter_lang_fr=1&filter_lang_es=1&filter_lang_en=1&filter_lang_ba=1&filter_lang_hu=1&filter_lang_cs=1&filter_lang_sk=1&filter_lang_el=1&filter_lang_ma-sl=1&filter_lang_ma-hr=1&filter_lang_ma-rs=1&filter_lang_ma-ba=1&filter_lang_ma-hu=1&filter_lang_ma-it=1&filter_lang_ma-cz=1&filter_lang_ma-sk=1&filter_lang_ma-pl=1&filter_lang_ma-at=1&filter_lang_ma-de=1&filter_lang_ma-el=1&filter_lang_ma-ro=1&filter_lang_ma-bg=1&filter_lang_it=1&filter_lang_ro=1`;
+  const from = new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0];
+  const langParams = NARC_LANGS
+    .filter(l => narcSelectedLangs.has(l.key))
+    .map(l => `filter_lang_${l.key}=1`)
+    .join('&');
+  return `https://www.siluxar.si/narocilnice?order_status_id=&order_shipping_id=0&supplier=18&author=&filter_buyer=&filter_buyer_address=&filter_buyer_phone=&filter_product=${encodeURIComponent(sku)}&filter_orderid=&filter_comments=0&filter_cancellations=0&filter_notpaid=0&filter_isvip=0&filter_buyer_deferred=0&sent_to_erp=&payment_type=&order_tag=&filter_ids=&from=${from}&to=${to}&${langParams}`;
 }
 
 function narcHandleFile(file) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('narcCsvText').value = e.target.result;
-    narcProcess();
-  };
+  reader.onload = e => { narcProcessText(e.target.result); };
   reader.readAsText(file, 'UTF-8');
 }
 
@@ -2340,8 +2417,23 @@ function narcParseCsv(text) {
   return rows;
 }
 
-function narcProcess() {
-  const text = document.getElementById('narcCsvText').value.trim();
+function narcToggleLangPanel() {
+  const panel = document.getElementById('narcLangPanel');
+  const chevron = document.getElementById('narcLangChevron');
+  const open = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  chevron.textContent = open ? '\u25b2' : '\u25bc';
+}
+
+function narcUpdateLangCount() {
+  const el = document.getElementById('narcLangCount');
+  if (el) el.textContent = '(' + narcSelectedLangs.size + '/' + NARC_LANGS.length + ' izbranih)';
+}
+
+function narcProcess() {}
+
+function narcProcessText(text) {
+  text = text.trim();
   if (!text) return;
 
   const rows = narcParseCsv(text);
@@ -2374,6 +2466,8 @@ function narcProcess() {
 
   narcRenderTable();
   document.getElementById('narcTableTitle').textContent = 'NAROČILNICE — ' + narcData.length + ' negativnih razlik';
+  narcClickedRows.clear();
+  narcFetchShopUrls(); // async lookup shop URLs
 
   // Save to history
   narcSaveHistory(text);
@@ -2385,13 +2479,55 @@ function narcSort(col) {
   narcRenderTable();
 }
 
+let narcClickedRows = new Set();
+let narcShopUrls = {}; // sku -> maaarket url
+
+async function narcFetchShopUrls() {
+  if (!narcData.length) return;
+  try {
+    const res = await fetch('/narocilnice-lookup', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({skus: narcData.map(r => ({sku: r.sku, naziv: r.naziv}))})
+    });
+    const data = await res.json();
+    narcShopUrls = data.urls || {};
+    narcRenderTable();
+  } catch(e) {}
+}
+
+function narcMarkRow(sku) {
+  narcClickedRows.add(sku);
+  // Color row green
+  document.querySelectorAll(`tr[data-sku="${CSS.escape(sku)}"]`).forEach(tr => {
+    tr.style.background = 'rgba(16,185,129,0.12)';
+  });
+  narcCheckAllDone();
+}
+
+function narcCheckAllDone() {
+  const total = narcData.length;
+  const done = narcClickedRows.size;
+  const btn = document.getElementById('narcFinishBtn');
+  if (btn) btn.style.display = done >= total && total > 0 ? 'block' : 'none';
+}
+
+function narcFinish() {
+  narcData = [];
+  narcClickedRows.clear();
+  narcShopUrls = {};
+  document.getElementById('narcTableBody').innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-tertiary)">Uvozi CSV za prikaz podatkov</td></tr>';
+  document.getElementById('narcTableTitle').textContent = 'NAROČILNICE — negativne razlike';
+  document.getElementById('narcCount').textContent = '';
+  document.getElementById('narcFinishBtn').style.display = 'none';
+  document.getElementById('narcCsvText').value = '';
+}
+
 function narcRenderTable() {
   const q = (document.getElementById('narcSearch')?.value || '').toLowerCase();
   let rows = narcData.filter(r =>
     !q || r.sku.toLowerCase().includes(q) || r.naziv.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
   );
 
-  // Sort
   rows.sort((a, b) => {
     let av = a[narcSortCol], bv = b[narcSortCol];
     if (typeof av === 'string') av = av.toLowerCase();
@@ -2404,22 +2540,31 @@ function narcRenderTable() {
   document.getElementById('narcCount').textContent = rows.length + ' vrstic';
   const tbody = document.getElementById('narcTableBody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-tertiary)">Ni podatkov.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-tertiary)">Ni podatkov.</td></tr>';
     return;
   }
 
   tbody.innerHTML = rows.map(r => {
     const url = narcBuildUrl(r.sku);
-    return `<tr>
+    const shopUrl = narcShopUrls[r.sku.toUpperCase()] || narcShopUrls[r.sku] || null;
+    const isDone = narcClickedRows.has(r.sku);
+    const rowBg = isDone ? 'background:rgba(16,185,129,0.12)' : '';
+    return `<tr data-sku="${esc(r.sku)}" style="${rowBg}">
       <td>${esc(r.id)}</td>
-      <td><a href="${esc(url)}" target="_blank" class="narc-sku-link">${esc(r.sku)}</a></td>
+      <td>
+        <a href="${esc(url)}" target="_blank" class="narc-sku-link" onclick="narcMarkRow('${esc(r.sku)}')">${esc(r.sku)}</a>
+        ${shopUrl ? `<a href="${esc(shopUrl)}" target="_blank" title="Odpri v Maaarket" style="margin-left:6px;font-size:10px;color:var(--text-tertiary);text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-tertiary)'">🛒</a>` : ''}
+      </td>
       <td>${esc(r.naziv)}</td>
       <td class="${r.kolicina < 0 ? 'neg' : ''}">${r.kolicina}</td>
       <td class="neg">${r.razlika}</td>
       <td class="${r.slo < 0 ? 'neg' : ''}">${r.slo}</td>
       <td class="${r.rs < 0 ? 'neg' : ''}">${r.rs}</td>
+      <td><button onclick="narcMarkRow('${esc(r.sku)}')" style="font-size:10px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;color:var(--text-tertiary)" title="Označi kot obdelano">✓</button></td>
     </tr>`;
   }).join('');
+
+  narcCheckAllDone();
 }
 
 // History
@@ -2453,12 +2598,11 @@ async function narcLoadFromHistory(idx) {
     const res = await fetch('/narocilnice-history');
     const data = await res.json();
     if (!data[idx]) return;
-    document.getElementById('narcCsvText').value = data[idx].csv;
-    narcProcess();
+    narcProcessText(data[idx].csv);
   } catch(e) {}
 }
 
-updateMeta();renderH();ttRenderHistory();ttLoadHistory();metaLoadServerHistory();kLoadHistory();narcLoadHistory();setMetaWide(true);
+updateMeta();renderH();ttRenderHistory();ttLoadHistory();metaLoadServerHistory();kLoadHistory();narcLoadHistory();narcRenderLangFilter();setMetaWide(true);
 
 // Drag & drop
 document.addEventListener('DOMContentLoaded', () => {
