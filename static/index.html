@@ -345,8 +345,7 @@ input[type="text"].error { border-color: var(--red) !important; }
 .narc-lang-btn { padding:4px 10px; border-radius:20px; border:1px solid var(--border); background:var(--surface2); font-size:11px; font-weight:500; cursor:pointer; color:var(--text-secondary); transition:all 0.1s; font-family:'DM Sans',sans-serif; }
 .narc-lang-btn.active { background:var(--accent); color:white; border-color:var(--accent); }
 .narc-lang-btn:hover:not(.active) { border-color:var(--accent-border); color:var(--accent); }
-#page-lokalizacija ~ .main, body:has(#page-lokalizacija.active) .main { max-width: 100% !important; }
-body:has(#page-lokalizacija.active) .main { max-width: none !important; }
+#page-narocilnice .kreative-right, #page-lokalizacija .kreative-right { min-width: 0; overflow: hidden; }
 .k-option-btn { width:100%; text-align:left; padding:8px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.12s; display:flex; flex-direction:column; gap:2px; }
 .k-option-btn:hover { border-color:var(--accent-border); background:var(--accent-dim); }
 .k-option-btn.active { border-color:var(--accent); background:var(--accent-dim); }
@@ -2226,7 +2225,7 @@ function lokUpdateCount() {
   if (!el) return;
   if (!langs.length) { el.textContent = 'Izberi jezike...'; return; }
   const cost = (langs.length * 0.067).toFixed(2);
-  el.innerHTML = langs.length + ' jezikov · ~$' + cost;
+  el.innerHTML = langs.length + ' jezikov - ~$' + cost;
 }
 
 // Drag & drop
@@ -2353,7 +2352,7 @@ function narcRenderLangFilter() {
   if (!el) return;
   narcUpdateLangCount();
   el.innerHTML = NARC_LANGS.map(l =>
-    `<button class="narc-lang-btn${narcSelectedLangs.has(l.key) ? ' active' : ''}" onclick="narcToggleLang('${l.key}',this)" type="button">${l.flag} ${l.label}</button>`
+    '<button class="narc-lang-btn' + (narcSelectedLangs.has(l.key) ? ' active' : '') + '" onclick="narcToggleLang(\'' + l.key + '\',this)" type="button">' + l.flag + ' ' + l.label + '</button>'
   ).join('');
 }
 
@@ -2427,8 +2426,8 @@ function narcToggleLangPanel() {
   const chevron = document.getElementById('narcLangChevron');
   const open = panel.style.display === 'none';
   panel.style.display = open ? 'block' : 'none';
-  chevron.textContent = open ? '\u25b2' : '\u25bc';
-  if (chevron) chevron.textContent = open ? 'Zapri ▴' : 'Uredi ▾';
+  if (chevron) chevron.textContent = open ? 'Zapri' : 'Uredi';
+}
 
 function narcUpdateLangCount() {
   const el = document.getElementById('narcLangCount');
@@ -2555,24 +2554,23 @@ function narcRenderTable() {
     return;
   }
 
-  tbody.innerHTML = rows.map(r => {
+   tbody.innerHTML = rows.map(r => {
     const url = narcBuildUrl(r.sku);
     const shopUrl = narcShopUrls[r.sku.toUpperCase()] || narcShopUrls[r.sku] || null;
     const isDone = narcClickedRows.has(r.sku);
-    const rowBg = isDone ? 'background:rgba(16,185,129,0.12)' : '';
-    return `<tr data-sku="${esc(r.sku)}" style="${rowBg}">
-      <td>${esc(r.id)}</td>
-      <td>
-        <a href="${esc(url)}" target="_blank" class="narc-sku-link" onclick="narcToggleRow('${esc(r.sku)}', true)">${esc(r.sku)}</a>
-        ${shopUrl ? `<a href="${esc(shopUrl)}" target="_blank" title="Odpri v Maaarket" style="margin-left:6px;font-size:10px;color:var(--text-tertiary);text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-tertiary)'">🛒</a>` : ''}
-      </td>
-      <td>${esc(r.naziv)}</td>
-      <td class="${r.kolicina < 0 ? 'neg' : ''}">${r.kolicina}</td>
-      <td class="neg">${r.razlika}</td>
-      <td class="${r.slo < 0 ? 'neg' : ''}">${r.slo}</td>
-      <td class="${r.rs < 0 ? 'neg' : ''}">${r.rs}</td>
-      <td><button onclick="narcToggleRow('${esc(r.sku)}')" class="narc-check-btn${isDone ? ' done' : ''}" title="${isDone ? 'Klikni za razoznačitev' : 'Označi kot obdelano'}">${isDone ? '✓' : '○'}</button></td>
-    </tr>`;
+    const rowBg = isDone ? "background:rgba(16,185,129,0.12)" : "";
+    const shopLink = shopUrl ? '<a href="' + esc(shopUrl) + '" target="_blank" title="Odpri v Maaarket" style="margin-left:6px;font-size:10px;color:var(--text-tertiary);text-decoration:none">🛒</a>' : "";
+    const checkBtn = '<button onclick="narcToggleRow(\'' + esc(r.sku) + '\')" class="narc-check-btn' + (isDone ? " done" : "") + '">' + (isDone ? "✓" : "○") + '</button>';
+    return '<tr data-sku="' + esc(r.sku) + '" style="' + rowBg + '">' +
+      '<td>' + esc(r.id) + '</td>' +
+      '<td><a href="' + esc(url) + '" target="_blank" class="narc-sku-link" onclick="narcToggleRow(\'' + esc(r.sku) + '\'", true)">' + esc(r.sku) + '</a>' + shopLink + '</td>' +
+      '<td>' + esc(r.naziv) + '</td>' +
+      '<td class="' + (r.kolicina < 0 ? "neg" : "") + '">' + r.kolicina + '</td>' +
+      '<td class="neg">' + r.razlika + '</td>' +
+      '<td class="' + (r.slo < 0 ? "neg" : "") + '">' + r.slo + '</td>' +
+      '<td class="' + (r.rs < 0 ? "neg" : "") + '">' + r.rs + '</td>' +
+      '<td>' + checkBtn + '</td>' +
+      '</tr>';
   }).join('');
 
   narcCheckAllDone();
