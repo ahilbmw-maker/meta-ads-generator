@@ -1399,3 +1399,46 @@ async def localize_kreativa(data: dict):
             tasks.append(translate_one(lang_code, b64, mime, img_idx))
     results = await asyncio.gather(*tasks)
     return {"results": list(results)}
+
+
+# ─── NAROČILNICE HISTORY ─────────────────────────────────────────────────────
+
+NAROCILNICE_HISTORY_FILE = DATA_DIR / "narocilnice_history.json"
+
+@app.get("/narocilnice-history")
+async def get_narocilnice_history():
+    if NAROCILNICE_HISTORY_FILE.exists():
+        try:
+            return json.loads(NAROCILNICE_HISTORY_FILE.read_text(encoding="utf-8"))
+        except:
+            return []
+    return []
+
+@app.post("/narocilnice-history")
+async def save_narocilnice_history(data: dict):
+    try:
+        history = []
+        if NAROCILNICE_HISTORY_FILE.exists():
+            try:
+                history = json.loads(NAROCILNICE_HISTORY_FILE.read_text(encoding="utf-8"))
+            except:
+                history = []
+        
+        csv_text = data.get("csv", "")
+        date = data.get("date", "")
+        
+        # Count negative rows
+        rows = 0
+        for line in csv_text.split('\n')[1:]:
+            if line.strip():
+                rows += 1
+        
+        history.append({"csv": csv_text, "date": date, "rows": rows})
+        # Keep last 50
+        if len(history) > 50:
+            history = history[-50:]
+        
+        NAROCILNICE_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"status": "ok", "count": len(history)}
+    except Exception as e:
+        return {"error": str(e)}
