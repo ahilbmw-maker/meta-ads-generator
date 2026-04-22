@@ -335,7 +335,10 @@ input[type="text"].error { border-color: var(--red) !important; }
 .narc-table td.neg { color:#dc2626; font-weight:600; }
 .narc-sku-link { color:var(--accent); text-decoration:none; font-weight:600; }
 .narc-sku-link:hover { text-decoration:underline; }
-.narc-hist-item { padding:8px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); cursor:pointer; font-size:12px; margin-bottom:6px; transition:all 0.1s; }
+.narc-check-btn { font-size:13px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;color:var(--text-tertiary);transition:all 0.15s;font-family:'DM Sans',sans-serif; }
+.narc-check-btn.done { background:#10b981;color:white;border-color:#10b981; }
+.narc-check-btn:hover { border-color:#10b981;color:#10b981; }
+.narc-check-btn.done:hover { background:#059669;border-color:#059669; }
 .narc-hist-item:hover { border-color:var(--accent-border); background:var(--accent-dim); }
 .narc-hist-date { font-size:10px; color:var(--text-tertiary); }
 .narc-lang-filter { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px; }
@@ -897,14 +900,12 @@ body:has(#page-lokalizacija.active) .main { max-width: none !important; }
       <div style="min-width:0;overflow:hidden;display:flex;flex-direction:column;gap:12px">
 
         <!-- Lang filter — collapsible -->
-        <div class="card">
-          <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:2px 0" onclick="narcToggleLangPanel()">
-            <div style="display:flex;align-items:center;gap:8px">
-              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--text-secondary);fill:none;stroke-width:2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-              <span class="slabel" style="cursor:pointer">TRGOVINE / DRŽAVE</span>
-              <span id="narcLangCount" style="font-size:11px;font-weight:400;color:var(--text-tertiary)"></span>
-            </div>
-            <span id="narcLangChevron" style="font-size:11px;color:var(--text-tertiary)">▼ Uredi</span>
+        <div class="card" style="padding:10px 14px">
+          <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="narcToggleLangPanel()">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--text-secondary);fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span class="slabel" style="cursor:pointer">TRGOVINE / DRŽAVE</span>
+            <span id="narcLangCount" style="font-size:11px;font-weight:400;color:var(--text-tertiary)"></span>
+            <span id="narcLangChevron" style="margin-left:auto;font-size:11px;color:var(--text-tertiary);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 8px">Uredi ▾</span>
           </div>
           <div id="narcLangPanel" style="display:none;margin-top:10px">
             <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
@@ -2427,7 +2428,7 @@ function narcToggleLangPanel() {
   const open = panel.style.display === 'none';
   panel.style.display = open ? 'block' : 'none';
   chevron.textContent = open ? '\u25b2' : '\u25bc';
-}
+  if (chevron) chevron.textContent = open ? 'Zapri ▴' : 'Uredi ▾';
 
 function narcUpdateLangCount() {
   const el = document.getElementById('narcLangCount');
@@ -2498,11 +2499,18 @@ async function narcFetchShopUrls() {
   } catch(e) {}
 }
 
-function narcMarkRow(sku) {
-  narcClickedRows.add(sku);
-  // Color row green
+function narcToggleRow(sku, forceOn) {
+  if (forceOn) narcClickedRows.add(sku);
+  else if (narcClickedRows.has(sku)) narcClickedRows.delete(sku);
+  else narcClickedRows.add(sku);
+  const done = narcClickedRows.has(sku);
   document.querySelectorAll(`tr[data-sku="${CSS.escape(sku)}"]`).forEach(tr => {
-    tr.style.background = 'rgba(16,185,129,0.12)';
+    tr.style.background = done ? 'rgba(16,185,129,0.12)' : '';
+    const btn = tr.querySelector('.narc-check-btn');
+    if (btn) {
+      btn.textContent = done ? '✓' : '○';
+      btn.classList.toggle('done', done);
+    }
   });
   narcCheckAllDone();
 }
@@ -2555,7 +2563,7 @@ function narcRenderTable() {
     return `<tr data-sku="${esc(r.sku)}" style="${rowBg}">
       <td>${esc(r.id)}</td>
       <td>
-        <a href="${esc(url)}" target="_blank" class="narc-sku-link" onclick="narcMarkRow('${esc(r.sku)}')">${esc(r.sku)}</a>
+        <a href="${esc(url)}" target="_blank" class="narc-sku-link" onclick="narcToggleRow('${esc(r.sku)}', true)">${esc(r.sku)}</a>
         ${shopUrl ? `<a href="${esc(shopUrl)}" target="_blank" title="Odpri v Maaarket" style="margin-left:6px;font-size:10px;color:var(--text-tertiary);text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-tertiary)'">🛒</a>` : ''}
       </td>
       <td>${esc(r.naziv)}</td>
@@ -2563,7 +2571,7 @@ function narcRenderTable() {
       <td class="neg">${r.razlika}</td>
       <td class="${r.slo < 0 ? 'neg' : ''}">${r.slo}</td>
       <td class="${r.rs < 0 ? 'neg' : ''}">${r.rs}</td>
-      <td><button onclick="narcMarkRow('${esc(r.sku)}')" style="font-size:10px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;color:var(--text-tertiary)" title="Označi kot obdelano">✓</button></td>
+      <td><button onclick="narcToggleRow('${esc(r.sku)}')" class="narc-check-btn${isDone ? ' done' : ''}" title="${isDone ? 'Klikni za razoznačitev' : 'Označi kot obdelano'}">${isDone ? '✓' : '○'}</button></td>
     </tr>`;
   }).join('');
 
