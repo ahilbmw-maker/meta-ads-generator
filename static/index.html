@@ -932,13 +932,15 @@ input[type="text"].error { border-color: var(--red) !important; }
                 <th onclick="narcSort('naziv')">Naziv ↕</th>
                 <th onclick="narcSort('kolicina')">Količina ↕</th>
                 <th onclick="narcSort('razlika')">Prodano razlika ↕</th>
-                <th onclick="narcSort('slo')">Skladišče SLO ↕</th>
-                <th onclick="narcSort('rs')">Skladišče RS ↕</th>
+                <th onclick="narcSort('zalogaSl')">Zaloga SL ↕</th>
+                <th onclick="narcSort('zalogaRs')">Zaloga RS ↕</th>
+                <th onclick="narcSort('slo')">Razlika SL ↕</th>
+                <th onclick="narcSort('rs')">Razlika RS ↕</th>
                 <th>✓</th>
               </tr>
             </thead>
             <tbody id="narcTableBody">
-              <tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-tertiary)">Uvozi CSV za prikaz podatkov</td></tr>
+              <tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-tertiary)">Uvozi CSV za prikaz podatkov</td></tr>
             </tbody>
           </table>
         </div>
@@ -2456,6 +2458,8 @@ function narcProcessText(text, saveToHistory = true) {
   const colNaziv = find(['Naziv', 'naziv', 'name']);
   const colKolicina = find(['Količina', 'kolicina', 'qty']);
   const colRazlika = find(['Prodano razlika', 'prodano razlika']);
+  const colZalogaSl = find(['Zaloga SL', 'zaloga sl', 'zaloga slo']);
+  const colZalogaRs = find(['Zaloga RS', 'zaloga rs']);
   const colSlo = find(['Razlika prodaje SL', 'razlika prodaje sl']);
   const colRs = find(['Razlika prodaje RS', 'razlika prodaje rs']);
 
@@ -2467,6 +2471,8 @@ function narcProcessText(text, saveToHistory = true) {
       naziv: r[colNaziv] || '',
       kolicina: parseInt(r[colKolicina]) || 0,
       razlika: parseInt(r[colRazlika]) || 0,
+      zalogaSl: colZalogaSl ? (r[colZalogaSl] || 'Ni podatka') : 'Ni podatka',
+      zalogaRs: colZalogaRs ? (r[colZalogaRs] || 'Ni podatka') : 'Ni podatka',
       slo: parseInt(r[colSlo]) || 0,
       rs: parseInt(r[colRs]) || 0,
     }))
@@ -2545,7 +2551,7 @@ function narcRenderTable() {
   document.getElementById('narcCount').textContent = rows.length + ' vrstic';
   const tbody = document.getElementById('narcTableBody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-tertiary)">Ni podatkov.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-tertiary)">Ni podatkov.</td></tr>';
     return;
   }
 
@@ -2554,12 +2560,16 @@ function narcRenderTable() {
     const isDone = narcClickedRows.has(r.sku);
     const rowBg = isDone ? 'background:rgba(16,185,129,0.12)' : '';
     const checkBtn = '<button onclick="narcToggleRow(\'' + esc(r.sku) + '\')" class="narc-check-btn' + (isDone ? ' done' : '') + '">' + (isDone ? '\u2713' : '\u25cb') + '</button>';
+    const zalogaSlVal = r.zalogaSl === 'Ni podatka' ? '<span style="color:var(--text-tertiary);font-size:11px">Ni podatka</span>' : r.zalogaSl;
+    const zalogaRsVal = r.zalogaRs === 'Ni podatka' ? '<span style="color:var(--text-tertiary);font-size:11px">Ni podatka</span>' : r.zalogaRs;
     return '<tr data-sku="' + esc(r.sku) + '" style="' + rowBg + '">' +
       '<td>' + esc(r.id) + '</td>' +
       '<td><a href="' + esc(url) + '" target="_blank" class="narc-sku-link">' + esc(r.sku) + '</a></td>' +
       '<td>' + esc(r.naziv) + '</td>' +
       '<td class="' + (r.kolicina < 0 ? "neg" : "") + '">' + r.kolicina + '</td>' +
       '<td class="neg">' + r.razlika + '</td>' +
+      '<td>' + zalogaSlVal + '</td>' +
+      '<td>' + zalogaRsVal + '</td>' +
       '<td class="' + (r.slo < 0 ? "neg" : "") + '">' + r.slo + '</td>' +
       '<td class="' + (r.rs < 0 ? "neg" : "") + '">' + r.rs + '</td>' +
       '<td>' + checkBtn + '</td>' +
