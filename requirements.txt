@@ -4,3 +4,4 @@ anthropic
 python-multipart
 httpx
 openpyxl
+pdfplumber
