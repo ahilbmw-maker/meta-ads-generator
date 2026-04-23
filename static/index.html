@@ -3181,14 +3181,24 @@ async function vadsGenerateAudio(langCode) {
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
 
+    // Shrani audio blob za merge
+    window._vadsAudioBlobs = window._vadsAudioBlobs || {};
+    window._vadsAudioBlobs[langCode] = blob;
+
     player.style.display = 'block';
+    const hasVideo = !!vadsVideoFile;
     player.innerHTML = `
       <audio controls style="width:100%;height:36px">
         <source src="${url}" type="audio/mpeg">
       </audio>
-      <a href="${url}" download="voiceover_${langCode}.mp3" class="vads-audio-btn download" style="margin-top:6px;text-decoration:none">
-        ⬇ Prenesi MP3
-      </a>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <a href="${url}" download="voiceover_${langCode}.mp3" class="vads-audio-btn download" style="text-decoration:none;font-size:11px">
+          ⬇ MP3
+        </a>
+        ${hasVideo ? `<button class="vads-audio-btn generate" style="font-size:11px" onclick="vadsMergeVideo('${langCode}', this)">
+          🎬 Prenesi video
+        </button>` : ''}
+      </div>
     `;
     status.style.color = 'var(--green)';
     status.textContent = '✓ Audio pripravljen';
@@ -3200,6 +3210,45 @@ async function vadsGenerateAudio(langCode) {
     status.textContent = '✗ ' + e.message;
     btn.disabled = false;
     btn.innerHTML = '🎙 Generiraj audio';
+  }
+}
+
+async function vadsMergeVideo(langCode, btn) {
+  if (!vadsVideoFile) return;
+  const audioBlob = window._vadsAudioBlobs?.[langCode];
+  if (!audioBlob) return;
+
+  const origText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<div class="vads-spinner" style="border-top-color:white"></div> Spajam...';
+
+  try {
+    const formData = new FormData();
+    formData.append('video', vadsVideoFile, vadsVideoFile.name);
+    formData.append('audio', audioBlob, 'audio.mp3');
+    formData.append('lang', langCode);
+
+    const res = await fetch('/merge-video-audio', {method: 'POST', body: formData});
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Napaka: ' + (err.error || res.status));
+      btn.disabled = false; btn.innerHTML = origText;
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `video_${langCode}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    btn.innerHTML = '✓ Prenesen';
+    btn.disabled = false;
+  } catch(e) {
+    alert('Napaka: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = origText;
   }
 }
 
