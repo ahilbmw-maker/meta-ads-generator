@@ -2471,8 +2471,8 @@ function narcProcessText(text, saveToHistory = true) {
       naziv: r[colNaziv] || '',
       kolicina: parseInt(r[colKolicina]) || 0,
       razlika: parseInt(r[colRazlika]) || 0,
-      zalogaSl: (colZalogaSl && r[colZalogaSl]?.trim()) ? r[colZalogaSl].trim() : '',
-      zalogaRs: (colZalogaRs && r[colZalogaRs]?.trim()) ? r[colZalogaRs].trim() : '',
+      zalogaSl: (colZalogaSl && r[colZalogaSl]?.trim() && r[colZalogaSl].trim() !== 'Ni podatka') ? r[colZalogaSl].trim() : '',
+      zalogaRs: (colZalogaRs && r[colZalogaRs]?.trim() && r[colZalogaRs].trim() !== 'Ni podatka') ? r[colZalogaRs].trim() : '',
       slo: parseInt(r[colSlo]) || 0,
       rs: parseInt(r[colRs]) || 0,
     }))
