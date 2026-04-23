@@ -333,6 +333,16 @@ input[type="text"].error { border-color: var(--red) !important; }
 .narc-table td { padding:9px 12px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:middle; }
 .narc-table tr:hover td { background:var(--accent-dim); }
 .narc-table td.neg { color:#dc2626; font-weight:600; }
+.vads-lang-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; margin-bottom:8px; }
+.vads-lang-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px; font-weight:600; }
+.vads-script { font-size:12px; color:var(--text-secondary); line-height:1.6; padding:8px 10px; background:var(--surface2); border-radius:6px; margin-bottom:8px; white-space:pre-wrap; }
+.vads-audio-btn { padding:7px 14px; border:none; border-radius:var(--radius); font-size:12px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.15s; display:inline-flex; align-items:center; gap:5px; }
+.vads-audio-btn.generate { background:var(--accent); color:white; }
+.vads-audio-btn.generate:hover { background:#2d5fee; }
+.vads-audio-btn.download { background:var(--green-dim); color:var(--green); border:1px solid var(--green-border); }
+.vads-status { font-size:11px; margin-top:6px; color:var(--text-tertiary); }
+.vads-progress { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-tertiary); }
+.vads-spinner { width:12px; height:12px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; flex-shrink:0; }
 .narc-tab-bar { display:flex; gap:0; margin-bottom:14px; border-bottom:2px solid var(--border); }
 .narc-tab { padding:8px 20px; font-size:13px; font-weight:500; cursor:pointer; border:none; background:none; color:var(--text-secondary); font-family:'DM Sans',sans-serif; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.15s; }
 .narc-tab.active { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
@@ -469,6 +479,11 @@ input[type="text"].error { border-color: var(--red) !important; }
     <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
     Naročilnice
     <span class="nav-badge" style="background:#fff7ed;color:#c2410c">📦</span>
+  </div>
+  <div class="nav-item nav-videoads" id="nav-videoads" onclick="switchPage('videoads')">
+    <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+    Video Ads
+    <span class="nav-badge" style="background:#f0fdf4;color:#16a34a">NEW</span>
   </div>
 </nav>
 
@@ -1042,6 +1057,55 @@ input[type="text"].error { border-color: var(--red) !important; }
 
   </div><!-- /page-narocilnice -->
 
+  <!-- ═══ VIDEO ADS PAGE ═══ -->
+  <div class="page" id="page-videoads">
+    <div style="display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start">
+
+      <!-- LEVO: Input -->
+      <div>
+        <div class="card" style="margin-bottom:12px">
+          <span class="slabel">VNOS IZDELKA</span>
+          <div class="field" style="margin-top:10px">
+            <span class="flabel" style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px">URL ali kratek opis</span>
+            <input type="text" id="vadsInput" placeholder="https://... ali opis izdelka" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif" oninput="vadsInputChanged()">
+          </div>
+          <div class="field" style="margin-top:10px">
+            <span class="flabel" style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px">Trajanje skripte</span>
+            <div style="display:flex;gap:6px">
+              <button class="mode-btn on" id="vadsDur-15" onclick="vadsSetDur(15)" style="flex:1;padding:8px;font-size:12px;font-weight:500;cursor:pointer;border-radius:var(--radius);border:1.5px solid var(--accent-border);background:var(--accent-dim);color:var(--accent);font-family:'DM Sans',sans-serif">15s</button>
+              <button class="mode-btn" id="vadsDur-30" onclick="vadsSetDur(30)" style="flex:1;padding:8px;font-size:12px;font-weight:500;cursor:pointer;border-radius:var(--radius);border:1.5px solid var(--border);background:var(--surface);color:var(--text-secondary);font-family:'DM Sans',sans-serif">30s</button>
+            </div>
+          </div>
+          <button onclick="vadsGenerate()" id="vadsGenBtn" style="margin-top:12px;width:100%;padding:11px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:7px">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:white;fill:none;stroke-width:2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Generiraj skripte
+          </button>
+          <div id="vadsGenStatus" style="margin-top:8px;font-size:11px;color:var(--text-tertiary);text-align:center;display:none"></div>
+        </div>
+
+        <!-- Upload video -->
+        <div class="card">
+          <span class="slabel">TVOJ VIDEO</span>
+          <div id="vadsVideoZone" class="k-dropzone" style="margin-top:8px" onclick="document.getElementById('vadsVideoInput').click()">
+            <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            <span style="font-size:12px" id="vadsVideoLabel">Klikni ali povleci video sem</span>
+          </div>
+          <input type="file" id="vadsVideoInput" accept="video/*" style="display:none" onchange="vadsHandleVideo(this.files[0])">
+          <div id="vadsVideoStatus" style="margin-top:6px;font-size:11px;color:var(--text-tertiary);text-align:center;display:none"></div>
+        </div>
+      </div>
+
+      <!-- DESNO: Jeziki + skripte + audio -->
+      <div style="min-width:0;overflow:hidden">
+        <div id="vadsEmpty" class="card" style="text-align:center;padding:3rem;color:var(--text-tertiary)">
+          <svg viewBox="0 0 24 24" style="width:32px;height:32px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5;margin-bottom:12px"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          <div style="font-size:13px">Vpiši URL ali opis in klikni Generiraj skripte</div>
+        </div>
+        <div id="vadsResults" style="display:none;display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+    </div>
+  </div><!-- /page-videoads -->
+
 </div>
 
 <script>
@@ -1068,7 +1132,7 @@ function closeMenu(){
   document.querySelector('.sidebar').classList.remove('open');
   document.getElementById('overlay').classList.remove('open');
 }
-const PAGES = ['meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice'];
+const PAGES = ['meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads'];
 let currentIdx = 0;
 
 function switchPage(page) {
@@ -2907,6 +2971,157 @@ async function karanDeleteAllHistory() {
     await fetch('/karantena-history-set', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({history: []})});
     karanLoadHistory();
   } catch(e) {}
+}
+
+// ─── VIDEO ADS ────────────────────────────────────────────────────────────────
+
+const VADS_LANGS = [
+  {code:'sl', name:'Slovenščina', flag:'🇸🇮'},
+  {code:'hr', name:'Hrvaščina', flag:'🇭🇷'},
+  {code:'rs', name:'Srbščina', flag:'🇷🇸'},
+  {code:'hu', name:'Madžarščina', flag:'🇭🇺'},
+  {code:'cz', name:'Češčina', flag:'🇨🇿'},
+  {code:'sk', name:'Slovaščina', flag:'🇸🇰'},
+  {code:'pl', name:'Poljščina', flag:'🇵🇱'},
+  {code:'gr', name:'Grščina', flag:'🇬🇷'},
+  {code:'ro', name:'Romunščina', flag:'🇷🇴'},
+  {code:'bg', name:'Bolgarščina', flag:'🇧🇬'},
+];
+
+let vadsDuration = 15;
+let vadsScripts = {};
+let vadsVideoFile = null;
+
+function vadsSetDur(d) {
+  vadsDuration = d;
+  document.getElementById('vadsDur-15').style.background = d === 15 ? 'var(--accent-dim)' : 'var(--surface)';
+  document.getElementById('vadsDur-15').style.color = d === 15 ? 'var(--accent)' : 'var(--text-secondary)';
+  document.getElementById('vadsDur-15').style.borderColor = d === 15 ? 'var(--accent-border)' : 'var(--border)';
+  document.getElementById('vadsDur-30').style.background = d === 30 ? 'var(--accent-dim)' : 'var(--surface)';
+  document.getElementById('vadsDur-30').style.color = d === 30 ? 'var(--accent)' : 'var(--text-secondary)';
+  document.getElementById('vadsDur-30').style.borderColor = d === 30 ? 'var(--accent-border)' : 'var(--border)';
+}
+
+function vadsInputChanged() { }
+
+function vadsHandleVideo(file) {
+  if (!file) return;
+  vadsVideoFile = file;
+  document.getElementById('vadsVideoLabel').textContent = '✓ ' + file.name;
+  document.getElementById('vadsVideoStatus').style.display = 'none';
+}
+
+async function vadsGenerate() {
+  const input = document.getElementById('vadsInput').value.trim();
+  if (!input) { alert('Vpiši URL ali opis izdelka.'); return; }
+
+  const btn = document.getElementById('vadsGenBtn');
+  const status = document.getElementById('vadsGenStatus');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="vads-spinner"></div> Generiram skripte...';
+  status.style.display = 'block';
+  status.textContent = 'Claude analizira izdelek...';
+
+  document.getElementById('vadsEmpty').style.display = 'none';
+  document.getElementById('vadsResults').style.display = 'flex';
+  document.getElementById('vadsResults').style.flexDirection = 'column';
+  document.getElementById('vadsResults').innerHTML = VADS_LANGS.map(l =>
+    `<div class="vads-lang-card" id="vadsCard-${l.code}">
+      <div class="vads-lang-header">${l.flag} ${l.name}</div>
+      <div class="vads-progress"><div class="vads-spinner"></div> Generiram...</div>
+    </div>`
+  ).join('');
+
+  try {
+    const res = await fetch('/generate-video-scripts', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({input, duration: vadsDuration})
+    });
+    const data = await res.json();
+    if (data.error) { status.style.color = 'var(--red)'; status.textContent = '✗ ' + data.error; btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:white;fill:none;stroke-width:2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Generiraj skripte'; return; }
+
+    vadsScripts = data.scripts || {};
+    status.textContent = '✓ Skripte generirane za ' + Object.keys(vadsScripts).length + ' jezikov';
+    status.style.color = 'var(--green)';
+
+    // Prikaži skripte
+    VADS_LANGS.forEach(l => {
+      const card = document.getElementById('vadsCard-' + l.code);
+      if (!card) return;
+      const script = vadsScripts[l.code] || '';
+      card.innerHTML = `
+        <div class="vads-lang-header">${l.flag} ${l.name}</div>
+        <div class="vads-script">${esc(script)}</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="vads-audio-btn generate" onclick="vadsGenerateAudio('${l.code}')" id="vadsAudioBtn-${l.code}">
+            🎙 Generiraj audio
+          </button>
+          <span class="vads-status" id="vadsAudioStatus-${l.code}"></span>
+        </div>
+        <div id="vadsAudioPlayer-${l.code}" style="margin-top:8px;display:none"></div>
+      `;
+    });
+
+  } catch(e) {
+    status.style.color = 'var(--red)';
+    status.textContent = '✗ Napaka: ' + e.message;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:white;fill:none;stroke-width:2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Generiraj skripte';
+}
+
+async function vadsGenerateAudio(langCode) {
+  const script = vadsScripts[langCode];
+  if (!script) return;
+
+  const btn = document.getElementById('vadsAudioBtn-' + langCode);
+  const status = document.getElementById('vadsAudioStatus-' + langCode);
+  const player = document.getElementById('vadsAudioPlayer-' + langCode);
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="vads-spinner" style="border-top-color:white"></div> Generiram...';
+  status.textContent = 'ElevenLabs generira...';
+
+  try {
+    const res = await fetch('/generate-audio', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: script, lang: langCode})
+    });
+
+    if (!res.ok) { const err = await res.json(); status.style.color = 'var(--red)'; status.textContent = '✗ ' + (err.error || res.status); btn.disabled = false; btn.innerHTML = '🎙 Generiraj audio'; return; }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+
+    player.style.display = 'block';
+    player.innerHTML = `
+      <audio controls style="width:100%;height:36px">
+        <source src="${url}" type="audio/mpeg">
+      </audio>
+      <a href="${url}" download="voiceover_${langCode}.mp3" class="vads-audio-btn download" style="margin-top:6px;text-decoration:none">
+        ⬇ Prenesi MP3
+      </a>
+    `;
+    status.style.color = 'var(--green)';
+    status.textContent = '✓ Audio pripravljen';
+    btn.innerHTML = '🔄 Regeneriraj';
+    btn.disabled = false;
+
+  } catch(e) {
+    status.style.color = 'var(--red)';
+    status.textContent = '✗ ' + e.message;
+    btn.disabled = false;
+    btn.innerHTML = '🎙 Generiraj audio';
+  }
+}
+
+async function vadsGenerateAllAudio() {
+  for (const l of VADS_LANGS) {
+    if (vadsScripts[l.code]) await vadsGenerateAudio(l.code);
+  }
 }
 
 updateMeta();renderH();ttRenderHistory();ttLoadHistory();metaLoadServerHistory();kLoadHistory();narcLoadHistory();karanLoadHistory();narcRenderLangFilter();setMetaWide(true);
