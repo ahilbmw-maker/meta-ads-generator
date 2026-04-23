@@ -373,30 +373,26 @@ let chart=null;
 let chart2=null;
 
 // Load from server, reset if new day
+function getTodayLJ(){
+  // Ljubljana timezone datum
+  return new Date().toLocaleDateString('sl-SI', {timeZone:'Europe/Ljubljana'});
+}
+
 async function loadEntries(){
   try{
-    const today = new Date().toLocaleDateString('sl-SI');
+    const today = getTodayLJ();
     const data = await fetch(API_BASE + '/forecast-entries').then(r=>r.json());
     if(data && data.date === today && data.entries && data.entries.length > 0){
       entries = data.entries || [];
       return;
     }
-    // Poskusi iz history
-    const hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json());
-    if(hist && hist[today] && hist[today].length > 0){
-      entries = hist[today].map(e => ({
-        label: String(e.h).padStart(2,'0') + ':' + String(e.m).padStart(2,'0'),
-        dejanski: e.rev || 0,
-        dejanskiOrd: e.ord || 0
-      }));
-    } else {
-      entries = [];
-    }
+    // Ce ni danes ali ni vnosov — prazen dan
+    entries = [];
   }catch(e){ entries=[]; }
 }
 
 async function saveEntries(){
-  const today = new Date().toLocaleDateString('sl-SI');
+  const today = getTodayLJ();
   // Najprej shrani v history (bolj zanesljivo)
   await collectHistoricalData(today);
   // Potem shrani entries
@@ -444,7 +440,7 @@ async function updateDataCounter(hist){
     // Populate history dropdown
     const sel = document.getElementById('historyDateSelect');
     if(sel){
-      const today = new Date().toLocaleDateString('sl-SI');
+      const today = getTodayLJ();
       const keys = Object.keys(hist).sort().reverse();
       sel.innerHTML = '<option value="today">Danes</option>';
       keys.forEach(k => {
@@ -641,12 +637,12 @@ async function renderEodRows(){
   const eodData = await fetch(API_BASE + '/forecast-eod').then(r=>r.json()).catch(()=>({}));
   
   // Zadnjih 14 dni (brez danes)
-  const today = new Date().toLocaleDateString('sl-SI');
+  const today = getTodayLJ();
   const dates = [];
   for(let i=1; i<=14; i++){
     const d = new Date();
     d.setDate(d.getDate() - i);
-    dates.push(d.toLocaleDateString('sl-SI'));
+    dates.push(d.toLocaleDateString('sl-SI', {timeZone:'Europe/Ljubljana'}));
   }
   
   const el = document.getElementById('eodRows');
@@ -670,12 +666,12 @@ async function renderEodRows(){
 async function saveEodData(){
   const eodData = await fetch(API_BASE + '/forecast-eod').then(r=>r.json()).catch(()=>({}));
   
-  const today = new Date().toLocaleDateString('sl-SI');
+  const today = getTodayLJ();
   let saved = 0;
   for(let i=1; i<=14; i++){
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const date = d.toLocaleDateString('sl-SI');
+    const date = d.toLocaleDateString('sl-SI', {timeZone:'Europe/Ljubljana'});
     const key = 'eod_' + date.replace(/\./g,'_');
     const inp = document.getElementById(key);
     if(inp && inp.value && parseInt(inp.value) > 0){
