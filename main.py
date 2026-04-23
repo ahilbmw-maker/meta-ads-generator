@@ -1901,7 +1901,7 @@ async def merge_video_audio(
                     "ffmpeg", "-y",
                     "-i", video_path,
                     "-i", audio_path,
-                    "-vf", f"subtitles={srt_path}:force_style='FontSize=18,PrimaryColour=&Hffffff,OutlineColour=&H000000,Outline=2,Bold=1,Alignment=2'",
+                    "-vf", f"subtitles={srt_path}:force_style='FontSize=22,PrimaryColour=&H00FFFF,OutlineColour=&H000000,Outline=3,Shadow=1,Bold=1,Alignment=2,MarginV=40'",
                     "-map", "0:v:0",
                     "-map", "1:a:0",
                     "-c:v", "libx264",
