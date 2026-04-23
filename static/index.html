@@ -3176,32 +3176,42 @@ async function vadsGenerateAudio(langCode) {
       body: JSON.stringify({text: script, lang: langCode})
     });
 
-    if (!res.ok) { const err = await res.json(); status.style.color = 'var(--red)'; status.textContent = '✗ ' + (err.error || res.status); btn.disabled = false; btn.innerHTML = '🎙 Generiraj audio'; return; }
+    const data = await res.json();
+    if (data.error) { status.style.color = 'var(--red)'; status.textContent = '✗ ' + data.error; btn.disabled = false; btn.innerHTML = '🎙 Generiraj audio'; return; }
 
-    const blob = await res.blob();
+    // Konvertiraj base64 audio v blob
+    const audioBytes = Uint8Array.from(atob(data.audio_base64), c => c.charCodeAt(0));
+    const blob = new Blob([audioBytes], {type: 'audio/mpeg'});
     const url = URL.createObjectURL(blob);
 
-    // Shrani audio blob za merge
+    // Shrani za merge
     window._vadsAudioBlobs = window._vadsAudioBlobs || {};
     window._vadsAudioBlobs[langCode] = blob;
 
+    // Shrani SRT
+    window._vadsSrts = window._vadsSrts || {};
+    window._vadsSrts[langCode] = data.srt || '';
+
+    // SRT download URL
+    const srtBlob = new Blob([data.srt || ''], {type: 'text/plain'});
+    const srtUrl = URL.createObjectURL(srtBlob);
+
     player.style.display = 'block';
     const hasVideo = !!vadsVideoFile;
+    const hasSrt = !!(data.srt);
     player.innerHTML = `
       <audio controls style="width:100%;height:36px">
         <source src="${url}" type="audio/mpeg">
       </audio>
-      <div style="display:flex;gap:6px;margin-top:6px">
-        <a href="${url}" download="voiceover_${langCode}.mp3" class="vads-audio-btn download" style="text-decoration:none;font-size:11px">
-          ⬇ MP3
-        </a>
-        ${hasVideo ? `<button class="vads-audio-btn generate" style="font-size:11px" onclick="vadsMergeVideo('${langCode}', this)">
-          🎬 Prenesi video
-        </button>` : ''}
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <a href="${url}" download="voiceover_${langCode}.mp3" class="vads-audio-btn download" style="text-decoration:none;font-size:11px">⬇ MP3</a>
+        ${hasSrt ? `<a href="${srtUrl}" download="podnapisi_${langCode}.srt" class="vads-audio-btn download" style="text-decoration:none;font-size:11px">📝 SRT</a>` : ''}
+        ${hasVideo ? `<button class="vads-audio-btn generate" style="font-size:11px" onclick="vadsMergeVideo('${langCode}', this)">🎬 Video</button>` : ''}
+        ${hasVideo && hasSrt ? `<button class="vads-audio-btn generate" style="font-size:11px;background:#7c3aed" onclick="vadsMergeVideoSrt('${langCode}', this)">🎬+📝 Video + podnapisi</button>` : ''}
       </div>
     `;
     status.style.color = 'var(--green)';
-    status.textContent = '✓ Audio pripravljen';
+    status.textContent = '✓ Audio + podnapisi pripravljeni';
     btn.innerHTML = '🔄 Regeneriraj';
     btn.disabled = false;
 
@@ -3213,7 +3223,7 @@ async function vadsGenerateAudio(langCode) {
   }
 }
 
-async function vadsMergeVideo(langCode, btn) {
+async function _vadsMerge(langCode, btn, withSrt) {
   if (!vadsVideoFile) return;
   const audioBlob = window._vadsAudioBlobs?.[langCode];
   if (!audioBlob) return;
@@ -3227,10 +3237,14 @@ async function vadsMergeVideo(langCode, btn) {
     formData.append('video', vadsVideoFile, vadsVideoFile.name);
     formData.append('audio', audioBlob, 'audio.mp3');
     formData.append('lang', langCode);
+    if (withSrt && window._vadsSrts?.[langCode]) {
+      const srtBlob = new Blob([window._vadsSrts[langCode]], {type: 'text/plain'});
+      formData.append('srt', srtBlob, 'subs.srt');
+    }
 
     const res = await fetch('/merge-video-audio', {method: 'POST', body: formData});
     if (!res.ok) {
-      const err = await res.json();
+      const err = await res.json().catch(() => ({}));
       alert('Napaka: ' + (err.error || res.status));
       btn.disabled = false; btn.innerHTML = origText;
       return;
@@ -3250,6 +3264,14 @@ async function vadsMergeVideo(langCode, btn) {
     btn.disabled = false;
     btn.innerHTML = origText;
   }
+}
+
+async function vadsMergeVideo(langCode, btn) {
+  await _vadsMerge(langCode, btn, false);
+}
+
+async function vadsMergeVideoSrt(langCode, btn) {
+  await _vadsMerge(langCode, btn, true);
 }
 
 async function vadsGenerateAllAudio() {
