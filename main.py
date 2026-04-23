@@ -1690,8 +1690,8 @@ async def generate_video_scripts(data: dict):
 
     mode = "url" if input_text.startswith("http") else "text"
     tools = [{"type": "web_search_20250305", "name": "web_search"}] if mode == "url" else []
-    # ~2.5 besede/sekundo za naravni govorni tempo
-    words = max(20, min(120, int(duration * 2.5)))
+    # ~2.5 besede/sekundo za naravni govorni tempo, -1s buffer
+    words = max(20, min(120, int((duration - 1) * 2.5)))
 
     prompt = f"""{'Preberi to stran in' if mode == 'url' else 'Na podlagi tega opisa'} ustvari voice over skripte za video oglas v 10 jezikih.
 
