@@ -550,7 +550,21 @@ function addEntry(){
   renderChart();renderLog();
 }
 
-function clearEntries(){entries=[];saveEntries();if(chart){chart.destroy();chart=null;}if(chart2){chart2.destroy();chart2=null;}renderChart();renderLog();}
+function clearEntries(){
+  if(!confirm('Pobrisati vse vnose za danes?')) return;
+  entries=[];
+  // Zbriši tudi na serverju
+  const today = getTodayLJ();
+  fetch(API_BASE + '/forecast-entries', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({date:today, entries:[]})
+  }).catch(()=>{});
+  if(chart){chart.destroy();chart=null;}
+  if(chart2){chart2.destroy();chart2=null;}
+  renderChart();renderLog();
+  document.getElementById('result').style.display='none';
+  document.getElementById('empty').style.display='block';
+}
 
 function removeEntry(i){entries.splice(i,1);saveEntries();renderChart();renderLog();}
 
