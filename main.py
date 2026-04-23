@@ -300,26 +300,10 @@ EMOJI PRAVILO: Uporabljaj SAMO te emoji-je ki so zagotovo podprti na vseh naprav
 NE uporabljaj: redkih, novejših ali manj znanih emoji-jev ki se lahko prikažejo kot □
 Vrni SAMO JSON: {{"product": "ime", "pt": [{pt_ph}], "hl": [{hl_ph}]}}"""
 
-    try:
-        sl_text = await call_claude(sl_prompt, "claude-sonnet-4-6", tools if tools else None, 4000)
-    except Exception as e:
-        print(f"[generate_meta_sl_only] Claude API error: {e}")
-        return {"error": f"API napaka: {str(e)[:100]}"}
-    
-    print(f"[generate_meta_sl_only] raw response (first 200): {sl_text[:200]}")
+    sl_text = await call_claude(sl_prompt, "claude-sonnet-4-6", tools if tools else None, 4000)
     sl_data = parse_json_response(sl_text)
     if not sl_data:
-        # Retry brez web search ce je bil URL mode
-        if mode == "url" and tools:
-            print(f"[generate_meta_sl_only] JSON parse failed, retrying without web search...")
-            try:
-                sl_text2 = await call_claude(sl_prompt, "claude-sonnet-4-6", None, 4000)
-                sl_data = parse_json_response(sl_text2)
-            except Exception as e2:
-                print(f"[generate_meta_sl_only] Retry failed: {e2}")
-        if not sl_data:
-            print(f"[generate_meta_sl_only] FAILED. Raw: {sl_text[:300]}")
-            return {"error": "Napaka pri generiranju SL tekstov."}
+        return {"error": "Napaka pri generiranju SL tekstov."}
     return {
         "product": sl_data.get("product", "Izdelek"),
         "sl": {"pt": sl_data.get("pt", []), "hl": sl_data.get("hl", [])},
@@ -345,24 +329,11 @@ EMOJI PRAVILO: Uporabljaj SAMO te emoji-je ki so zagotovo podprti na vseh naprav
 NE uporabljaj: redkih, novejših ali manj znanih emoji-jev ki se lahko prikažejo kot □
 Vrni SAMO JSON: {{"product": "ime", "pt": [{pt_ph}], "hl": [{hl_ph}]}}"""
 
-        try:
-            sl_text = await call_claude(sl_prompt, "claude-sonnet-4-6", tools if tools else None, 4000)
-        except Exception as e:
-            print(f"[generate_meta_one] Claude API error: {e}")
-            return {"error": f"API napaka: {str(e)[:100]}"}
+        sl_text = await call_claude(sl_prompt, "claude-sonnet-4-6", tools if tools else None, 4000)
         sl_data = parse_json_response(sl_text)
         if not sl_data:
-            print(f"[generate_meta_one] SL parse failed. Raw: {sl_text[:500]}")
-            # Retry brez web search
-            if mode == "url" and tools:
-                print(f"[generate_meta_one] Retrying without web search...")
-                try:
-                    sl_text2 = await call_claude(sl_prompt, "claude-sonnet-4-6", None, 4000)
-                    sl_data = parse_json_response(sl_text2)
-                except Exception as e2:
-                    print(f"[generate_meta_one] Retry failed: {e2}")
-            if not sl_data:
-                return {"error": "Napaka pri generiranju SL tekstov."}
+            print(f"SL parse failed. Raw response: {sl_text[:500]}")
+            return {"error": "Napaka pri generiranju SL tekstov."}
 
         sl_pts = sl_data.get("pt", [])
         sl_hls = sl_data.get("hl", [])
@@ -1551,4 +1522,114 @@ async def save_forecast_eod(data: dict):
         FORECAST_EOD_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         return {"status": "ok", "count": len(data)}
     except Exception as e:
+        return {"error": str(e)}
+
+
+# ─── KARANTENA PDF PARSER ─────────────────────────────────────────────────────
+
+from fastapi import UploadFile, File
+import io
+import re as _re
+
+@app.post("/parse-karantena-pdf")
+async def parse_karantena_pdf(file: UploadFile = File(...)):
+    """Parsira PDF karantene in vrne strukturirane podatke."""
+    try:
+        import pdfplumber
+        content = await file.read()
+        rows = []
+        
+        with pdfplumber.open(io.BytesIO(content)) as pdf:
+            full_text = ""
+            for page in pdf.pages:
+                # Poskusi extract table najprej
+                tables = page.extract_tables()
+                if tables:
+                    for table in tables:
+                        for row in table:
+                            if not row or not any(row):
+                                continue
+                            # Preskoči header vrstice
+                            if row[0] and str(row[0]).strip().lower() in ('product_id', 'id', '#'):
+                                continue
+                            # Normalizacija vrstice
+                            cells = [str(c).strip() if c else '' for c in row]
+                            if len(cells) >= 3:
+                                product_id = cells[0] if cells[0] else ''
+                                sku = cells[1] if len(cells) > 1 else ''
+                                title = cells[2] if len(cells) > 2 else ''
+                                stock = cells[3] if len(cells) > 3 else '0'
+                                stock_actual = cells[4] if len(cells) > 4 else '0'
+                                position = cells[5] if len(cells) > 5 else ''
+                                
+                                # Preskoči header
+                                if sku.lower() in ('product_sku', 'sku', ''):
+                                    continue
+                                
+                                try: stock = int(float(stock))
+                                except: stock = 0
+                                try: stock_actual = int(float(stock_actual))
+                                except: stock_actual = 0
+                                
+                                rows.append({
+                                    'product_id': product_id,
+                                    'sku': sku,
+                                    'title': title,
+                                    'stock': stock,
+                                    'stock_actual': stock_actual,
+                                    'position': position,
+                                })
+                else:
+                    full_text += (page.extract_text() or "") + "\n"
+            
+            # Fallback: text parsing če ni tabel
+            if not rows and full_text:
+                lines = full_text.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    parts = line.split()
+                    if len(parts) >= 3 and parts[0].isdigit():
+                        product_id = parts[0]
+                        sku = parts[1]
+                        # Preskoči header
+                        if sku.lower() in ('product_sku', 'sku'):
+                            continue
+                        # Poišči zadnji del ki je številka (stock)
+                        stock = 0
+                        stock_actual = 0
+                        position = ''
+                        title_parts = []
+                        for i, p in enumerate(parts[2:], 2):
+                            if _re.match(r'^\d+$', p):
+                                stock = int(p)
+                                if i+1 < len(parts) and _re.match(r'^\d+$', parts[i+1]):
+                                    stock_actual = int(parts[i+1])
+                                    if i+2 < len(parts):
+                                        position = parts[i+2]
+                                break
+                            else:
+                                title_parts.append(p)
+                        title = ' '.join(title_parts)
+                        rows.append({
+                            'product_id': product_id,
+                            'sku': sku,
+                            'title': title,
+                            'stock': stock,
+                            'stock_actual': stock_actual,
+                            'position': position,
+                        })
+        
+        if not rows:
+            return {"error": "Ni podatkov v PDF-u."}
+        
+        print(f"[karantena] Parsed {len(rows)} rows from PDF")
+        return {"rows": rows, "count": len(rows)}
+        
+    except ImportError:
+        return {"error": "pdfplumber ni nameščen. Dodaj ga v requirements.txt."}
+    except Exception as e:
+        import traceback
+        print(f"[karantena] Error: {e}\n{traceback.format_exc()[-500:]}")
         return {"error": str(e)}
