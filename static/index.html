@@ -3100,23 +3100,32 @@ function vadsHandleVideos(files) {
     '<button onclick="vadsRemoveVideo(' + i + ')" style="background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:12px;padding:0 2px">×</button>' +
     '</div>'
   ).join('');
-  // Preberi trajanje prvega videa
-  const videoEl = document.createElement('video');
-  videoEl.preload = 'metadata';
-  videoEl.onloadedmetadata = function() {
-    URL.revokeObjectURL(videoEl.src);
-    const dur = Math.round(videoEl.duration);
-    vadsDuration = dur;
-    const lbl = document.getElementById('vadsVideoDurLabel');
-    if (lbl) lbl.textContent = dur;
-    document.getElementById('vadsDurAuto').style.display = 'block';
-    document.getElementById('vadsDurManual').style.display = 'none';
-  };
-  videoEl.onerror = function() {
-    document.getElementById('vadsDurAuto').style.display = 'none';
-    document.getElementById('vadsDurManual').style.display = 'flex';
-  };
-  videoEl.src = URL.createObjectURL(vadsVideoFiles[0]);
+  // Preberi trajanje vseh videotov
+  window._vadsVideoDurations = new Array(vadsVideoFiles.length).fill(0);
+  vadsVideoFiles.forEach((f, i) => {
+    const el = document.createElement('video');
+    el.preload = 'metadata';
+    el.onloadedmetadata = function() {
+      URL.revokeObjectURL(el.src);
+      window._vadsVideoDurations[i] = Math.round(el.duration);
+      const loaded = window._vadsVideoDurations.filter(d => d > 0).length;
+      if (loaded === vadsVideoFiles.length) {
+        const minDur = Math.min(...window._vadsVideoDurations);
+        vadsDuration = minDur;
+        const lbl = document.getElementById('vadsVideoDurLabel');
+        if (lbl) lbl.textContent = vadsVideoFiles.length > 1
+          ? window._vadsVideoDurations.join('s / ') + 's'
+          : minDur + 's';
+        document.getElementById('vadsDurAuto').style.display = 'block';
+        document.getElementById('vadsDurManual').style.display = 'none';
+      }
+    };
+    el.onerror = function() {
+      document.getElementById('vadsDurAuto').style.display = 'none';
+      document.getElementById('vadsDurManual').style.display = 'flex';
+    };
+    el.src = URL.createObjectURL(f);
+  });
 }
 
 function vadsHandleVideo(file) {
@@ -3156,10 +3165,18 @@ async function vadsGenerate() {
   ).join('');
 
   try {
+    // Generiraj skripte za vsak video z njegovo dolžino
+    const durations = (window._vadsVideoDurations && window._vadsVideoDurations.length === vadsVideoFiles.length)
+      ? window._vadsVideoDurations
+      : vadsVideoFiles.map(() => vadsDuration);
+
+    // Generiraj za najkrajši video (konzervativno)
+    const minDur = durations.length ? Math.min(...durations) : vadsDuration;
+
     const res = await fetch('/generate-video-scripts', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({input, duration: vadsDuration})
+      body: JSON.stringify({input, duration: minDur, durations: durations})
     });
     const data = await res.json();
     if (data.error) { status.style.color = 'var(--red)'; status.textContent = '✗ ' + data.error; btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:white;fill:none;stroke-width:2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Generiraj skripte'; return; }
@@ -3336,7 +3353,8 @@ async function vadsDownloadAllZip() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<div class="vads-spinner" style="border-top-color:white"></div> Ustvarjam ZIP...'; }
 
   try {
-    const { default: JSZip } = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+    if (!window.JSZip) { await new Promise((res,rej) => { const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+    const JSZip = window.JSZip;
     const zip = new JSZip();
     const hasVideos = vadsVideoFiles.length > 0;
     const audioBlobs = window._vadsAudioBlobs || {};
@@ -3348,9 +3366,10 @@ async function vadsDownloadAllZip() {
       if (status) status.textContent = 'Dodajam ' + langName + '...';
 
       if (hasVideos) {
-        // Merge video + audio (+ srt) za vsak video
+        // Merge video + audio za vsak video
         for (let vi = 0; vi < vadsVideoFiles.length; vi++) {
           const videoFile = vadsVideoFiles[vi];
+          if (status) status.textContent = lang.toUpperCase() + ' · video ' + (vi+1) + '/' + vadsVideoFiles.length + '...';
           const formData = new FormData();
           formData.append('video', videoFile, videoFile.name);
           formData.append('audio', blob, 'audio.mp3');
