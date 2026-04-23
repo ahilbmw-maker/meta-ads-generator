@@ -1633,3 +1633,47 @@ async def parse_karantena_pdf(file: UploadFile = File(...)):
         import traceback
         print(f"[karantena] Error: {e}\n{traceback.format_exc()[-500:]}")
         return {"error": str(e)}
+
+
+# ─── KARANTENA HISTORY ────────────────────────────────────────────────────────
+
+KARANTENA_HISTORY_FILE = DATA_DIR / "karantena_history.json"
+
+@app.get("/karantena-history")
+async def get_karantena_history():
+    if KARANTENA_HISTORY_FILE.exists():
+        try:
+            return json.loads(KARANTENA_HISTORY_FILE.read_text(encoding="utf-8"))
+        except:
+            return []
+    return []
+
+@app.post("/karantena-history")
+async def save_karantena_history(data: dict):
+    try:
+        history = []
+        if KARANTENA_HISTORY_FILE.exists():
+            try:
+                history = json.loads(KARANTENA_HISTORY_FILE.read_text(encoding="utf-8"))
+            except:
+                history = []
+        history.append({
+            "rows": data.get("rows", []),
+            "filename": data.get("filename", ""),
+            "date": data.get("date", "")
+        })
+        if len(history) > 30:
+            history = history[-30:]
+        KARANTENA_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"status": "ok"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/karantena-history-set")
+async def set_karantena_history(data: dict):
+    try:
+        history = data.get("history", [])
+        KARANTENA_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"status": "ok"}
+    except Exception as e:
+        return {"error": str(e)}
