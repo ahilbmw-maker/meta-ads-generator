@@ -259,6 +259,8 @@ const MIN_DAYS_PERSONAL = 7;
 // Aktivni weights — na začetku default, po učenju osebni
 let WN = W_DEFAULT.map(w=>w/W_DEFAULT.reduce((a,b)=>a+b,0));
 let personalModelActive = false;
+let historicalAvgOrdByHour = new Array(24).fill(0); // povprečna naročila ob vsaki uri
+let historicalAvgDailyOrd = 0; // povprečno dnevno naročil
 
 function cumW(h,m){let s=0;for(let i=0;i<h;i++)s+=WN[i];s+=WN[Math.min(h,23)]*(m/60);return s;}
 
@@ -330,6 +332,33 @@ function buildPersonalWeights(hist, eodData={}){
   return smoothed.map(v=>v/total);
 }
 
+// Izračuna povprečna naročila ob vsaki uri iz zgodovine
+function buildHistoricalAverages(hist, eodData={}){
+  const hourSums = new Array(24).fill(0);   // skupaj naročil ob tej uri čez vse dni
+  const hourDays = new Array(24).fill(0);   // koliko dni ima podatke za to uro
+  const dailyTotals = [];
+
+  for(const day of Object.keys(hist)){
+    const dayEntries = hist[day];
+    if(!dayEntries || dayEntries.length < 2) continue;
+    const sorted = [...dayEntries].sort((a,b) => (a.h*60+a.m) - (b.h*60+b.m));
+    const lastEntry = sorted[sorted.length-1];
+    const totalOrd = eodData[day] || lastEntry.ord;
+    if(!totalOrd || totalOrd <= 0) continue;
+    dailyTotals.push(totalOrd);
+
+    // Za vsak vnos — koliko naročil je bilo ob tej uri
+    for(const e of sorted){
+      hourSums[Math.min(e.h, 23)] += e.ord;
+      hourDays[Math.min(e.h, 23)]++;
+    }
+  }
+
+  const avgByHour = hourSums.map((s, i) => hourDays[i] > 0 ? s / hourDays[i] : 0);
+  const avgDaily = dailyTotals.length > 0 ? dailyTotals.reduce((a,b)=>a+b,0) / dailyTotals.length : 0;
+  return { avgByHour, avgDaily };
+}
+
 async function loadPersonalModel(){
   try{
     const resp = await fetch(API_BASE + '/forecast-history');
@@ -356,7 +385,11 @@ async function loadPersonalModel(){
       if(personal){
         WN = personal;
         personalModelActive = true;
-        console.log('[forecast] Osebni model aktiven iz', days.length, 'dni, EOD:', Object.keys(eodData).length, 'dni');
+        // Izračunaj zgodovinska povprečja za ratio model
+        const avgs = buildHistoricalAverages(hist, eodData);
+        historicalAvgOrdByHour = avgs.avgByHour;
+        historicalAvgDailyOrd = avgs.avgDaily;
+        console.log('[forecast] Osebni model aktiven iz', days.length, 'dni, avg daily ord:', Math.round(historicalAvgDailyOrd));
         return days.length;
       }
     }
@@ -516,11 +549,23 @@ function calc(){
     document.getElementById('weighted-info').style.display='none';
     document.getElementById('hl-lbl').textContent='predviden dnevni promet (linearno)';
   }else{
-    const cw=cumW(h,m);if(cw<=0)return;
-    predOrd=Math.round(ord/cw);predRev=predOrd*avg;
-    document.getElementById('weighted-info').style.display='block';
-    document.getElementById('hour-label').textContent=HNAMES[Math.min(h,23)];
-    document.getElementById('hl-lbl').textContent=personalModelActive?'predviden dnevni promet (osebni model 🧠)':'predviden dnevni promet (uteženni)';
+    if(personalModelActive && historicalAvgDailyOrd > 0 && historicalAvgOrdByHour[Math.min(h,23)] > 0){
+      // Ratio model: danes/povprečje ob tej uri * povprečni dnevni total
+      const avgAtThisHour = historicalAvgOrdByHour[Math.min(h,23)];
+      const ratio = ord / avgAtThisHour;
+      predOrd = Math.round(ratio * historicalAvgDailyOrd);
+      predRev = predOrd * avg;
+      document.getElementById('weighted-info').style.display='block';
+      document.getElementById('hour-label').textContent=HNAMES[Math.min(h,23)];
+      document.getElementById('hl-lbl').textContent='predviden dnevni promet (osebni model 🧠)';
+    } else {
+      // Fallback: weights model
+      const cw=cumW(h,m);if(cw<=0)return;
+      predOrd=Math.round(ord/cw);predRev=predOrd*avg;
+      document.getElementById('weighted-info').style.display='block';
+      document.getElementById('hour-label').textContent=HNAMES[Math.min(h,23)];
+      document.getElementById('hl-lbl').textContent=personalModelActive?'predviden dnevni promet (osebni model 🧠)':'predviden dnevni promet (uteženni)';
+    }
   }
   lastPredRev=predRev;
   lastPredOrd=predOrd;
