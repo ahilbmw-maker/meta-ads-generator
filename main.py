@@ -1942,3 +1942,61 @@ async def merge_video_audio(
         return JR({"error": "FFmpeg timeout."}, status_code=500)
     except Exception as e:
         return JR({"error": str(e)}, status_code=500)
+
+
+# ─── VIDEO ADS HISTORY ────────────────────────────────────────────────────────
+
+VADS_HISTORY_FILE = DATA_DIR / "vads_history.json"
+
+def vads_cleanup_old():
+    """Zbriše vnose starejše od 7 dni."""
+    if not VADS_HISTORY_FILE.exists():
+        return
+    try:
+        history = json.loads(VADS_HISTORY_FILE.read_text(encoding="utf-8"))
+        cutoff = datetime.now() - timedelta(days=7)
+        history = [h for h in history if datetime.strptime(h.get("date","1.1.2000 00:00"), "%d.%m.%Y %H:%M") > cutoff]
+        VADS_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+    except:
+        pass
+
+@app.get("/vads-history")
+async def get_vads_history():
+    vads_cleanup_old()
+    if VADS_HISTORY_FILE.exists():
+        try:
+            return json.loads(VADS_HISTORY_FILE.read_text(encoding="utf-8"))
+        except:
+            return []
+    return []
+
+@app.post("/vads-history")
+async def save_vads_history(data: dict):
+    try:
+        history = []
+        if VADS_HISTORY_FILE.exists():
+            try:
+                history = json.loads(VADS_HISTORY_FILE.read_text(encoding="utf-8"))
+            except:
+                history = []
+        history.append({
+            "input": data.get("input", ""),
+            "product": data.get("product", ""),
+            "scripts": data.get("scripts", {}),
+            "date": data.get("date", "")
+        })
+        if len(history) > 50:
+            history = history[-50:]
+        VADS_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"status": "ok"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/vads-history-set")
+async def set_vads_history(data: dict):
+    try:
+        history = data.get("history", [])
+        VADS_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"status": "ok"}
+    except Exception as e:
+        return {"error": str(e)}
