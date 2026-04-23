@@ -1734,6 +1734,76 @@ ELEVENLABS_VOICES = {
     "bg": "pNInz6obpgDQGcFmaJgB",
 }
 
+def build_srt(alignment: dict) -> str:
+    """Generira SRT podnapise iz ElevenLabs alignment podatkov."""
+    chars = alignment.get("characters", [])
+    starts = alignment.get("character_start_times_seconds", [])
+    ends = alignment.get("character_end_times_seconds", [])
+    
+    if not chars or not starts:
+        return ""
+    
+    # Združi znake v besede
+    words = []
+    cur_word = ""
+    cur_start = None
+    cur_end = None
+    
+    for i, ch in enumerate(chars):
+        if i >= len(starts):
+            break
+        t_start = starts[i]
+        t_end = ends[i] if i < len(ends) else t_start + 0.1
+        
+        if ch in (' ', '
+', '	'):
+            if cur_word:
+                words.append((cur_word, cur_start, cur_end))
+                cur_word = ""
+                cur_start = None
+        else:
+            if cur_start is None:
+                cur_start = t_start
+            cur_end = t_end
+            cur_word += ch
+    
+    if cur_word:
+        words.append((cur_word, cur_start, cur_end))
+    
+    if not words:
+        return ""
+    
+    # Grupiraj besede v vrstice (max 5 besed ali 3s na vrstico)
+    def fmt_time(s):
+        h = int(s // 3600)
+        m = int((s % 3600) // 60)
+        sec = int(s % 60)
+        ms = int((s - int(s)) * 1000)
+        return f"{h:02d}:{m:02d}:{sec:02d},{ms:03d}"
+    
+    lines = []
+    i = 0
+    idx = 1
+    while i < len(words):
+        group = [words[i]]
+        i += 1
+        while i < len(words) and len(group) < 5 and (words[i][1] - group[0][1]) < 3.0:
+            group.append(words[i])
+            i += 1
+        
+        line_text = " ".join(w[0] for w in group)
+        t_in = group[0][1]
+        t_out = group[-1][2]
+        lines.append(f"{idx}
+{fmt_time(t_in)} --> {fmt_time(t_out)}
+{line_text}
+")
+        idx += 1
+    
+    return "
+".join(lines)
+
+
 @app.post("/generate-audio")
 async def generate_audio(data: dict):
     text = data.get("text", "").strip()
@@ -1750,13 +1820,13 @@ async def generate_audio(data: dict):
     voice_id = ELEVENLABS_VOICES.get(lang, "pNInz6obpgDQGcFmaJgB")
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as hc:
+        async with httpx.AsyncClient(timeout=60.0) as hc:
+            # Uporabi /with-timestamps endpoint za alignment podatke
             resp = await hc.post(
-                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/with-timestamps",
                 headers={
                     "xi-api-key": api_key,
                     "Content-Type": "application/json",
-                    "Accept": "audio/mpeg",
                 },
                 json={
                     "text": text,
@@ -1764,15 +1834,29 @@ async def generate_audio(data: dict):
                     "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
                 }
             )
+
         if resp.status_code != 200:
             from fastapi.responses import JSONResponse
-            return JSONResponse({"error": f"ElevenLabs napaka {resp.status_code}: {resp.text[:200]}"}, status_code=400)
+            return JSONResponse({"error": f"ElevenLabs napaka {resp.status_code}: {resp.text[:300]}"}, status_code=400)
 
-        return StreamingResponse(
-            iter([resp.content]),
-            media_type="audio/mpeg",
-            headers={"Content-Disposition": f"attachment; filename=voiceover_{lang}.mp3"}
-        )
+        result = resp.json()
+        
+        # Dekodira audio iz base64
+        import base64
+        audio_b64 = result.get("audio_base64", "")
+        audio_bytes = base64.b64decode(audio_b64)
+        
+        # Generiraj SRT iz alignment
+        alignment = result.get("alignment", {})
+        srt = build_srt(alignment)
+        
+        # Vrni JSON z audio (base64) + SRT
+        return {
+            "audio_base64": audio_b64,
+            "srt": srt,
+            "lang": lang
+        }
+
     except Exception as e:
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -1784,41 +1868,66 @@ async def generate_audio(data: dict):
 async def merge_video_audio(
     video: UploadFile = File(...),
     audio: UploadFile = File(...),
-    lang: str = "sl"
+    lang: str = "sl",
+    srt: UploadFile = File(None),
 ):
-    """Spoji video + audio z FFmpeg in vrne MP4."""
+    """Spoji video + audio (+ opcijsko SRT podnapisi) z FFmpeg."""
     import subprocess, tempfile
+    from fastapi.responses import JSONResponse as JR
     try:
         with tempfile.TemporaryDirectory() as tmp:
             video_path = f"{tmp}/input.mp4"
             audio_path = f"{tmp}/audio.mp3"
+            srt_path = f"{tmp}/subs.srt"
             output_path = f"{tmp}/output_{lang}.mp4"
 
-            # Shrani uploadane fajle
             with open(video_path, "wb") as f:
                 f.write(await video.read())
             with open(audio_path, "wb") as f:
                 f.write(await audio.read())
 
-            # FFmpeg: zamenjaj audio track, ohrani video dolžino
-            cmd = [
-                "ffmpeg", "-y",
-                "-i", video_path,
-                "-i", audio_path,
-                "-map", "0:v:0",      # video iz prvega inputa
-                "-map", "1:a:0",      # audio iz drugega inputa
-                "-c:v", "copy",       # video brez rekodiranja (hitro)
-                "-c:a", "aac",        # audio kot AAC
-                "-shortest",          # konča ko se krajši konča
-                output_path
-            ]
-            result = subprocess.run(cmd, capture_output=True, timeout=120)
+            has_srt = False
+            if srt:
+                srt_content = await srt.read()
+                if srt_content.strip():
+                    with open(srt_path, "wb") as f:
+                        f.write(srt_content)
+                    has_srt = True
+
+            if has_srt:
+                # Vžgi podnapise v video (hardsubbed) — vidni na vseh playerjih
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-i", video_path,
+                    "-i", audio_path,
+                    "-vf", f"subtitles={srt_path}:force_style='FontSize=18,PrimaryColour=&Hffffff,OutlineColour=&H000000,Outline=2,Bold=1,Alignment=2'",
+                    "-map", "0:v:0",
+                    "-map", "1:a:0",
+                    "-c:v", "libx264",
+                    "-c:a", "aac",
+                    "-shortest",
+                    output_path
+                ]
+            else:
+                # Samo audio zamenjava, video brez rekodiranja
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-i", video_path,
+                    "-i", audio_path,
+                    "-map", "0:v:0",
+                    "-map", "1:a:0",
+                    "-c:v", "copy",
+                    "-c:a", "aac",
+                    "-shortest",
+                    output_path
+                ]
+
+            result = subprocess.run(cmd, capture_output=True, timeout=180)
 
             if result.returncode != 0:
-                return JSONResponse(
-                    {"error": f"FFmpeg napaka: {result.stderr.decode()[-300:]}"},
-                    status_code=500
-                )
+                err_msg = result.stderr.decode(errors='replace')[-400:]
+                print(f"[merge] FFmpeg error: {err_msg}")
+                return JR({"error": f"FFmpeg napaka: {err_msg}"}, status_code=500)
 
             with open(output_path, "rb") as f:
                 video_bytes = f.read()
@@ -1829,6 +1938,6 @@ async def merge_video_audio(
                 headers={"Content-Disposition": f"attachment; filename=video_{lang}.mp4"}
             )
     except subprocess.TimeoutExpired:
-        return JSONResponse({"error": "FFmpeg timeout."}, status_code=500)
+        return JR({"error": "FFmpeg timeout."}, status_code=500)
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JR({"error": str(e)}, status_code=500)
