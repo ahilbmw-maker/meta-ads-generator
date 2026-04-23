@@ -2561,9 +2561,10 @@ function narcRenderTable() {
     const rowBg = isDone ? 'background:rgba(16,185,129,0.12)' : '';
     const checkBtn = '<button onclick="narcToggleRow(\'' + esc(r.sku) + '\')" class="narc-check-btn' + (isDone ? ' done' : '') + '">' + (isDone ? '\u2713' : '\u25cb') + '</button>';
     const _nd = (v) => (v === 0 || v === '' || v === null || v === undefined) ? '<span style="color:var(--text-tertiary);font-size:11px">—</span>' : v;
+    const skuLink = '<a href="' + esc(url) + '" target="_blank" class="narc-sku-link" onclick="narcToggleRow(\'' + esc(r.sku) + '\')">' + esc(r.sku) + '</a>';
     return '<tr data-sku="' + esc(r.sku) + '" style="' + rowBg + '">' +
       '<td>' + esc(r.id) + '</td>' +
-      '<td><a href="' + esc(url) + '" target="_blank" class="narc-sku-link">' + esc(r.sku) + '</a></td>' +
+      '<td>' + skuLink + '</td>' +
       '<td>' + esc(r.naziv) + '</td>' +
       '<td class="' + (r.kolicina < 0 ? "neg" : "") + '">' + _nd(r.kolicina) + '</td>' +
       '<td class="neg">' + r.razlika + '</td>' +
