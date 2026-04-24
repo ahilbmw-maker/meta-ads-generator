@@ -1734,69 +1734,105 @@ ELEVENLABS_VOICES = {
     "bg": "pNInz6obpgDQGcFmaJgB",
 }
 
-def build_srt(alignment: dict) -> str:
-    """Generira SRT podnapise iz ElevenLabs alignment podatkov."""
+def _parse_words(alignment: dict):
+    """Iz ElevenLabs alignment podatkov izloci seznam (beseda, start, end)."""
     chars = alignment.get("characters", [])
     starts = alignment.get("character_start_times_seconds", [])
     ends = alignment.get("character_end_times_seconds", [])
-    
-    if not chars or not starts:
-        return ""
-    
-    # Združi znake v besede
     words = []
-    cur_word = ""
-    cur_start = None
-    cur_end = None
-    
+    cur_word, cur_start, cur_end = "", None, None
     for i, ch in enumerate(chars):
         if i >= len(starts):
             break
         t_start = starts[i]
         t_end = ends[i] if i < len(ends) else t_start + 0.1
-        
         if ch in (' ', '\n', '\t'):
             if cur_word:
                 words.append((cur_word, cur_start, cur_end))
-                cur_word = ""
-                cur_start = None
+            cur_word, cur_start, cur_end = "", None, None
         else:
             if cur_start is None:
                 cur_start = t_start
             cur_end = t_end
             cur_word += ch
-    
     if cur_word:
         words.append((cur_word, cur_start, cur_end))
-    
+    return words
+
+
+def build_srt(alignment: dict) -> str:
+    """Generira SRT iz ElevenLabs alignment (za download)."""
+    words = _parse_words(alignment)
     if not words:
         return ""
-    
-    # Grupiraj besede v vrstice (max 5 besed ali 3s na vrstico)
-    def fmt_time(s):
-        h = int(s // 3600)
-        m = int((s % 3600) // 60)
-        sec = int(s % 60)
-        ms = int((s - int(s)) * 1000)
+
+    def fmt(s):
+        h, m = int(s // 3600), int((s % 3600) // 60)
+        sec, ms = int(s % 60), int((s - int(s)) * 1000)
         return f"{h:02d}:{m:02d}:{sec:02d},{ms:03d}"
-    
-    lines = []
-    i = 0
-    idx = 1
+
+    lines, i, idx = [], 0, 1
     while i < len(words):
-        group = [words[i]]
+        grp = [words[i]]
         i += 1
-        while i < len(words) and len(group) < 5 and (words[i][1] - group[0][1]) < 3.0:
-            group.append(words[i])
-            i += 1
-        
-        line_text = " ".join(w[0] for w in group)
-        t_in = group[0][1]
-        t_out = group[-1][2]
-        lines.append(f"{idx}\n{fmt_time(t_in)} --> {fmt_time(t_out)}\n{line_text}\n")
+        while i < len(words) and len(grp) < 5 and (words[i][1] - grp[0][1]) < 3.0:
+            grp.append(words[i]); i += 1
+        lines.append(f"{idx}\n{fmt(grp[0][1])} --> {fmt(grp[-1][2])}\n{' '.join(w[0] for w in grp)}\n")
         idx += 1
-    
     return "\n".join(lines)
+
+
+def build_ass(alignment: dict) -> str:
+    """Generira ASS karaoke podnapise — Stil B (bela+rumena, debela obroba)."""
+    words = _parse_words(alignment)
+    if not words:
+        return ""
+
+    # ASS header — Stil B: bela besedila, debela črna obroba, bold
+    header = """[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
+Style: Default,Arial,52,&H00FFFFFF,&H00FFD600,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,0,2,20,20,80,1
+
+[Events]
+Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
+"""
+
+    def fmt(s):
+        h, m = int(s // 3600), int((s % 3600) // 60)
+        sec, cs = int(s % 60), int((s - int(s)) * 100)
+        return f"{h}:{m:02d}:{sec:02d}.{cs:02d}"
+
+    # Grupiraj v vrstice (max 4 besede)
+    lines_out = []
+    i = 0
+    while i < len(words):
+        grp = [words[i]]; i += 1
+        while i < len(words) and len(grp) < 4 and (words[i][1] - grp[0][1]) < 2.5:
+            grp.append(words[i]); i += 1
+
+        t_in = grp[0][1]
+        t_out = grp[-1][2] + 0.05
+
+        # Karaoke: vsaka beseda dobi {\kXX} tag (čas v centisekundah)
+        parts = []
+        for wi, (word, wstart, wend) in enumerate(grp):
+            # Čas do naslednje besede ali konec
+            if wi + 1 < len(grp):
+                dur_cs = int((grp[wi+1][1] - wstart) * 100)
+            else:
+                dur_cs = int((wend - wstart) * 100) + 5
+            dur_cs = max(dur_cs, 5)
+            parts.append("{" + chr(92) + "k" + str(dur_cs) + "}" + word)
+
+        karaoke_text = " ".join(parts)
+        lines_out.append(f"Dialogue: 0,{fmt(t_in)},{fmt(t_out)},Default,,0,0,0,,{karaoke_text}")
+
+    return header + "\n".join(lines_out)
 
 
 @app.post("/generate-audio")
@@ -1841,14 +1877,15 @@ async def generate_audio(data: dict):
         audio_b64 = result.get("audio_base64", "")
         audio_bytes = base64.b64decode(audio_b64)
         
-        # Generiraj SRT iz alignment
+        # Generiraj SRT (za download) in ASS (za karaoke merge)
         alignment = result.get("alignment", {})
         srt = build_srt(alignment)
-        
-        # Vrni JSON z audio (base64) + SRT
+        ass = build_ass(alignment)
+
         return {
             "audio_base64": audio_b64,
             "srt": srt,
+            "ass": ass,
             "lang": lang
         }
 
@@ -1880,6 +1917,7 @@ async def merge_video_audio(
             video_path = f"{tmp}/input.mp4"
             audio_path = f"{tmp}/audio.mp3"
             srt_path = f"{tmp}/subs.srt"
+            ass_path = f"{tmp}/subs.ass"
             output_path = f"{tmp}/output_{lang}.mp4"
 
             with open(video_path, "wb") as f:
@@ -1893,15 +1931,26 @@ async def merge_video_audio(
                 if srt_content.strip():
                     with open(srt_path, "wb") as f:
                         f.write(srt_content)
-                    has_srt = True
+                    # Poskusi parsati kot ASS (začne z [Script Info])
+                    if srt_content.startswith(b'[Script Info]'):
+                        with open(ass_path, "wb") as f:
+                            f.write(srt_content)
+                        has_srt = 'ass'
+                    else:
+                        has_srt = 'srt' 
 
             if has_srt:
-                # Vžgi podnapise v video (hardsubbed) — vidni na vseh playerjih
+                # ASS karaoke ali SRT fallback
+                sub_file = ass_path if has_srt == 'ass' else srt_path
+                if has_srt == 'ass':
+                    vf = f"ass={sub_file}"
+                else:
+                    vf = f"subtitles={sub_file}:force_style='FontName=Arial,FontSize=52,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Outline=4,Bold=1,Alignment=2,MarginV=80'"
                 cmd = [
                     "ffmpeg", "-y",
                     "-i", video_path,
                     "-i", audio_path,
-                    "-vf", f"subtitles={srt_path}:force_style='FontSize=22,PrimaryColour=&H00FFFF,OutlineColour=&H000000,Outline=3,Shadow=1,Bold=1,Alignment=2,MarginV=40'",
+                    "-vf", vf,
                     "-map", "0:v:0",
                     "-map", "1:a:0",
                     "-c:v", "libx264",
