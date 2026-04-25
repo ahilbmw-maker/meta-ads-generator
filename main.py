@@ -372,7 +372,7 @@ def parse_json_response(text: str) -> Optional[dict]:
             return None
 
 
-async def call_claude(prompt: str, model: str, tools=None, max_tokens: int = 8000) -> str:
+async def call_claude(prompt: str, model: str, tools=None, max_tokens: int = 4000) -> str:
     loop = asyncio.get_event_loop()
     kwargs = {"model": model, "max_tokens": max_tokens, "messages": [{"role": "user", "content": prompt}]}
     if tools:
@@ -423,7 +423,7 @@ EMOJI PRAVILO: Uporabljaj SAMO te emoji-je ki so zagotovo podprti na vseh naprav
 NE uporabljaj: redkih, novejših ali manj znanih emoji-jev ki se lahko prikažejo kot □
 Vrni SAMO JSON: {{"product": "ime", "pt": [{pt_ph}], "hl": [{hl_ph}]}}"""
 
-    sl_text = await call_claude(sl_prompt, "claude-sonnet-4-6", tools if tools else None, 4000)
+    sl_text = await call_claude(sl_prompt, "claude-sonnet-4-6", tools if tools else None, 1500)
     sl_data = parse_json_response(sl_text)
     if not sl_data:
         return {"error": "Napaka pri generiranju SL tekstov."}
@@ -461,7 +461,7 @@ EMOJI PRAVILO: Uporabljaj SAMO te emoji-je ki so zagotovo podprti na vseh naprav
 NE uporabljaj: redkih, novejših ali manj znanih emoji-jev ki se lahko prikažejo kot □
 Vrni SAMO JSON: {{"product": "ime", "pt": [{pt_ph}], "hl": [{hl_ph}]}}"""
 
-        sl_text = await call_claude(sl_prompt, "claude-sonnet-4-6", tools if tools else None, 4000)
+        sl_text = await call_claude(sl_prompt, "claude-sonnet-4-6", tools if tools else None, 1500)
         sl_data = parse_json_response(sl_text)
         if not sl_data:
             print(f"SL parse failed. Raw response: {sl_text[:500]}")
@@ -504,7 +504,7 @@ SPLOŠNA PRAVILA:
 Vrni SAMO JSON:
 {{"hr":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"rs":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"hu":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"cz":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"sk":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"pl":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"gr":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"ro":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}},"bg":{{"pt":[{pt_ph}],"hl":[{hl_ph}]}}}}"""
 
-        trans_text = await call_claude(trans_prompt, "claude-haiku-4-5-20251001", None, 6000)
+        trans_text = await call_claude(trans_prompt, "claude-haiku-4-5-20251001", None, 5000)
         trans_data = parse_json_response(trans_text)
         if not trans_data:
             return {"error": "Napaka pri prevajanju."}
@@ -1004,7 +1004,7 @@ SPLOŠNA PRAVILA:
 
 Vrni SAMO JSON: {{{batch_json_keys}}}"""
 
-                    batch_text = await call_claude(batch_prompt, "claude-haiku-4-5-20251001", None, 3000)
+                    batch_text = await call_claude(batch_prompt, "claude-haiku-4-5-20251001", None, 1500)
                     batch_data = parse_json_response(batch_text)
 
                     if batch_data:
@@ -1193,7 +1193,7 @@ bOptions: "before/after planting" | "planting demo" | "grid effect"
 
 Sedaj generiraj za izdelek na tej strani po ISTEM vzorcu:"""
 
-    text = await call_claude(analysis_prompt, "claude-sonnet-4-6", None, 2000)
+    text = await call_claude(analysis_prompt, "claude-sonnet-4-6", None, 800)
     result = parse_json_response(text)
 
     if not result:
@@ -1891,7 +1891,7 @@ Vrni SAMO JSON brez markdown:
 {{"product": "ime izdelka", "sl": "...", "hr": "...", "rs": "...", "hu": "...", "cz": "...", "sk": "...", "pl": "...", "gr": "...", "ro": "...", "bg": "..."}}"""
 
     try:
-        text = await call_claude(prompt, "claude-sonnet-4-6", tools if tools else None, 4000)
+        text = await call_claude(prompt, "claude-sonnet-4-6", tools if tools else None, 10000)
         data_parsed = parse_json_response(text)
         if not data_parsed:
             return {"error": "Napaka pri generiranju skript."}
