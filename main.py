@@ -449,11 +449,17 @@ def build_tiktok_xlsx(sku: str, brand: str, video_names: str,
         ws.cell(row=r, column=col_video).value = video_names
         if lang and lang in texts_by_lang:
             raw = texts_by_lang[lang]
-            # Normaliziraj format: če ni [] oklepajev, dodaj jih
-            if raw and '[' not in raw:
-                parts = [p.strip() for p in raw.split(',') if p.strip()]
+            # Izloci variante
+            if '[' in raw and ']' in raw:
+                # Že v [] formatu — uporabi kot je
+                ws.cell(row=r, column=col_text).value = raw
+            else:
+                # Brez oklepajev — splittaj po pikastih ločilih (".," ali "?," ali "!,")
+                # da ne razbijemo posameznih povedi znotraj variante
+                parts = re.split(r'(?<=[.!?]),', raw)
+                parts = [p.strip() for p in parts if p.strip()]
                 raw = ','.join(f'[{p}]' for p in parts)
-            ws.cell(row=r, column=col_text).value = raw
+                ws.cell(row=r, column=col_text).value = raw
         url = (urls_by_lang.get(lang) if lang else None) or next(iter(urls_by_lang.values()), '')
         if url:
             ws.cell(row=r, column=col_url).value = url
