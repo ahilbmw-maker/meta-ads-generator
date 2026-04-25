@@ -518,6 +518,10 @@ def build_master_xlsx(skus: list) -> str:
         video_names = sku_entry.get('videos', '')
         texts_by_lang = sku_entry.get('texts', {})
         urls_by_lang = sku_entry.get('urls', {})
+        # Fallback: če urls prazen, uporabi url za vse jezike
+        if not urls_by_lang and sku_entry.get('url'):
+            fallback = sku_entry['url']
+            urls_by_lang = {lang: fallback for lang in ['sl','hr','rs','hu','cz','sk','pl','gr','ro','bg']}
 
         videos = [v.strip() for v in re.findall(r'\[([^\]]+)\]', video_names)]
         new_bc_id = ','.join([single_id] * len(videos)) if videos else single_id
