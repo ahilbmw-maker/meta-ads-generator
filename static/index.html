@@ -1814,6 +1814,8 @@ async function ttGenerate() {
     const urls = data.product_urls || {};
     ['sl','hr','rs','hu','cz','sk','pl','gr','ro','bg'].forEach(l => { if(data[l]) texts[l] = data[l]; });
     ttSaveToHistory(sku, brand, url, videos, texts, urls);
+  // Odznači RS checkbox po generiranju
+  const rsChk = document.getElementById("ttSkipRs"); if(rsChk) rsChk.checked = false;
     document.getElementById('ttLoading').classList.remove('show');
     renderTikTokResults(data);
   }catch(e){
