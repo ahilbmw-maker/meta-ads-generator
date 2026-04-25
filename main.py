@@ -437,19 +437,29 @@ def build_tiktok_xlsx(sku: str, brand: str, video_names: str,
     today = datetime.now().strftime('%-d_%-m_%Y')
     new_campaign = f'[{brand}] Smart+ {sku} - {today}'
 
+    # Zberemo vrstice za brisanje (kjer ni URL-ja)
+    rows_to_delete = []
     for row in ws.iter_rows(min_row=2):
         r = row[0].row
         country = ws.cell(row=r, column=col_ag).value
         if not country:
             continue
         lang = COUNTRY_TO_LANG.get(country)
+        url = urls_by_lang.get(lang) if lang else None
+        if not url:
+            # Ni URL-ja za ta jezik — oznaci za brisanje
+            rows_to_delete.append(r)
+            continue
         ws.cell(row=r, column=col_campaign).value = new_campaign
         ws.cell(row=r, column=col_bc_id).value = new_bc_id
         ws.cell(row=r, column=col_video).value = video_names
         if lang and lang in texts_by_lang:
             ws.cell(row=r, column=col_text).value = texts_by_lang[lang]
-        if lang and lang in urls_by_lang:
-            ws.cell(row=r, column=col_url).value = urls_by_lang[lang]
+        ws.cell(row=r, column=col_url).value = url
+
+    # Zbriši vrstice brez URL-ja (od spodaj navzgor da ne zamešamo indeksov)
+    for r in sorted(rows_to_delete, reverse=True):
+        ws.delete_rows(r)
 
     out_path = str(EXPORTS_DIR / f"tiktok_{sku}_{uuid.uuid4().hex[:8]}.xlsx")
     wb.save(out_path)
@@ -516,6 +526,11 @@ def build_master_xlsx(skus: list) -> str:
         for tmpl_row in tmpl_rows:
             country = tmpl_row['country']
             lang = COUNTRY_TO_LANG.get(country)
+            url = urls_by_lang.get(lang) if lang else None
+
+            # Preskoči vrstico če ni URL-ja za ta jezik
+            if not url:
+                continue
 
             # Copy template row values
             orig_row = ws_tmpl[tmpl_row['row_styles'][0].row]
@@ -528,8 +543,7 @@ def build_master_xlsx(skus: list) -> str:
             ws_out.cell(row=out_row, column=col_video).value = video_names
             if lang and lang in texts_by_lang:
                 ws_out.cell(row=out_row, column=col_text).value = texts_by_lang[lang]
-            if lang and lang in urls_by_lang:
-                ws_out.cell(row=out_row, column=col_url).value = urls_by_lang[lang]
+            ws_out.cell(row=out_row, column=col_url).value = url
 
             out_row += 1
 
