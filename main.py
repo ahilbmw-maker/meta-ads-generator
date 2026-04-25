@@ -497,7 +497,7 @@ def build_master_xlsx(skus: list) -> str:
         tmpl_rows.append({
             'country': country,
             'row_data': [cell.value for cell in row],
-            'row_styles': row,
+            'row_num': row[0].row,
         })
 
     # Create new workbook
@@ -533,7 +533,7 @@ def build_master_xlsx(skus: list) -> str:
                 continue
 
             # Copy template row values
-            orig_row = ws_tmpl[tmpl_row['row_styles'][0].row]
+            orig_row = ws_tmpl[tmpl_row['row_num']]
             for col_idx, orig_cell in enumerate(orig_row, 1):
                 ws_out.cell(row=out_row, column=col_idx).value = orig_cell.value
 
