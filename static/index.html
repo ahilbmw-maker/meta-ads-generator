@@ -3398,23 +3398,32 @@ async function vadsDownloadAllZip() {
     const srts = window._vadsSrts || {};
 
     let count = 0;
-    for (const [lang, blob] of Object.entries(audioBlobs)) {
-      const langName = VADS_LANGS.find(l => l.code === lang)?.name || lang;
-      if (status) status.textContent = 'Dodajam ' + langName + '...';
 
-      if (hasVideos) {
-        // Merge video + audio za vsak video
+    if (hasVideos) {
+      // Pripravi seznam vseh merge taskov
+      const tasks = [];
+      for (const [lang, blob] of Object.entries(audioBlobs)) {
         for (let vi = 0; vi < vadsVideoFiles.length; vi++) {
-          const videoFile = vadsVideoFiles[vi];
-          if (status) status.textContent = lang.toUpperCase() + ' · video ' + (vi+1) + '/' + vadsVideoFiles.length + '...';
-          const formData = new FormData();
-          formData.append('video', videoFile, videoFile.name);
-          formData.append('audio', blob, 'audio.mp3');
-          formData.append('lang', lang);
-          if (srts[lang]) {
-            const srtBlob = new Blob([srts[lang]], {type: 'text/plain'});
-            formData.append('srt', srtBlob, 'subs.srt');
-          }
+          tasks.push({lang, blob, videoFile: vadsVideoFiles[vi], vi});
+        }
+      }
+
+      const total = tasks.length;
+      let done = 0;
+
+      // Paralelno z omejitvijo na 3 hkrati (1 CPU server)
+      const PARALLEL_LIMIT = 5;
+      const runTask = async (task) => {
+        const {lang, blob, videoFile, vi} = task;
+        const formData = new FormData();
+        formData.append('video', videoFile, videoFile.name);
+        formData.append('audio', blob, 'audio.mp3');
+        formData.append('lang', lang);
+        if (srts[lang]) {
+          const srtBlob = new Blob([srts[lang]], {type: 'text/plain'});
+          formData.append('srt', srtBlob, 'subs.srt');
+        }
+        try {
           const res = await fetch('/merge-video-audio', {method: 'POST', body: formData});
           if (res.ok) {
             const videoBlob = await res.blob();
@@ -3422,9 +3431,25 @@ async function vadsDownloadAllZip() {
             zip.file('video_' + lang + suffix + '.mp4', videoBlob);
             count++;
           }
+        } catch (e) {
+          console.error('Merge fail:', lang, vi, e);
         }
-      } else {
-        // Samo audio
+        done++;
+        if (status) status.textContent = 'Spajam ' + done + '/' + total + ' (paralelno ' + PARALLEL_LIMIT + 'x)...';
+      };
+
+      // Worker pool — kontrolirana paralelizacija
+      const queue = [...tasks];
+      const workers = Array(PARALLEL_LIMIT).fill(null).map(async () => {
+        while (queue.length) {
+          const task = queue.shift();
+          if (task) await runTask(task);
+        }
+      });
+      await Promise.all(workers);
+    } else {
+      // Samo audio fajli
+      for (const [lang, blob] of Object.entries(audioBlobs)) {
         zip.file('audio_' + lang + '.mp3', blob);
         if (srts[lang]) zip.file('subs_' + lang + '.srt', srts[lang]);
         count++;
