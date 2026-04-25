@@ -412,7 +412,8 @@ COUNTRY_TO_LANG = {
 
 
 def build_tiktok_xlsx(sku: str, brand: str, video_names: str,
-                      texts_by_lang: dict, urls_by_lang: dict) -> str:
+                      texts_by_lang: dict, urls_by_lang: dict,
+                      skip_rs: bool = False) -> str:
     if not Path(TEMPLATE_PATH).exists():
         raise FileNotFoundError("TikTok template not found. Upload tiktok_template.xlsx to static/")
 
@@ -437,30 +438,28 @@ def build_tiktok_xlsx(sku: str, brand: str, video_names: str,
     today = datetime.now().strftime('%-d_%-m_%Y')
     new_campaign = f'[{brand}] Smart+ {sku} - {today}'
 
-    # Zberemo vrstice za brisanje (kjer ni URL-ja)
-    rows_to_delete = []
+    rows_to_skip = []
     for row in ws.iter_rows(min_row=2):
         r = row[0].row
         country = ws.cell(row=r, column=col_ag).value
         if not country:
             continue
         lang = COUNTRY_TO_LANG.get(country)
-        url = urls_by_lang.get(lang) if lang else None
-        if not url:
-            # Ni URL-ja za ta jezik — oznaci za brisanje
-            rows_to_delete.append(r)
+        if skip_rs and lang == 'rs':
+            rows_to_skip.append(r)
             continue
         ws.cell(row=r, column=col_campaign).value = new_campaign
         ws.cell(row=r, column=col_bc_id).value = new_bc_id
         ws.cell(row=r, column=col_video).value = video_names
         if lang and lang in texts_by_lang:
             ws.cell(row=r, column=col_text).value = texts_by_lang[lang]
-        ws.cell(row=r, column=col_url).value = url
+        # URL: uporabi lang-specifičen če obstaja, sicer fallback na glavni url
+        url = (urls_by_lang.get(lang) if lang else None) or next(iter(urls_by_lang.values()), '')
+        if url:
+            ws.cell(row=r, column=col_url).value = url
 
-    # Zbriši vrstice brez URL-ja (od spodaj navzgor da ne zamešamo indeksov)
-    for r in sorted(rows_to_delete, reverse=True):
+    for r in sorted(rows_to_skip, reverse=True):
         ws.delete_rows(r)
-
     out_path = str(EXPORTS_DIR / f"tiktok_{sku}_{uuid.uuid4().hex[:8]}.xlsx")
     wb.save(out_path)
     return out_path
@@ -533,10 +532,10 @@ def build_master_xlsx(skus: list) -> str:
         for tmpl_row in tmpl_rows:
             country = tmpl_row['country']
             lang = COUNTRY_TO_LANG.get(country)
-            url = urls_by_lang.get(lang) if lang else None
 
-            # Preskoči vrstico če ni URL-ja za ta jezik
-            if not url:
+            # Preskoči RS če skip_rs
+            skip_rs_master = sku_entry.get('skip_rs', False)
+            if skip_rs_master and lang == 'rs':
                 continue
 
             # Copy template row values
@@ -550,7 +549,10 @@ def build_master_xlsx(skus: list) -> str:
             ws_out.cell(row=out_row, column=col_video).value = video_names
             if lang and lang in texts_by_lang:
                 ws_out.cell(row=out_row, column=col_text).value = texts_by_lang[lang]
-            ws_out.cell(row=out_row, column=col_url).value = url
+            # URL: lang-specifičen ali fallback
+            url = (urls_by_lang.get(lang) if lang else None) or fallback_url or next(iter(urls_by_lang.values()), '')
+            if url:
+                ws_out.cell(row=out_row, column=col_url).value = url
 
             out_row += 1
 
@@ -649,6 +651,7 @@ class TikTokRequest(BaseModel):
     sku: str
     brand: str
     video_names: str
+    skip_rs: bool = False
 
 
 # ─── ROUTES ──────────────────────────────────────────────────────────────────
@@ -901,7 +904,8 @@ async def generate_tiktok(req: TikTokRequest):
             brand=req.brand,
             video_names=req.video_names,
             texts_by_lang=texts_by_lang,
-            urls_by_lang=product_urls
+            urls_by_lang=product_urls,
+            skip_rs=req.skip_rs
         )
         return {"status": "ok", "file": xlsx_path, "data": data}
     except FileNotFoundError as e:
