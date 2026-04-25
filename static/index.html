@@ -1792,6 +1792,13 @@ function ttDeleteHistory(i){
 }
 
 async function ttGenerate() {
+  // Validacija RS checkboxa
+  const skipRs = document.getElementById('ttSkipRs')?.checked;
+  const msg = skipRs
+    ? '⚠️ RS (Srbija) bo IZPUŠČENA iz XLS. Nadaljuješ?'
+    : '✅ RS (Srbija) bo VKLJUČENA v XLS. Nadaljuješ?';
+  if (!confirm(msg)) return;
+
   const url=document.getElementById('ttUrl').value.trim();
   const sku=document.getElementById('ttSku').value.trim();
   const brand=document.getElementById('ttBrand').value.trim();
