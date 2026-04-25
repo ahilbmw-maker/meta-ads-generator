@@ -216,7 +216,6 @@ Pravila:
 - Brez emojiev, brez # in {{}}
 - Kratek, direkten, akcijski stil
 - Vsaka varianta drugačen pristop (korist, socialni dokaz, nujnost, radovednost)
-- OBVEZNO obdaj vsako varianto z oglatimi oklepaji: [varianta1],[varianta2],[varianta3],[varianta4]
 - Brez "kakovost/dostava/zaloga" strukture — bodi kreativen
 
 Jeziki: SL (izvirnik), HR (latinica), RS (SAMO latinica!), HU, CZ, SK, PL, GR (grška pisava), RO (latinica), BG (SAMO cirilica!).
@@ -224,16 +223,16 @@ Jeziki: SL (izvirnik), HR (latinica), RS (SAMO latinica!), HU, CZ, SK, PL, GR (g
 KRITIČNO VAŽNO: Vrni IZKLJUČNO in SAMO JSON — nobenih uvodnih besed, nobenih razlag, nobenih komentarjev, nobenih markdown backticks. Prva in zadnja stvar v odgovoru mora biti {{ in }}. Nič drugega.
 {{
   "product": "ime",
-  "sl": "[VARIANTA1],[VARIANTA2],[VARIANTA3],[VARIANTA4]",
-  "hr": "[VARIANTA1],[VARIANTA2],[VARIANTA3],[VARIANTA4]",
-  "rs": "[VARIANTA1],[VARIANTA2],[VARIANTA3],[VARIANTA4]",
-  "hu": "[VARIANTA1],[VARIANTA2],[VARIANTA3],[VARIANTA4]",
-  "cz": "[VARIANTA1],[VARIANTA2],[VARIANTA3],[VARIANTA4]",
-  "sk": "[VARIANTA1],[VARIANTA2],[VARIANTA3],[VARIANTA4]",
-  "pl": "[VARIANTA1],[VARIANTA2],[VARIANTA3],[VARIANTA4]",
-  "gr": "[VARIANTA1],[VARIANTA2],[VARIANTA3],[VARIANTA4]",
-  "ro": "[VARIANTA1],[VARIANTA2],[VARIANTA3],[VARIANTA4]",
-  "bg": "[VARIANTA1],[VARIANTA2],[VARIANTA3],[VARIANTA4]"
+  "sl": "[tekst1],[tekst2],[tekst3],[tekst4]",
+  "hr": "[tekst1],[tekst2],[tekst3],[tekst4]",
+  "rs": "[tekst1],[tekst2],[tekst3],[tekst4]",
+  "hu": "[tekst1],[tekst2],[tekst3],[tekst4]",
+  "cz": "[tekst1],[tekst2],[tekst3],[tekst4]",
+  "sk": "[tekst1],[tekst2],[tekst3],[tekst4]",
+  "pl": "[tekst1],[tekst2],[tekst3],[tekst4]",
+  "gr": "[tekst1],[tekst2],[tekst3],[tekst4]",
+  "ro": "[tekst1],[tekst2],[tekst3],[tekst4]",
+  "bg": "[tekst1],[tekst2],[tekst3],[tekst4]"
 }}\n"""
 
 
@@ -429,18 +428,13 @@ def build_tiktok_xlsx(sku: str, brand: str, video_names: str,
     col_url      = headers.index('Web URL') + 1
     col_ag       = headers.index('Ad Group Name') + 1
 
-    # Get base single BC ID from row 2
     base_bc_raw = ws.cell(row=2, column=col_bc_id).value or ''
     single_id = base_bc_raw.split(',')[0].strip()
-
-    # Count videos to build matching BC ID
     videos = [v.strip() for v in re.findall(r'\[([^\]]+)\]', video_names)]
     new_bc_id = ','.join([single_id] * len(videos)) if videos else single_id
     today = datetime.now().strftime('%-d_%-m_%Y')
     new_campaign = f'[{brand}] Smart+ {sku} - {today}'
 
-    # Zberemo vse template vrstice najprej
-    tmpl_data = []
     for row in ws.iter_rows(min_row=2):
         r = row[0].row
         country = ws.cell(row=r, column=col_ag).value
@@ -448,54 +442,22 @@ def build_tiktok_xlsx(sku: str, brand: str, video_names: str,
             continue
         lang = COUNTRY_TO_LANG.get(country)
         if skip_rs and lang == 'rs':
+            ws.delete_rows(r)
             continue
-        row_vals = [ws.cell(row=r, column=c+1).value for c in range(len(headers))]
-        tmpl_data.append({'country': country, 'lang': lang, 'row_vals': row_vals})
-
-    # Počisti vse vrstice razen headerja
-    ws.delete_rows(2, ws.max_row)
-
-    # Ustvari novo vrstico za vsako varianto
-    out_row = 2
-    fallback_url = next(iter(urls_by_lang.values()), '') if urls_by_lang else ''
-    print(f'[tiktok-xlsx] tmpl_data={len(tmpl_data)} rows, texts_by_lang keys={list(texts_by_lang.keys())}')
-    for lang_k, lang_v in texts_by_lang.items():
-        print(f'  [{lang_k}] = {repr(lang_v[:60])}')
-    for td in tmpl_data:
-        lang = td['lang']
-        raw_text = texts_by_lang.get(lang, '') if lang else ''
-        # Split variante: [tekst1],[tekst2],[tekst3],[tekst4]
-        # Poskusi [] format najprej, sicer splittaj po vejici (Claude vrne variante ločene z vejico)
-        if '[' in raw_text and ']' in raw_text:
-            variants = [v.strip() for v in re.findall(r'\[([^\]]+)\]', raw_text)]
-        elif raw_text:
-            # Split po vejici — vsaka varianta je ločena z vejico
-            variants = [v.strip() for v in raw_text.split(',') if v.strip()]
-        else:
-            variants = []
-        if not variants:
-            variants = [raw_text]
-        url = (urls_by_lang.get(lang) if lang else None) or fallback_url
-
-        for variant in variants:
-            # Kopiraj vse originalne vrednosti
-            for c_idx, val in enumerate(td['row_vals'], 1):
-                ws.cell(row=out_row, column=c_idx).value = val
-            # Prepiši naše vrednosti
-            ws.cell(row=out_row, column=col_campaign).value = new_campaign
-            ws.cell(row=out_row, column=col_bc_id).value = new_bc_id
-            ws.cell(row=out_row, column=col_video).value = video_names
-            ws.cell(row=out_row, column=col_text).value = variant
-            if url:
-                ws.cell(row=out_row, column=col_url).value = url
-            out_row += 1
+        ws.cell(row=r, column=col_campaign).value = new_campaign
+        ws.cell(row=r, column=col_bc_id).value = new_bc_id
+        ws.cell(row=r, column=col_video).value = video_names
+        if lang and lang in texts_by_lang:
+            ws.cell(row=r, column=col_text).value = texts_by_lang[lang]
+        url = (urls_by_lang.get(lang) if lang else None) or next(iter(urls_by_lang.values()), '')
+        if url:
+            ws.cell(row=r, column=col_url).value = url
 
     out_path = str(EXPORTS_DIR / f"tiktok_{sku}_{uuid.uuid4().hex[:8]}.xlsx")
     wb.save(out_path)
     return out_path
 
 
-# ─── MODELS ──────────────────────────────────────────────────────────────────
 
 def build_master_xlsx(skus: list) -> str:
     """Združi več SKU-jev v en master XLS — vsak SKU doda svoje vrstice (koliko jih je v template-u)."""
@@ -562,11 +524,6 @@ def build_master_xlsx(skus: list) -> str:
         for tmpl_row in tmpl_rows:
             country = tmpl_row['country']
             lang = COUNTRY_TO_LANG.get(country)
-
-            # Preskoči RS če skip_rs
-            skip_rs_master = sku_entry.get('skip_rs', False)
-            if skip_rs_master and lang == 'rs':
-                continue
 
             # Copy template row values
             orig_row = ws_tmpl[tmpl_row['row_num']]
