@@ -838,6 +838,18 @@ input[type="text"].error { border-color: var(--red) !important; }
           <div id="lokPreview" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
         </div>
 
+        <!-- Čakalnica iz Kreative -->
+        <div class="card" style="margin-bottom:12px" id="lokQueueCard" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span class="slabel">IZ KREATIVE <span id="lokQueueCount" style="font-weight:400;color:var(--text-tertiary)"></span></span>
+            <button class="history-clear" onclick="lokQueueClear()" style="color:#dc2626">Počisti</button>
+          </div>
+          <div id="lokQueueGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px"></div>
+          <button onclick="lokQueueAddAll()" style="margin-top:8px;width:100%;padding:7px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
+            ✓ Dodaj vse v lokalizacijo
+          </button>
+        </div>
+
         <!-- Izberi jezike -->
         <div class="card" style="margin-bottom:12px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -2135,6 +2147,7 @@ function kRenderResults(results) {
       '<div class="k-img-actions">' +
         '<button class="k-img-btn" onclick="kToggleSelect(' + c.idx + ')">&#x2611;</button>' +
         '<button class="k-img-btn" onclick="kDownloadCard(' + c.idx + ')" title="Prenesi">&#x2B07;</button>' +
+        '<button class="k-img-btn" style="background:#7c3aed;color:white;border-color:#7c3aed" onclick="kSendToLok(' + c.idx + ')" title="Pošlji v Lokalizacijo" id="kLokBtn-' + c.idx + '">&#x1F30D; Lok</button>' +
         '<button class="k-img-btn primary" onclick="kOpenAsanaModal([' + c.idx + '])" title="Pošlji v Asana">&#x2192; Asana</button>' +
         '<button class="k-img-btn danger" onclick="kDeleteCard(' + c.idx + ')" title="Zbriši">&#x2715;</button>' +
       '</div>' +
@@ -3502,6 +3515,109 @@ async function vadsDeleteAllHistory() {
     await fetch('/vads-history-set', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({history: []})});
     vadsLoadHistory();
   } catch(e) {}
+}
+
+// ─── KREATIVA → LOKALIZACIJA ČAKALNICA ───────────────────────────────────────
+
+window._lokQueue = []; // [{url, combo}]
+
+function kSendToLok(idx) {
+  const card = window.kCardsData?.[idx];
+  if (!card || !card.url) return;
+
+  // Dodaj v čakalnico če še ni
+  if (!window._lokQueue.find(q => q.url === card.url)) {
+    window._lokQueue.push({url: card.url, combo: card.combo || ''});
+  }
+
+  // Vizualni feedback na gumbu
+  const btn = document.getElementById('kLokBtn-' + idx);
+  if (btn) {
+    btn.innerHTML = '&#x2713; Lok';
+    btn.style.background = '#16a34a';
+    btn.style.borderColor = '#16a34a';
+    btn.disabled = true;
+  }
+
+  lokQueueRender();
+
+  // Pokaži notification
+  const notif = document.createElement('div');
+  notif.style.cssText = 'position:fixed;top:20px;right:20px;background:#7c3aed;color:white;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;z-index:9999;font-family:"DM Sans",sans-serif';
+  notif.textContent = '🌍 Dodano v Lokalizacija čakalnico (' + window._lokQueue.length + ')';
+  document.body.appendChild(notif);
+  setTimeout(() => notif.remove(), 2500);
+}
+
+function lokQueueRender() {
+  const card = document.getElementById('lokQueueCard');
+  const grid = document.getElementById('lokQueueGrid');
+  const count = document.getElementById('lokQueueCount');
+  if (!card || !grid) return;
+
+  card.style.display = window._lokQueue.length ? 'block' : 'none';
+  if (count) count.textContent = '(' + window._lokQueue.length + ')';
+
+  grid.innerHTML = window._lokQueue.map((q, i) =>
+    '<div style="position:relative;border-radius:5px;overflow:hidden;aspect-ratio:1">' +
+    '<img src="' + esc(q.url) + '" style="width:100%;height:100%;object-fit:cover">' +
+    '<button onclick="lokQueueRemove(' + i + ')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:white;border:none;border-radius:3px;font-size:10px;cursor:pointer;padding:1px 5px;line-height:1.4">×</button>' +
+    '</div>'
+  ).join('');
+}
+
+function lokQueueRemove(idx) {
+  window._lokQueue.splice(idx, 1);
+  lokQueueRender();
+}
+
+function lokQueueClear() {
+  window._lokQueue = [];
+  lokQueueRender();
+}
+
+async function lokQueueAddAll() {
+  if (!window._lokQueue.length) return;
+
+  // Fetch vsake slike in dodaj v lokPreview kot file-like object
+  const previews = [];
+  for (const q of window._lokQueue) {
+    try {
+      const res = await fetch(q.url);
+      const blob = await res.blob();
+      const ext = blob.type.includes('png') ? 'png' : 'jpg';
+      const file = new File([blob], (q.combo || 'kreativa').replace(/[^a-zA-Z0-9]/g,'_') + '.' + ext, {type: blob.type});
+      previews.push(file);
+    } catch(e) {
+      console.warn('Napaka pri fetchanju:', q.url, e);
+    }
+  }
+
+  if (previews.length) {
+    // Dodaj v lokalizacija
+    await lokHandleFilesFromQueue(previews);
+    // Počisti čakalnico
+    window._lokQueue = [];
+    lokQueueRender();
+    // Premakni na Lokalizacija tab
+    switchPage('lokalizacija');
+  }
+}
+
+async function lokHandleFilesFromQueue(files) {
+  // Enako kot lokHandleFiles — doda slike v lokImages array
+  for (const file of files) {
+    await new Promise(res => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        lokImages.push(e.target.result);
+        res();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  lokRenderPreviews();
+  if (typeof lokUpdateCount === 'function') lokUpdateCount();
 }
 
 updateMeta();renderH();ttRenderHistory();ttLoadHistory();metaLoadServerHistory();kLoadHistory();narcLoadHistory();karanLoadHistory();vadsLoadHistory();narcRenderLangFilter();setMetaWide(true);
