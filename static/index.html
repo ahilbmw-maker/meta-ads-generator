@@ -1206,107 +1206,60 @@ function switchPage(page) {
 }
 
 // ── META COUNTERS ──
-function change(t, d) { metaState[t] = Math.min(MAX, Math.max(1, metaState[t]+d)); async function vadsZipToAsana() {
-  const status = document.getElementById('vadsBulkStatus');
-  const audioBlobs = window._vadsAudioBlobs || {};
-  const srts = window._vadsSrts || {};
-  const hasVideos = vadsVideoFiles.length > 0;
+function change(t, d) { metaState[t] = Math.min(MAX, Math.max(1, metaState[t]+d)); updateMeta(); }
 
+async function vadsZipToAsana() {
+  const audioBlobs = window._vadsAudioBlobs || {};
   if (!Object.keys(audioBlobs).length) {
     alert('Najprej generiraj audio.');
     return;
   }
 
-  // 1. Najprej zgradi ZIP (ista logika kot Download)
-  const btn = document.getElementById('vadsZipAsanaBtn');
-  const origText = btn ? btn.innerHTML : '';
-  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="vads-spinner" style="border-top-color:white"></div> Pripravljam ZIP...'; }
-
-  let zipBlob = null;
-  try {
-    if (!window.JSZip) { await new Promise((res,rej) => { const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
-    const JSZip = window.JSZip;
-    const zip = new JSZip();
-    let count = 0;
-
-    if (hasVideos) {
-      const tasks = [];
-      for (const [lang, blob] of Object.entries(audioBlobs)) {
-        for (let vi = 0; vi < vadsVideoFiles.length; vi++) {
-          tasks.push({lang, blob, videoFile: vadsVideoFiles[vi], vi});
-        }
-      }
-      const total = tasks.length;
-      let done = 0;
-      const PARALLEL_LIMIT = 5;
-      const runTask = async (task) => {
-        const {lang, blob, videoFile, vi} = task;
-        const formData = new FormData();
-        formData.append('video', videoFile, videoFile.name);
-        formData.append('audio', blob, 'audio.mp3');
-        formData.append('lang', lang);
-        if (srts[lang]) {
-          const srtBlob = new Blob([srts[lang]], {type: 'text/plain'});
-          formData.append('srt', srtBlob, 'subs.srt');
-        }
-        try {
-          const res = await fetch('/merge-video-audio', {method: 'POST', body: formData});
-          if (res.ok) {
-            const videoBlob = await res.blob();
-            const suffix = vadsVideoFiles.length > 1 ? '_v' + (vi+1) : '';
-            zip.file('video_' + lang + suffix + '.mp4', videoBlob);
-            count++;
-          }
-        } catch (e) { console.error('Merge fail:', lang, vi, e); }
-        done++;
-        if (status) status.textContent = 'Spajam ' + done + '/' + total + '...';
-      };
-      const queue = [...tasks];
-      const workers = Array(PARALLEL_LIMIT).fill(null).map(async () => {
-        while (queue.length) { const task = queue.shift(); if (task) await runTask(task); }
-      });
-      await Promise.all(workers);
-    } else {
-      for (const [lang, blob] of Object.entries(audioBlobs)) {
-        zip.file('audio_' + lang + '.mp3', blob);
-        if (srts[lang]) zip.file('subs_' + lang + '.srt', srts[lang]);
-        count++;
-      }
-    }
-
-    if (status) status.textContent = 'Pakiranje ZIP...';
-    zipBlob = await zip.generateAsync({type: 'blob'});
-
-    if (!zipBlob || count === 0) {
-      throw new Error('ZIP je prazen.');
-    }
-  } catch(e) {
-    if (status) status.textContent = '✗ Napaka: ' + e.message;
-    if (btn) { btn.disabled = false; btn.innerHTML = origText; }
-    return;
-  }
-
-  // 2. Odpri Asana modal s pripravljenim ZIP-om
-  if (btn) { btn.disabled = false; btn.innerHTML = origText; }
-  if (status) status.textContent = '✓ ZIP pripravljen — izberi Asana task';
-
-  window._vadsZipBlob = zipBlob;
-  window._vadsZipFilename = 'video_ads_' + new Date().toISOString().split('T')[0] + '.zip';
-
-  // Odpri Asana modal
+  // 1. Odpri Asana modal TAKOJ
+  window._vadsAsanaMode = true;
+  window._vadsZipBlob = null;
+  window._vadsZipBuilding = true;
   document.getElementById('kAsanaUrlInput').value = '';
   document.getElementById('kAsanaSearchResults').innerHTML = '';
   document.getElementById('kAsanaSelected').textContent = '';
-  document.getElementById('kAsanaStatus').textContent = 'ZIP pripravljen (' + (zipBlob.size/1024/1024).toFixed(1) + ' MB) — izberi Asana task';
-  // Override zaključek - send ZIP namesto kreativ
-  window._vadsAsanaMode = true;
+  document.getElementById('kAsanaStatus').textContent = '⏳ Gradim ZIP v ozadju... (vpiši Asana task)';
   document.getElementById('kAsanaModal').classList.add('show');
+
+  // 2. V ozadju gradi ZIP
+  try {
+    const result = await vadsBuildZipBlob((msg) => {
+      const s = document.getElementById('kAsanaStatus');
+      if (s && window._vadsZipBuilding) s.textContent = '⏳ ' + msg;
+    });
+    window._vadsZipBlob = result.zipBlob;
+    window._vadsZipFilename = 'video_ads_' + new Date().toISOString().split('T')[0] + '.zip';
+    window._vadsZipBuilding = false;
+    const s = document.getElementById('kAsanaStatus');
+    if (s) s.textContent = '✓ ZIP pripravljen (' + (result.zipBlob.size/1024/1024).toFixed(1) + ' MB) — pošlji v Asana';
+  } catch(e) {
+    window._vadsZipBuilding = false;
+    const s = document.getElementById('kAsanaStatus');
+    if (s) s.textContent = '✗ Napaka pri gradnji ZIP: ' + e.message;
+  }
 }
 
 // Override Asana attach gumb da pošlje ZIP namesto slik
 async function vadsAsanaSendZip(taskId) {
-  if (!window._vadsZipBlob) return;
   const status = document.getElementById('kAsanaStatus');
+
+  // Če ZIP še ni pripravljen, počakaj
+  if (window._vadsZipBuilding) {
+    if (status) status.textContent = '⏳ Čakam da se ZIP konča gradit, potem bo poslan...';
+    while (window._vadsZipBuilding) {
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+
+  if (!window._vadsZipBlob) {
+    if (status) status.textContent = '✗ ZIP ni pripravljen.';
+    return false;
+  }
+
   if (status) status.textContent = 'Pošiljam ZIP v Asana...';
 
   const formData = new FormData();
@@ -3528,6 +3481,98 @@ async function vadsGenerateAllAudio() {
   }
 }
 
+async function vadsBuildZipBlob(progressCallback) {
+  /** Skupna funkcija za grajenje ZIP-a — uporablja jo Download in Asana flow. */
+  if (!window.JSZip) { await new Promise((res,rej) => { const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+  const JSZip = window.JSZip;
+  const zip = new JSZip();
+  const hasVideos = vadsVideoFiles.length > 0;
+  const audioBlobs = window._vadsAudioBlobs || {};
+  const srts = window._vadsSrts || {};
+  let count = 0;
+
+  // SINGLE UPLOAD: upload videote enkrat, dobi session_id-je
+  const videoSessions = []; // [{session_id, originalIdx}]
+  if (hasVideos) {
+    if (progressCallback) progressCallback('Pošiljam videote na strežnik...');
+    for (let vi = 0; vi < vadsVideoFiles.length; vi++) {
+      try {
+        const fd = new FormData();
+        fd.append('video', vadsVideoFiles[vi], vadsVideoFiles[vi].name);
+        const r = await fetch('/upload-video-session', {method: 'POST', body: fd});
+        const d = await r.json();
+        if (d.session_id) {
+          videoSessions.push({session_id: d.session_id, vi: vi});
+        }
+      } catch(e) { console.error('Upload fail vi=' + vi, e); }
+    }
+    if (progressCallback) progressCallback('Naloženih ' + videoSessions.length + '/' + vadsVideoFiles.length + ' videov');
+  }
+
+  if (hasVideos && videoSessions.length > 0) {
+    // Pripravi vse merge taske
+    const tasks = [];
+    for (const [lang, blob] of Object.entries(audioBlobs)) {
+      for (const sess of videoSessions) {
+        tasks.push({lang, blob, session_id: sess.session_id, vi: sess.vi});
+      }
+    }
+    const total = tasks.length;
+    let done = 0;
+    const PARALLEL_LIMIT = 5;
+
+    const runTask = async (task) => {
+      const {lang, blob, session_id, vi} = task;
+      const formData = new FormData();
+      formData.append('session_id', session_id);
+      formData.append('audio', blob, 'audio.mp3');
+      formData.append('lang', lang);
+      if (srts[lang]) {
+        const srtBlob = new Blob([srts[lang]], {type: 'text/plain'});
+        formData.append('srt', srtBlob, 'subs.srt');
+      }
+      try {
+        const res = await fetch('/merge-video-audio-session', {method: 'POST', body: formData});
+        if (res.ok) {
+          const videoBlob = await res.blob();
+          const suffix = vadsVideoFiles.length > 1 ? '_v' + (vi+1) : '';
+          zip.file('video_' + lang + suffix + '.mp4', videoBlob);
+          count++;
+        } else {
+          console.error('Merge fail status:', res.status, lang, vi);
+        }
+      } catch (e) { console.error('Merge fail:', lang, vi, e); }
+      done++;
+      if (progressCallback) progressCallback('Spajam ' + done + '/' + total + ' (paralelno ' + PARALLEL_LIMIT + 'x, single-upload)...');
+    };
+
+    const queue = [...tasks];
+    const workers = Array(PARALLEL_LIMIT).fill(null).map(async () => {
+      while (queue.length) { const task = queue.shift(); if (task) await runTask(task); }
+    });
+    await Promise.all(workers);
+
+    // Cleanup video sessions na strežniku
+    try {
+      await fetch('/cleanup-video-session', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({session_ids: videoSessions.map(s => s.session_id)})
+      });
+    } catch(e) {}
+  } else if (!hasVideos) {
+    // Samo audio fajli
+    for (const [lang, blob] of Object.entries(audioBlobs)) {
+      zip.file('audio_' + lang + '.mp3', blob);
+      if (srts[lang]) zip.file('subs_' + lang + '.srt', srts[lang]);
+      count++;
+    }
+  }
+
+  if (progressCallback) progressCallback('Pakiranje ZIP...');
+  const zipBlob = await zip.generateAsync({type: 'blob'});
+  return {zipBlob, count};
+}
+
 async function vadsDownloadAllZip() {
   const btn = document.getElementById('vadsZipBtn');
   const status = document.getElementById('vadsBulkStatus');
@@ -3535,74 +3580,12 @@ async function vadsDownloadAllZip() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<div class="vads-spinner" style="border-top-color:white"></div> Ustvarjam ZIP...'; }
 
   try {
-    if (!window.JSZip) { await new Promise((res,rej) => { const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
-    const JSZip = window.JSZip;
-    const zip = new JSZip();
-    const hasVideos = vadsVideoFiles.length > 0;
-    const audioBlobs = window._vadsAudioBlobs || {};
-    const srts = window._vadsSrts || {};
-
     let count = 0;
+    let zipBlob;
+    const result = await vadsBuildZipBlob((msg) => { if (status) status.textContent = msg; });
+    zipBlob = result.zipBlob;
+    count = result.count;
 
-    if (hasVideos) {
-      // Pripravi seznam vseh merge taskov
-      const tasks = [];
-      for (const [lang, blob] of Object.entries(audioBlobs)) {
-        for (let vi = 0; vi < vadsVideoFiles.length; vi++) {
-          tasks.push({lang, blob, videoFile: vadsVideoFiles[vi], vi});
-        }
-      }
-
-      const total = tasks.length;
-      let done = 0;
-
-      // Paralelno z omejitvijo na 3 hkrati (1 CPU server)
-      const PARALLEL_LIMIT = 5;
-      const runTask = async (task) => {
-        const {lang, blob, videoFile, vi} = task;
-        const formData = new FormData();
-        formData.append('video', videoFile, videoFile.name);
-        formData.append('audio', blob, 'audio.mp3');
-        formData.append('lang', lang);
-        if (srts[lang]) {
-          const srtBlob = new Blob([srts[lang]], {type: 'text/plain'});
-          formData.append('srt', srtBlob, 'subs.srt');
-        }
-        try {
-          const res = await fetch('/merge-video-audio', {method: 'POST', body: formData});
-          if (res.ok) {
-            const videoBlob = await res.blob();
-            const suffix = vadsVideoFiles.length > 1 ? '_v' + (vi+1) : '';
-            zip.file('video_' + lang + suffix + '.mp4', videoBlob);
-            count++;
-          }
-        } catch (e) {
-          console.error('Merge fail:', lang, vi, e);
-        }
-        done++;
-        if (status) status.textContent = 'Spajam ' + done + '/' + total + ' (paralelno ' + PARALLEL_LIMIT + 'x)...';
-      };
-
-      // Worker pool — kontrolirana paralelizacija
-      const queue = [...tasks];
-      const workers = Array(PARALLEL_LIMIT).fill(null).map(async () => {
-        while (queue.length) {
-          const task = queue.shift();
-          if (task) await runTask(task);
-        }
-      });
-      await Promise.all(workers);
-    } else {
-      // Samo audio fajli
-      for (const [lang, blob] of Object.entries(audioBlobs)) {
-        zip.file('audio_' + lang + '.mp3', blob);
-        if (srts[lang]) zip.file('subs_' + lang + '.srt', srts[lang]);
-        count++;
-      }
-    }
-
-    if (status) status.textContent = 'Pakiranje ZIP...';
-    const zipBlob = await zip.generateAsync({type: 'blob'});
     const url = URL.createObjectURL(zipBlob);
     const a = document.createElement('a');
     a.href = url;
