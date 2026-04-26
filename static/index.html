@@ -3600,30 +3600,12 @@ async function vadsBuildZipBlob(progressCallback) {
   const srts = window._vadsSrts || {};
   let count = 0;
 
-  // SINGLE UPLOAD: upload videote enkrat, dobi session_id-je
-  const videoSessions = []; // [{session_id, originalIdx}]
   if (hasVideos) {
-    if (progressCallback) progressCallback('Pošiljam videote na strežnik...');
-    for (let vi = 0; vi < vadsVideoFiles.length; vi++) {
-      try {
-        const fd = new FormData();
-        fd.append('video', vadsVideoFiles[vi], vadsVideoFiles[vi].name);
-        const r = await fetch('/upload-video-session', {method: 'POST', body: fd});
-        const d = await r.json();
-        if (d.session_id) {
-          videoSessions.push({session_id: d.session_id, vi: vi});
-        }
-      } catch(e) { console.error('Upload fail vi=' + vi, e); }
-    }
-    if (progressCallback) progressCallback('Naloženih ' + videoSessions.length + '/' + vadsVideoFiles.length + ' videov');
-  }
-
-  if (hasVideos && videoSessions.length > 0) {
     // Pripravi vse merge taske
     const tasks = [];
     for (const [lang, blob] of Object.entries(audioBlobs)) {
-      for (const sess of videoSessions) {
-        tasks.push({lang, blob, session_id: sess.session_id, vi: sess.vi});
+      for (let vi = 0; vi < vadsVideoFiles.length; vi++) {
+        tasks.push({lang, blob, videoFile: vadsVideoFiles[vi], vi});
       }
     }
     const total = tasks.length;
@@ -3631,9 +3613,9 @@ async function vadsBuildZipBlob(progressCallback) {
     const PARALLEL_LIMIT = 5;
 
     const runTask = async (task) => {
-      const {lang, blob, session_id, vi} = task;
+      const {lang, blob, videoFile, vi} = task;
       const formData = new FormData();
-      formData.append('session_id', session_id);
+      formData.append('video', videoFile, videoFile.name);
       formData.append('audio', blob, 'audio.mp3');
       formData.append('lang', lang);
       if (srts[lang]) {
@@ -3641,7 +3623,7 @@ async function vadsBuildZipBlob(progressCallback) {
         formData.append('srt', srtBlob, 'subs.srt');
       }
       try {
-        const res = await fetch('/merge-video-audio-session', {method: 'POST', body: formData});
+        const res = await fetch('/merge-video-audio', {method: 'POST', body: formData});
         if (res.ok) {
           const videoBlob = await res.blob();
           const suffix = vadsVideoFiles.length > 1 ? '_v' + (vi+1) : '';
@@ -3652,7 +3634,7 @@ async function vadsBuildZipBlob(progressCallback) {
         }
       } catch (e) { console.error('Merge fail:', lang, vi, e); }
       done++;
-      if (progressCallback) progressCallback('Spajam ' + done + '/' + total + ' (paralelno ' + PARALLEL_LIMIT + 'x, single-upload)...');
+      if (progressCallback) progressCallback('Spajam ' + done + '/' + total + ' (paralelno ' + PARALLEL_LIMIT + 'x)...');
     };
 
     const queue = [...tasks];
@@ -3660,15 +3642,7 @@ async function vadsBuildZipBlob(progressCallback) {
       while (queue.length) { const task = queue.shift(); if (task) await runTask(task); }
     });
     await Promise.all(workers);
-
-    // Cleanup video sessions na strežniku
-    try {
-      await fetch('/cleanup-video-session', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({session_ids: videoSessions.map(s => s.session_id)})
-      });
-    } catch(e) {}
-  } else if (!hasVideos) {
+  } else {
     // Samo audio fajli
     for (const [lang, blob] of Object.entries(audioBlobs)) {
       zip.file('audio_' + lang + '.mp3', blob);
