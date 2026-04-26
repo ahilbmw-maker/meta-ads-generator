@@ -322,16 +322,16 @@
     <thead>
       <tr>
         <th style="width:30px">✓</th>
-        <th onclick="sortBy('id')">ID naročila ↕</th>
-        <th onclick="sortBy('sku')">SKU ↕</th>
-        <th>Cena originalna</th>
-        <th>Predlagana cena</th>
-        <th>NC</th>
-        <th>Razlika</th>
-        <th>Marža</th>
-        <th>Valuta</th>
-        <th>Trgovina</th>
-        <th>Status</th>
+        <th onclick="sortBy('id')" style="cursor:pointer">ID naročila ↕</th>
+        <th onclick="sortBy('sku')" style="cursor:pointer">SKU ↕</th>
+        <th onclick="sortBy('amount')" style="cursor:pointer">Cena originalna ↕</th>
+        <th onclick="sortBy('suggested')" style="cursor:pointer">Predlagana cena ↕</th>
+        <th onclick="sortBy('ncNum')" style="cursor:pointer">NC ↕</th>
+        <th onclick="sortBy('razlikaNum')" style="cursor:pointer">Razlika ↕</th>
+        <th onclick="sortBy('marzaNum')" style="cursor:pointer">Marža ↕</th>
+        <th onclick="sortBy('currency')" style="cursor:pointer">Valuta ↕</th>
+        <th onclick="sortBy('store')" style="cursor:pointer">Trgovina ↕</th>
+        <th onclick="sortBy('status')" style="cursor:pointer">Status ↕</th>
         <th>Razlog</th>
       </tr>
     </thead>
@@ -536,6 +536,14 @@ function parseFile(text) {
 
     const check = checkPrice(parsed.amount, parsed.currency);
 
+    // Pretvori v številko za sortiranje (odstrani vse ne-numerično razen "," in "-")
+    const toNum = (s) => {
+      if (!s) return null;
+      const cleaned = s.toString().replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.');
+      const n = parseFloat(cleaned);
+      return isNaN(n) ? null : n;
+    };
+
     rows.push({
       id,
       sku: sku || '',
@@ -546,6 +554,9 @@ function parseFile(text) {
       nc: nc || '',
       razlika: razlika || '',
       marza: marza || '',
+      ncNum: toNum(nc),
+      razlikaNum: toNum(razlika),
+      marzaNum: toNum(marza),
       store: store || '',
       issues: check.issues,
       suggested: check.suggested,
@@ -584,8 +595,17 @@ function renderTable(rows) {
 
   if (sortCol) {
     filtered = [...filtered].sort((a, b) => {
-      const av = a[sortCol] || '';
-      const bv = b[sortCol] || '';
+      const av = a[sortCol];
+      const bv = b[sortCol];
+      // null/undefined gredo na konec
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      // Številsko sortiranje
+      if (typeof av === 'number' && typeof bv === 'number') {
+        return (av - bv) * sortDir;
+      }
+      // String sortiranje
       return av.toString().localeCompare(bv.toString()) * sortDir;
     });
   }
@@ -680,6 +700,15 @@ function setSearch(v) {
 function sortBy(col) {
   if (sortCol === col) sortDir *= -1;
   else { sortCol = col; sortDir = 1; }
+  // Posodobi prikaz puščic v headerju
+  document.querySelectorAll('thead th').forEach(th => {
+    const txt = th.textContent.replace(/[↕↑↓]/g, '').trim();
+    if (th.getAttribute('onclick')?.includes("'" + col + "'")) {
+      th.textContent = txt + ' ' + (sortDir === 1 ? '↑' : '↓');
+    } else if (th.getAttribute('onclick')) {
+      th.textContent = txt + ' ↕';
+    }
+  });
   renderTable(allRows);
 }
 
@@ -748,7 +777,21 @@ function loadTableFromStorage() {
     if (stored) {
       allRows = JSON.parse(stored);
       if (allRows.length > 0) {
+        // Backward compat: dodaj manjkajoče numerične vrednosti če jih ni
+        const toNum = (s) => {
+          if (s == null || s === '') return null;
+          const cleaned = s.toString().replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.');
+          const n = parseFloat(cleaned);
+          return isNaN(n) ? null : n;
+        };
+        allRows.forEach(r => {
+          if (r.ncNum === undefined) r.ncNum = toNum(r.nc);
+          if (r.razlikaNum === undefined) r.razlikaNum = toNum(r.razlika);
+          if (r.marzaNum === undefined) r.marzaNum = toNum(r.marza);
+          if (r.resolved === undefined) r.resolved = false;
+        });
         loadResolvedFromStorage();
+        saveTableToStorage(); // shrani posodobljene podatke
         renderTable(allRows);
         updateStats(allRows);
         return true;
