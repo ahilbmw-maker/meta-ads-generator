@@ -1222,22 +1222,31 @@ async function vadsZipToAsana() {
   document.getElementById('kAsanaUrlInput').value = '';
   document.getElementById('kAsanaSearchResults').innerHTML = '';
   document.getElementById('kAsanaSelected').textContent = '';
-  document.getElementById('kAsanaStatus').textContent = '⏳ Gradim ZIP v ozadju... (vpiši Asana task)';
+  document.getElementById('kAsanaStatus').textContent = '⏳ ZIP se gradi v ozadju (lahko zapreš okno) — vpiši Asana task';
+  const lbl = document.getElementById('kAsanaSubmitLabel');
+  if (lbl) lbl.textContent = 'Pošlji video ZIP';
   document.getElementById('kAsanaModal').classList.add('show');
 
-  // 2. V ozadju gradi ZIP
+  // 2. V ozadju gradi ZIP — progress prikazuj v vadsBulkStatus (glavni status)
+  const bulkStatus = document.getElementById('vadsBulkStatus');
   try {
     const result = await vadsBuildZipBlob((msg) => {
+      if (bulkStatus) bulkStatus.textContent = msg;
       const s = document.getElementById('kAsanaStatus');
-      if (s && window._vadsZipBuilding) s.textContent = '⏳ ' + msg;
+      if (s && window._vadsZipBuilding && document.getElementById('kAsanaModal').classList.contains('show')) {
+        s.textContent = '⏳ ' + msg;
+      }
     });
     window._vadsZipBlob = result.zipBlob;
     window._vadsZipFilename = 'video_ads_' + new Date().toISOString().split('T')[0] + '.zip';
     window._vadsZipBuilding = false;
+    const sizeStr = (result.zipBlob.size/1024/1024).toFixed(1);
+    if (bulkStatus) bulkStatus.textContent = '✓ ZIP pripravljen (' + sizeStr + ' MB)';
     const s = document.getElementById('kAsanaStatus');
-    if (s) s.textContent = '✓ ZIP pripravljen (' + (result.zipBlob.size/1024/1024).toFixed(1) + ' MB) — pošlji v Asana';
+    if (s) s.textContent = '✓ ZIP pripravljen (' + sizeStr + ' MB) — pošlji v Asana';
   } catch(e) {
     window._vadsZipBuilding = false;
+    if (bulkStatus) bulkStatus.textContent = '✗ Napaka: ' + e.message;
     const s = document.getElementById('kAsanaStatus');
     if (s) s.textContent = '✗ Napaka pri gradnji ZIP: ' + e.message;
   }
@@ -2307,10 +2316,10 @@ function kOpenAsanaModal(idxArray) {
 
 function kCloseAsanaModal() {
   document.getElementById('kAsanaModal').classList.remove('show');
-  window._vadsAsanaMode = false;
-  window._vadsZipBlob = null;
-  window._lokAsanaMode = false;
-  window._lokZipBlob = null;
+  // OPOMBA: ne pobriši ZIP buildanja — uporabnik lahko zapre modal medtem ko se ZIP gradi.
+  // Ko bo modal spet odprt, se bo lahko priložilo. Resetira se šele ko se ZIP pošlje ali pokliče izrecno reset.
+  const lbl = document.getElementById('kAsanaSubmitLabel');
+  if (lbl) lbl.textContent = 'Priloži slike';
 }
 
 async function kAsanaSearch() {
@@ -2714,23 +2723,33 @@ async function lokAsanaAll() {
   document.getElementById('kAsanaUrlInput').value = lokUrl || '';
   document.getElementById('kAsanaSearchResults').innerHTML = '';
   document.getElementById('kAsanaSelected').textContent = '';
-  document.getElementById('kAsanaStatus').textContent = '⏳ Gradim ZIP v ozadju... (vpiši Asana task)';
+  document.getElementById('kAsanaStatus').textContent = '⏳ ZIP se gradi v ozadju (lahko zapreš okno) — vpiši Asana task';
+  const lbl = document.getElementById('kAsanaSubmitLabel');
+  if (lbl) lbl.textContent = 'Pošlji slike ZIP';
   document.getElementById('kAsanaModal').classList.add('show');
   if (lokUrl) kAsanaSearch(lokUrl);
 
   // Gradi ZIP v ozadju
+  const dlBtn = document.getElementById('lokDownloadAllBtn');
+  const origDlText = dlBtn ? dlBtn.innerHTML : '';
   try {
     const result = await lokBuildZipBlob((msg) => {
+      if (dlBtn) dlBtn.innerHTML = '⏳ ' + msg;
       const s = document.getElementById('kAsanaStatus');
-      if (s && window._lokZipBuilding) s.textContent = '⏳ ' + msg;
+      if (s && window._lokZipBuilding && document.getElementById('kAsanaModal').classList.contains('show')) {
+        s.textContent = '⏳ ' + msg;
+      }
     });
     window._lokZipBlob = result.zipBlob;
     window._lokZipFilename = 'lokalizacija_' + new Date().toISOString().split('T')[0] + '.zip';
     window._lokZipBuilding = false;
+    if (dlBtn) dlBtn.innerHTML = origDlText;
+    const sizeStr = (result.zipBlob.size/1024/1024).toFixed(1);
     const s = document.getElementById('kAsanaStatus');
-    if (s) s.textContent = '✓ ZIP pripravljen (' + (result.zipBlob.size/1024/1024).toFixed(1) + ' MB, ' + result.count + ' slik) — pošlji v Asana';
+    if (s) s.textContent = '✓ ZIP pripravljen (' + sizeStr + ' MB, ' + result.count + ' slik) — pošlji v Asana';
   } catch(e) {
     window._lokZipBuilding = false;
+    if (dlBtn) dlBtn.innerHTML = origDlText;
     const s = document.getElementById('kAsanaStatus');
     if (s) s.textContent = '✗ Napaka: ' + e.message;
   }
@@ -3610,7 +3629,7 @@ async function vadsBuildZipBlob(progressCallback) {
     }
     const total = tasks.length;
     let done = 0;
-    const PARALLEL_LIMIT = 5;
+    const PARALLEL_LIMIT = 3;
 
     const runTask = async (task) => {
       const {lang, blob, videoFile, vi} = task;
@@ -3932,7 +3951,7 @@ updateMeta();renderH();ttRenderHistory();ttLoadHistory();metaLoadServerHistory()
     <div style="display:flex;gap:8px">
       <button class="btn-gen" id="kAsanaSubmitBtn" onclick="kAsanaAttach()" style="flex:1">
         <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-        Priloži slike
+        <span id="kAsanaSubmitLabel">Priloži slike</span>
       </button>
       <button onclick="kCloseAsanaModal()" style="padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius);background:none;cursor:pointer;font-size:12px;color:var(--text-secondary)">Prekliči</button>
     </div>
