@@ -694,7 +694,16 @@ input[type="text"].error { border-color: var(--red) !important; }
 
   <!-- ═══ CALCULATOR PAGE ═══ -->
   <div class="page" id="page-calc">
-    <iframe src="/static/price_calculator.html" style="width:100%;height:calc(100vh - 4rem);border:none;border-radius:var(--radius-lg)" allow="clipboard-write"></iframe>
+    <div style="display:flex;gap:8px;padding:8px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border)">
+      <button class="calc-tab-btn active" id="calcTab-calc" onclick="switchCalcTab('calc')" style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
+        💰 Kalkulator
+      </button>
+      <button class="calc-tab-btn" id="calcTab-pricecheck" onclick="switchCalcTab('pricecheck')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
+        📊 Price Checker
+      </button>
+    </div>
+    <iframe id="calcFrame-calc" src="/static/price_calculator.html" style="width:100%;height:calc(100vh - 7rem);border:none" allow="clipboard-write"></iframe>
+    <iframe id="calcFrame-pricecheck" src="/static/price_checker.html" style="width:100%;height:calc(100vh - 7rem);border:none;display:none" allow="clipboard-write"></iframe>
   </div>
 
   <!-- ═══ KREATIVE PAGE ═══ -->
@@ -1180,6 +1189,20 @@ function closeMenu(){
 }
 const PAGES = ['meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads'];
 let currentIdx = 0;
+
+function switchCalcTab(tab) {
+  ['calc', 'pricecheck'].forEach(t => {
+    const btn = document.getElementById('calcTab-' + t);
+    const frame = document.getElementById('calcFrame-' + t);
+    if (t === tab) {
+      if (btn) { btn.style.background = 'var(--accent)'; btn.style.color = 'white'; btn.style.border = 'none'; btn.classList.add('active'); }
+      if (frame) frame.style.display = 'block';
+    } else {
+      if (btn) { btn.style.background = 'transparent'; btn.style.color = 'var(--text-secondary)'; btn.style.border = '1px solid var(--border)'; btn.classList.remove('active'); }
+      if (frame) frame.style.display = 'none';
+    }
+  });
+}
 
 function switchPage(page) {
   const idx = PAGES.indexOf(page);
