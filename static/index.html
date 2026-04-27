@@ -106,6 +106,9 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 /* ── MAIN CONTENT ── */
 .main { flex: 1; padding: 2rem 2rem 5rem; max-width: 1000px; }
 .main.wide { max-width: 100%; padding: 1.5rem 1.5rem 5rem; }
+.main:has(#page-analiza.active) { max-width: 100% !important; padding: 0 !important; }
+#page-analiza { width: 100%; max-width: 100%; }
+#analizaSubpage-meta, #analizaSubpage-obrat14 { width: 100%; max-width: 100%; box-sizing: border-box; }
 .page { display: none; }
 .page.active { display: block; }
 
@@ -5226,15 +5229,14 @@ function anRenderTable() {
             '<div style="text-align:right;font-weight:600;color:var(--text)">' + adData.total_purchases + '</div>' +
             '<div style="text-align:right;font-weight:600;color:' + cpaColor + '">' + cpaTxt + '</div>';
 
-          // ACCOUNT BAR — pas pod glavno vrstico
+          // ACCOUNT BAR — pas pod glavno vrstico, samo ✓ za aktivni
           const accCells = TARGET_ACCOUNTS.map(acc => {
             const accData = adData.accounts?.[acc];
             const label = ACC_SHORT[acc] || acc;
             if (!accData || accData.spend === 0) {
-              return '<span style="text-align:center;color:var(--text-tertiary);font-size:10px;padding:3px 6px;background:var(--bg-secondary);border-radius:4px;display:inline-flex;align-items:center;justify-content:center" title="' + esc(acc) + ': ni oglaševan">' + esc(label) + ' —</span>';
+              return '<span style="text-align:center;color:var(--text-tertiary);font-size:10px;padding:4px 10px;background:var(--bg-secondary);border-radius:4px;display:inline-flex;align-items:center;justify-content:center;gap:4px" title="' + esc(acc) + ': ni oglaševan">' + esc(label) + ' <span style="opacity:0.5">○</span></span>';
             }
-            const intensity = Math.min(0.30, accData.spend / 800);
-            return '<span style="text-align:center;font-size:10px;font-weight:600;color:var(--green);padding:3px 6px;background:rgba(64,193,80,' + intensity + ');border:1px solid rgba(64,193,80,0.3);border-radius:4px;display:inline-flex;align-items:center;justify-content:center" title="' + esc(acc) + ': ' + accData.spend.toFixed(2) + '€ · ' + accData.purchases + ' nakupov">' + esc(label) + ' ' + Math.round(accData.spend) + '€</span>';
+            return '<span style="text-align:center;font-size:10px;font-weight:600;color:var(--green);padding:4px 10px;background:rgba(64,193,80,0.15);border:1px solid rgba(64,193,80,0.4);border-radius:4px;display:inline-flex;align-items:center;justify-content:center;gap:4px" title="' + esc(acc) + ': ' + accData.spend.toFixed(2) + '€ · ' + accData.purchases + ' nakupov · ' + accData.campaigns + ' kampanj">' + esc(label) + ' ✓</span>';
           }).join('');
 
           accountBar =
