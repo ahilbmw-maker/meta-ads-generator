@@ -2492,3 +2492,154 @@ async def orodja_history_delete(filename: str):
             from fastapi.responses import JSONResponse
             return JSONResponse({"error": str(e)}, status_code=500)
     return {"status": "not_found"}
+
+
+# ─── ORODJA: Uvoz HS+ PDF predračun ───────────────────────────────────────────
+
+@app.post("/orodja-import-hs-pdf")
+async def orodja_import_hs_pdf(file: UploadFile = File(...)):
+    """Sprejme HS+ PDF predračun, vrne JSON s SKU + količinami.
+    Uporablja Claude Vision za branje image-based PDF."""
+    try:
+        content_bytes = await file.read()
+        items = []
+
+        # Najprej poskus tekst-extraction (če je tekstovni PDF)
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+            tmp.write(content_bytes)
+            tmp_path = tmp.name
+
+        try:
+            try:
+                with pdfplumber.open(tmp_path) as pdf:
+                    for page in pdf.pages:
+                        text = page.extract_text() or ""
+                        if text.strip():
+                            for line in text.split('\n'):
+                                line = line.strip()
+                                m = re.match(r'^(\d{12,14})\s+(.+?)\s+(\d+)\s+(?:KOS|kos|PCS|pcs)', line)
+                                if m:
+                                    opis = m.group(2).strip()
+                                    tokens = [t.rstrip('.,;:') for t in opis.split()]
+                                    upper_t = [t for t in tokens if t.isupper() and len(t) >= 3 and not t.isdigit()]
+                                    sku = upper_t[-1] if upper_t else (tokens[-1] if tokens else opis)
+                                    items.append({
+                                        "ean": m.group(1),
+                                        "opis": opis,
+                                        "sku": sku,
+                                        "kolicina": int(m.group(3)),
+                                    })
+            except: pass
+
+            # Fallback: Claude Vision (PDF kot dokument)
+            if not items:
+                import base64
+                pdf_b64 = base64.b64encode(content_bytes).decode('utf-8')
+
+                prompt = """Preberi ta predračun in vrni VSA postavke v JSON formatu.
+Za vsako postavko izloci:
+- ean: 13-mestna številčna koda na začetku vrstice
+- opis: celoten opis postavke
+- sku: zadnja SVE-VELIKA-ČRKA beseda v opisu (npr. "HYDRASPRINK HYDRASPRINK" → SKU = "HYDRASPRINK"; "WHEELPLAY yellow WHEELPLAY" → SKU = "WHEELPLAY"; "TOPKNER 180x200 TOPKNER" → SKU = "TOPKNER")
+- kolicina: število pred "KOS" oznako
+
+Vrni IZKLJUČNO valid JSON v formatu:
+{"items": [{"ean": "...", "opis": "...", "sku": "...", "kolicina": 350}, ...]}
+
+Brez dodatnih komentarjev, samo JSON."""
+
+                try:
+                    client = anthropic.Anthropic()
+                    response = client.messages.create(
+                        model="claude-sonnet-4-6",
+                        max_tokens=8000,
+                        messages=[{
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "document",
+                                    "source": {
+                                        "type": "base64",
+                                        "media_type": "application/pdf",
+                                        "data": pdf_b64
+                                    }
+                                },
+                                {"type": "text", "text": prompt}
+                            ]
+                        }]
+                    )
+                    text = "".join([b.text for b in response.content if hasattr(b, 'text')])
+                    parsed = parse_json_response(text)
+                    if parsed and 'items' in parsed:
+                        for it in parsed['items']:
+                            try:
+                                qty = int(it.get('kolicina', 0))
+                            except:
+                                qty = 0
+                            items.append({
+                                "ean": str(it.get('ean', '')),
+                                "opis": str(it.get('opis', '')),
+                                "sku": str(it.get('sku', '')).strip(),
+                                "kolicina": qty,
+                            })
+                except Exception as e:
+                    print(f"[hs-pdf] Claude vision error: {e}")
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except: pass
+
+        if not items:
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"error": "Iz PDF-ja ne morem prebrati postavk."}, status_code=400)
+
+        # Skupna količina iz PDF-ja
+        pdf_total = sum(int(it.get('kolicina', 0) or 0) for it in items)
+        return {"items": items, "total": len(items), "pdf_total": pdf_total}
+    except Exception as e:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/orodja-export-hs-xlsx")
+async def orodja_export_hs_xlsx(data: dict):
+    """Sprejme [{sku, kolicina}], generira XLSX in shrani v history."""
+    try:
+        items = data.get("items", [])
+        if not items:
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"error": "Ni postavk."}, status_code=400)
+
+        # Generiraj XLSX z headerji sku|stock (HS+ format)
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = datetime.now().strftime('%Y-%m-%d_%H-%M-%S-export')
+        ws.append(["sku", "stock"])  # header
+        for item in items:
+            sku = (item.get("sku") or "").strip()
+            qty = item.get("kolicina") or 0
+            if not sku:
+                continue
+            try:
+                qty_int = int(float(qty))
+            except:
+                qty_int = 0
+            ws.append([sku, qty_int])
+
+        cleanup_orodja_history()
+        ts = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        out_filename = f"HS_PLUS_{ts}.xlsx"
+        out_path = ORODJA_HISTORY_DIR / out_filename
+        wb.save(out_path)
+
+        from fastapi.responses import FileResponse
+        return FileResponse(
+            path=str(out_path),
+            filename=out_filename,
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={"X-Filename": out_filename}
+        )
+    except Exception as e:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": str(e)}, status_code=500)
