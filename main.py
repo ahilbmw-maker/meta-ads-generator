@@ -2352,9 +2352,12 @@ async def asana_attach_binary(
 ORODJA_HISTORY_DIR = DATA_DIR / "orodja_history"
 ORODJA_HISTORY_DIR.mkdir(exist_ok=True, parents=True)
 
+ORODJA_HS_HISTORY_DIR = DATA_DIR / "orodja_hs_history"
+ORODJA_HS_HISTORY_DIR.mkdir(exist_ok=True, parents=True)
+
 
 def cleanup_orodja_history():
-    """Briše datoteke starejše od 30 dni."""
+    """Briše datoteke starejše od 30 dni (CSV združevalnik)."""
     try:
         cutoff = datetime.now().timestamp() - (30 * 86400)
         for f in ORODJA_HISTORY_DIR.glob("*.xlsx"):
@@ -2362,6 +2365,17 @@ def cleanup_orodja_history():
                 f.unlink()
     except Exception as e:
         print(f"[orodja] cleanup err: {e}")
+
+
+def cleanup_orodja_hs_history():
+    """Briše datoteke starejše od 90 dni (HS+ uvoz)."""
+    try:
+        cutoff = datetime.now().timestamp() - (90 * 86400)
+        for f in ORODJA_HS_HISTORY_DIR.glob("*.xlsx"):
+            if f.stat().st_mtime < cutoff:
+                f.unlink()
+    except Exception as e:
+        print(f"[orodja-hs] cleanup err: {e}")
 
 
 @app.post("/orodja-merge-skus")
@@ -2627,10 +2641,10 @@ async def orodja_export_hs_xlsx(data: dict):
                 qty_int = 0
             ws.append([sku, qty_int])
 
-        cleanup_orodja_history()
+        cleanup_orodja_hs_history()
         ts = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         out_filename = f"HS_PLUS_{ts}.xlsx"
-        out_path = ORODJA_HISTORY_DIR / out_filename
+        out_path = ORODJA_HS_HISTORY_DIR / out_filename
         wb.save(out_path)
 
         from fastapi.responses import FileResponse
@@ -2643,3 +2657,60 @@ async def orodja_export_hs_xlsx(data: dict):
     except Exception as e:
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+
+# ─── HS+ HISTORY ENDPOINTS ────────────────────────────────────────────────────
+
+@app.get("/orodja-hs-history")
+async def orodja_hs_history():
+    """Vrne seznam HS+ datotek (90 dni)."""
+    cleanup_orodja_hs_history()
+    items = []
+    try:
+        for f in sorted(ORODJA_HS_HISTORY_DIR.glob("*.xlsx"), key=lambda x: x.stat().st_mtime, reverse=True):
+            stat = f.stat()
+            items.append({
+                "filename": f.name,
+                "size": stat.st_size,
+                "created": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+            })
+    except Exception as e:
+        print(f"[orodja-hs] history err: {e}")
+    return {"items": items[:200]}
+
+
+@app.get("/orodja-hs-download/{filename}")
+async def orodja_hs_download(filename: str):
+    if '/' in filename or '\\' in filename or '..' in filename:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "Neveljavno ime."}, status_code=400)
+
+    f = ORODJA_HS_HISTORY_DIR / filename
+    if not f.exists():
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "Datoteka ne obstaja."}, status_code=404)
+
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        path=str(f),
+        filename=filename,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+
+@app.delete("/orodja-hs-history/{filename}")
+async def orodja_hs_history_delete(filename: str):
+    if '/' in filename or '\\' in filename or '..' in filename:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "Neveljavno ime."}, status_code=400)
+
+    f = ORODJA_HS_HISTORY_DIR / filename
+    if f.exists():
+        try:
+            f.unlink()
+            return {"status": "ok"}
+        except Exception as e:
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"error": str(e)}, status_code=500)
+    return {"status": "not_found"}
