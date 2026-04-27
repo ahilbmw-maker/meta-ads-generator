@@ -490,6 +490,11 @@ input[type="text"].error { border-color: var(--red) !important; }
     Orodja
     <span class="nav-badge" style="background:#f0fdf4;color:#16a34a">NEW</span>
   </div>
+  <div class="nav-item nav-analiza" id="nav-analiza" onclick="switchPage('analiza')">
+    <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Analiza
+    <span class="nav-badge" style="background:#f0fdf4;color:#16a34a">NEW</span>
+  </div>
 </nav>
 
 <!-- MAIN -->
@@ -1299,6 +1304,61 @@ input[type="text"].error { border-color: var(--red) !important; }
       </div>
     </div>
   </div><!-- /page-orodja -->
+  </div><!-- /page-orodja -->
+
+  <!-- ═══ ANALIZA PAGE ═══ -->
+  <div class="page" id="page-analiza">
+    <!-- Tab nav -->
+    <div style="display:flex;gap:8px;padding:12px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border)">
+      <button class="analiza-tab-btn active" id="analizaTab-meta" onclick="switchAnalizaTab('meta')" style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📘 Meta Ads</button>
+    </div>
+
+    <!-- TAB: Meta Ads -->
+    <div id="analizaSubpage-meta" style="padding:14px;display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start">
+      <!-- Levo: nastavitve + povzetek -->
+      <div>
+        <div class="card">
+          <span class="slabel">META ADS POROČILO</span>
+          <p style="font-size:11px;color:var(--text-secondary);margin:8px 0 10px;line-height:1.4">Naloži CSV/XLS export iz FB Ads Manager poročila. Match s SKU bo po imenu kampanje.</p>
+          <div id="anMetaDropZone" class="k-dropzone" style="margin-top:8px;padding:14px;cursor:pointer" onclick="document.getElementById('anMetaInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="anMetaHandleDrop(event)">
+            <span style="font-size:11px">📊 Klikni ali povleci CSV/XLS</span>
+          </div>
+          <input type="file" id="anMetaInput" accept=".csv,.xls,.xlsx" style="display:none" onchange="anLoadMeta(this.files[0])">
+          <div id="anMetaStatus" style="margin-top:8px;font-size:11px;color:var(--text-tertiary);text-align:center;display:none"></div>
+          <div id="anMetaSummary" style="margin-top:8px;font-size:11px;color:var(--text-secondary);display:none"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <span class="slabel">ZALOGA</span>
+          <div id="anStockInfo" style="margin-top:8px;font-size:11px;color:var(--text-secondary)"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <span class="slabel">FILTRI</span>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+            <button class="an-filter-btn active" onclick="anSetFilter('all', this)" style="padding:8px;text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif">Vsi izdelki</button>
+            <button class="an-filter-btn" onclick="anSetFilter('high_stock_no_obrat', this)" style="padding:8px;text-align:left;background:transparent;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text-secondary);cursor:pointer;font-family:'DM Sans',sans-serif">Visoka zaloga, brez obrata</button>
+            <button class="an-filter-btn" onclick="anSetFilter('high_obrat', this)" style="padding:8px;text-align:left;background:transparent;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text-secondary);cursor:pointer;font-family:'DM Sans',sans-serif">Najboljši obrat (top 30 dni)</button>
+            <button class="an-filter-btn" onclick="anSetFilter('zero_stock', this)" style="padding:8px;text-align:left;background:transparent;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text-secondary);cursor:pointer;font-family:'DM Sans',sans-serif">Brez zaloge</button>
+            <button class="an-filter-btn" onclick="anSetFilter('potential', this)" style="padding:8px;text-align:left;background:transparent;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text-secondary);cursor:pointer;font-family:'DM Sans',sans-serif">🚀 Potencial (zaloga + ni oglasa)</button>
+            <button class="an-filter-btn" onclick="anSetFilter('active_ads', this)" style="padding:8px;text-align:left;background:transparent;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text-secondary);cursor:pointer;font-family:'DM Sans',sans-serif">📘 Aktivni oglasi</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Desno: tabela -->
+      <div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <span class="slabel" style="margin:0" id="anTableTitle">ZALOGA IZDELKOV (0)</span>
+            <input type="text" id="anSearch" placeholder="🔍 Išči SKU ali naziv..." oninput="anRenderTable()" style="padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:'DM Sans',sans-serif;width:240px">
+          </div>
+          <div id="anTable" style="display:flex;flex-direction:column;gap:6px"></div>
+          <div id="anEmpty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:2rem">Naloži CSV zalogo v zavihku <strong>Orodja → Kontrola cen</strong>.</div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /page-analiza -->
 
 </div>
 
@@ -1326,7 +1386,7 @@ function closeMenu(){
   document.querySelector('.sidebar').classList.remove('open');
   document.getElementById('overlay').classList.remove('open');
 }
-const PAGES = ['meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads','orodja'];
+const PAGES = ['meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads','orodja','analiza'];
 let currentIdx = 0;
 
 function switchCalcTab(tab) {
@@ -1355,7 +1415,7 @@ function switchPage(page) {
   // Wide layout
   const mainEl = document.querySelector('.main');
   if(mainEl) {
-    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative' || page==='lokalizacija' || page==='narocilnice' || page==='videoads' || page==='orodja') {
+    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative' || page==='lokalizacija' || page==='narocilnice' || page==='videoads' || page==='orodja' || page==='analiza') {
       mainEl.classList.add('wide');
     } else if(page==='meta') {
       const formVisible = document.getElementById('metaFormSection').style.display !== 'none';
@@ -4599,6 +4659,381 @@ async function pcExportXlsx() {
   const ts = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0];
   window.XLSX.writeFile(wb, 'Kontrola_cen_' + ts + '.xlsx');
 }
+
+
+
+// ─── ANALIZA: Meta Ads ──────────────────────────────────────────────────────
+let anStockData = [];
+let anFilteredData = [];
+let anFilter = 'all';
+let anSortCol = 'stock';
+let anSortDir = -1;
+
+function switchAnalizaTab(tab) {
+  // V prihodnosti, trenutno samo meta
+}
+
+function anSetFilter(filter, btn) {
+  anFilter = filter;
+  document.querySelectorAll('.an-filter-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.background = 'transparent';
+    b.style.color = 'var(--text-secondary)';
+  });
+  if (btn) {
+    btn.classList.add('active');
+    btn.style.background = 'var(--surface2)';
+    btn.style.color = 'var(--text)';
+  }
+  anRenderTable();
+}
+
+async function anLoadStock() {
+  // Naložimo iz iste shranjene CSV zaloge kot kontrola cen
+  try {
+    const res = await fetch('/orodja-stock-data');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    anStockData = (data.items || []).map(it => ({
+      sku: it.sku || '',
+      title: it.title || '',
+      stock: parseInt(it.stock) || 0,
+      stock30: parseInt(it.stock30) || 0,
+      ratio: (parseInt(it.stock30) || 0) > 0 ? ((parseInt(it.stock) || 0) / (parseInt(it.stock30) || 1)) : null,
+    }));
+
+    const info = document.getElementById('anStockInfo');
+    if (data.uploaded_at) {
+      const dt = new Date(data.uploaded_at);
+      info.innerHTML = '<strong style="color:var(--green)">✓ ' + anStockData.length + ' SKU-jev</strong><br>posodobljeno: ' + dt.toLocaleString('sl-SI', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    } else {
+      info.innerHTML = '<span style="color:var(--text-tertiary)">⚠ Ni naložene zaloge<br>Naloži v Orodja → Kontrola cen</span>';
+    }
+
+    anRenderTable();
+  } catch(e) {
+    document.getElementById('anStockInfo').innerHTML = '<span style="color:var(--red)">⚠ ' + e.message + '</span>';
+  }
+}
+
+function anSortBy(col) {
+  if (anSortCol === col) anSortDir = -anSortDir;
+  else { anSortCol = col; anSortDir = -1; }
+  anRenderTable();
+}
+
+function anRenderTable() {
+  const search = (document.getElementById('anSearch')?.value || '').toLowerCase().trim();
+  let filtered = [...anStockData];
+
+  // Filter po kategoriji
+  const skuMapL = window._anSkuMap || {};
+  if (anFilter === 'high_stock_no_obrat') {
+    filtered = filtered.filter(r => r.stock >= 20 && r.stock30 === 0);
+  } else if (anFilter === 'high_obrat') {
+    filtered = filtered.filter(r => r.stock30 >= 5).sort((a, b) => b.stock30 - a.stock30).slice(0, 100);
+  } else if (anFilter === 'zero_stock') {
+    filtered = filtered.filter(r => r.stock === 0);
+  } else if (anFilter === 'potential') {
+    filtered = filtered.filter(r => r.stock >= 20 && r.stock30 >= 3 && (!skuMapL[r.sku] || skuMapL[r.sku].length === 0));
+  } else if (anFilter === 'active_ads') {
+    filtered = filtered.filter(r => skuMapL[r.sku] && skuMapL[r.sku].length > 0);
+  }
+
+  // Search
+  if (search) {
+    filtered = filtered.filter(r =>
+      r.sku.toLowerCase().includes(search) ||
+      r.title.toLowerCase().includes(search)
+    );
+  }
+
+  // Sort
+  if (anSortCol) {
+    filtered.sort((a, b) => {
+      let av = a[anSortCol], bv = b[anSortCol];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === 'number') return (av - bv) * anSortDir;
+      return String(av).localeCompare(String(bv)) * anSortDir;
+    });
+  }
+
+  anFilteredData = filtered;
+  document.getElementById('anTableTitle').textContent = 'ZALOGA IZDELKOV (' + filtered.length + ')';
+
+  const table = document.getElementById('anTable');
+  const empty = document.getElementById('anEmpty');
+
+  if (!anStockData.length) {
+    table.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+
+  const sortInd = (col) => {
+    if (anSortCol !== col) return '<span style="opacity:0.4;margin-left:4px">↕</span>';
+    return '<span style="color:var(--accent);margin-left:4px">' + (anSortDir === 1 ? '↑' : '↓') + '</span>';
+  };
+
+  const skuMap = window._anSkuMap || {};
+  const hasMetaData = Object.keys(skuMap).length > 0;
+
+  // Header — če imamo FB data, dodaj kolone
+  const cols = hasMetaData
+    ? '1.5fr 2.5fr 80px 100px 80px 1.2fr 90px 80px'
+    : '1.5fr 3fr 100px 130px 100px';
+
+  let html = '<div style="display:grid;grid-template-columns:' + cols + ';gap:12px;padding:12px 14px;background:var(--bg-secondary);border-radius:var(--radius);font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;user-select:none">' +
+    '<span style="cursor:pointer" onclick="anSortBy(\'sku\')">SKU' + sortInd('sku') + '</span>' +
+    '<span style="cursor:pointer" onclick="anSortBy(\'title\')">Naziv izdelka' + sortInd('title') + '</span>' +
+    '<span style="text-align:center;cursor:pointer" onclick="anSortBy(\'stock\')">Zaloga' + sortInd('stock') + '</span>' +
+    '<span style="text-align:center;cursor:pointer" onclick="anSortBy(\'stock30\')">Obrat 30d' + sortInd('stock30') + '</span>' +
+    '<span style="text-align:center;cursor:pointer" onclick="anSortBy(\'ratio\')">Razm.' + sortInd('ratio') + '</span>' +
+    (hasMetaData ? '<span>Ad acc.</span><span style="text-align:right">Spend</span><span style="text-align:right">ROAS</span>' : '') +
+    '</div>';
+
+  // Vrstice
+  if (filtered.length === 0) {
+    html += '<div style="padding:2rem;text-align:center;color:var(--text-tertiary);font-size:12px">Ni rezultatov.</div>';
+  } else {
+    html += filtered.slice(0, 500).map(r => {
+      let bg = 'var(--surface2)';
+      let stockColor = 'var(--text-secondary)';
+      let obratColor = 'var(--text-secondary)';
+
+      // Vizualni cue
+      if (r.stock >= 20 && r.stock30 === 0) {
+        bg = 'rgba(248,81,73,0.06)'; // RDEČ - mrtva zaloga
+        stockColor = 'var(--red)';
+      } else if (r.stock === 0) {
+        bg = 'rgba(0,0,0,0.03)'; // siv - brez zaloge
+        stockColor = 'var(--text-tertiary)';
+      } else if (r.stock30 >= 10) {
+        bg = 'rgba(64,193,80,0.06)'; // ZELEN - dobro prodajan
+        obratColor = 'var(--green)';
+      }
+
+      let ratioTxt = '—';
+      let ratioColor = 'var(--text-tertiary)';
+      if (r.ratio !== null && r.ratio !== Infinity) {
+        const ratio = r.ratio.toFixed(1);
+        ratioTxt = ratio + '×';
+        if (r.ratio < 1) ratioColor = 'var(--green)'; // hitro proda
+        else if (r.ratio > 5) ratioColor = 'var(--red)'; // počasno
+      } else if (r.stock > 0 && r.stock30 === 0) {
+        ratioTxt = '∞';
+        ratioColor = 'var(--red)';
+      }
+
+      // FB Ads info
+      let metaCells = '';
+      if (hasMetaData) {
+        const ads = skuMap[r.sku] || [];
+        if (ads.length === 0) {
+          // Ni oglaševan — predlog
+          metaCells =
+            '<div style="font-size:11px;color:var(--text-tertiary);font-style:italic">Ni oglasa</div>' +
+            '<div style="text-align:right;color:var(--text-tertiary)">—</div>' +
+            '<div style="text-align:right;color:var(--text-tertiary)">—</div>';
+          // Highlight predlogov: visoka zaloga + brez oglasa
+          if (r.stock >= 20 && r.stock30 >= 3) {
+            bg = 'rgba(124,58,237,0.08)'; // vijolično - potencial
+          }
+        } else {
+          const accounts = [...new Set(ads.map(a => a.account).filter(Boolean))];
+          const totalSpend = ads.reduce((s, a) => s + (a.spend || 0), 0);
+          const avgRoas = ads.length > 0 ? (ads.reduce((s, a) => s + (a.roas || 0), 0) / ads.length) : 0;
+          const accountsTxt = accounts.length === 0 ? ads.length + ' kamp.' : (accounts.length === 1 ? accounts[0] : accounts.length + ' acc.');
+          metaCells =
+            '<div style="font-size:11px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(accounts.join(", ") || (ads.length + " kampanj")) + '">' + esc(accountsTxt) + '</div>' +
+            '<div style="text-align:right;font-weight:500;color:var(--text)">' + totalSpend.toFixed(0) + ' €</div>' +
+            '<div style="text-align:right;font-weight:600;color:' + (avgRoas >= 2 ? 'var(--green)' : avgRoas >= 1 ? 'var(--text)' : 'var(--red)') + '">' + (avgRoas > 0 ? avgRoas.toFixed(2) : '—') + '</div>';
+        }
+      }
+
+      return '<div style="display:grid;grid-template-columns:' + cols + ';gap:12px;align-items:center;padding:12px 14px;background:' + bg + ';border:1px solid var(--border);border-radius:var(--radius);font-size:13px">' +
+        '<div style="font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(r.sku) + '">' + esc(r.sku) + '</div>' +
+        '<div style="color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(r.title) + '">' + esc(r.title) + '</div>' +
+        '<div style="text-align:center;font-weight:600;color:' + stockColor + '">' + r.stock + '</div>' +
+        '<div style="text-align:center;font-weight:500;color:' + obratColor + '">' + r.stock30 + '</div>' +
+        '<div style="text-align:center;font-weight:500;color:' + ratioColor + '">' + ratioTxt + '</div>' +
+        metaCells +
+      '</div>';
+    }).join('');
+
+    if (filtered.length > 500) {
+      html += '<div style="padding:1rem;text-align:center;color:var(--text-tertiary);font-size:12px">Prikazano prvih 500 od ' + filtered.length + ' (uporabi iskanje za filtriranje).</div>';
+    }
+  }
+
+  table.innerHTML = html;
+}
+
+let anMetaData = []; // FB ads rows
+
+function anMetaHandleDrop(ev) {
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('drag-over');
+  const f = ev.dataTransfer.files[0];
+  if (f) anLoadMeta(f);
+}
+
+async function anLoadMeta(file) {
+  if (!file) return;
+  const status = document.getElementById('anMetaStatus');
+  status.style.display = 'block';
+  status.style.color = 'var(--text-tertiary)';
+  status.textContent = '⏳ Berem datoteko...';
+
+  try {
+    let rows = [];
+    const ext = file.name.toLowerCase().split('.').pop();
+
+    if (ext === 'csv') {
+      const text = await file.text();
+      rows = anParseCsv(text);
+    } else if (ext === 'xls' || ext === 'xlsx') {
+      // Naložimo SheetJS če še ni
+      if (!window.XLSX) {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+          s.onload = res; s.onerror = rej;
+          document.head.appendChild(s);
+        });
+      }
+      const ab = await file.arrayBuffer();
+      const wb = window.XLSX.read(ab, {type: 'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      rows = window.XLSX.utils.sheet_to_json(sheet, {defval: ''});
+    } else {
+      throw new Error('Podprti formati: CSV, XLS, XLSX');
+    }
+
+    if (!rows.length) throw new Error('Ni podatkov v datoteki.');
+
+    anMetaData = rows;
+
+    // Poišči "campaign name" kolono
+    const firstRow = rows[0];
+    const campaignKey = Object.keys(firstRow).find(k =>
+      /campaign\s*name|ime\s*kampanje|kampanj/i.test(k)
+    );
+
+    status.textContent = '✓ Naloženih ' + rows.length + ' vrstic';
+    status.style.color = 'var(--green)';
+
+    // Povzetek
+    const summary = document.getElementById('anMetaSummary');
+    summary.style.display = 'block';
+    let html = '<strong>' + rows.length + '</strong> vrstic · <strong>' + Object.keys(firstRow).length + '</strong> kolon';
+    if (campaignKey) {
+      html += '<br>Kampanj: <strong>' + campaignKey + '</strong>';
+    } else {
+      html += '<br><span style="color:var(--yellow)">⚠ Ne najdem campaign name kolone</span>';
+    }
+    summary.innerHTML = html;
+
+    // Match s SKU + render
+    anMatchAndRender();
+
+    document.getElementById('anMetaInput').value = '';
+  } catch(e) {
+    status.textContent = '✗ ' + e.message;
+    status.style.color = 'var(--red)';
+  }
+}
+
+function anParseCsv(text) {
+  // Detect separator
+  const firstLine = text.split('\n')[0];
+  const sep = (firstLine.match(/,/g)||[]).length >= (firstLine.match(/;/g)||[]).length ? ',' : ';';
+
+  // Naive CSV parser z support za quoted fields
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) return [];
+
+  function parseLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') {
+        if (inQuotes && line[i+1] === '"') { current += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (c === sep && !inQuotes) {
+        result.push(current);
+        current = '';
+      } else {
+        current += c;
+      }
+    }
+    result.push(current);
+    return result;
+  }
+
+  const headers = parseLine(lines[0]).map(h => h.trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseLine(lines[i]);
+    const row = {};
+    headers.forEach((h, idx) => row[h] = (values[idx] || '').trim());
+    rows.push(row);
+  }
+  return rows;
+}
+
+function anMatchAndRender() {
+  // Najdi keys
+  if (!anMetaData.length) { anRenderTable(); return; }
+  const sample = anMetaData[0];
+  const campaignKey = Object.keys(sample).find(k => /campaign\s*name|ime\s*kampanje|kampanj/i.test(k));
+  const accountKey = Object.keys(sample).find(k => /account\s*name|account_name|ad\s*account/i.test(k));
+  const spendKey = Object.keys(sample).find(k => /amount\s*spent|spend|porabljen/i.test(k));
+  const roasKey = Object.keys(sample).find(k => /roas|return\s*on\s*ad/i.test(k));
+  const purchaseKey = Object.keys(sample).find(k => /purchases|nakup/i.test(k) && !/value|vrednost/i.test(k));
+
+  if (!campaignKey) { anRenderTable(); return; }
+
+  // Zgradi mapo SKU → [{account, campaign, spend, roas, ...}]
+  const skuMap = {};
+  for (const row of anMetaData) {
+    const campaign = (row[campaignKey] || '').toString().toUpperCase();
+    if (!campaign) continue;
+
+    // Najdi SKU iz imena kampanje — match z anStockData
+    const matched = (anStockData || []).filter(s => {
+      if (!s.sku || s.sku.length < 3) return false;
+      return campaign.includes(s.sku.toUpperCase());
+    });
+
+    for (const m of matched) {
+      const sku = m.sku;
+      if (!skuMap[sku]) skuMap[sku] = [];
+      skuMap[sku].push({
+        campaign: row[campaignKey],
+        account: accountKey ? row[accountKey] : '',
+        spend: spendKey ? parseFloat(String(row[spendKey]).replace(',', '.')) || 0 : 0,
+        roas: roasKey ? parseFloat(String(row[roasKey]).replace(',', '.')) || 0 : 0,
+        purchases: purchaseKey ? parseInt(row[purchaseKey]) || 0 : 0,
+      });
+    }
+  }
+
+  window._anSkuMap = skuMap;
+  anRenderTable();
+}
+
+// Naloži zalogo ko se odpre Analiza tab
+document.addEventListener('DOMContentLoaded', () => {
+  const navAn = document.getElementById('nav-analiza');
+  if (navAn) navAn.addEventListener('click', () => setTimeout(anLoadStock, 100));
+});
 
 
 </script>
