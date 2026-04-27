@@ -1172,27 +1172,29 @@ input[type="text"].error { border-color: var(--red) !important; }
 
   <!-- ═══ ORODJA PAGE ═══ -->
   <div class="page" id="page-orodja">
-    <div style="padding:16px;display:grid;grid-template-columns:380px 1fr;gap:16px;height:calc(100vh - 4rem);overflow:hidden">
-      <!-- Levi del: orodja seznam -->
+    <!-- Tab nav -->
+    <div style="display:flex;gap:8px;padding:12px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border)">
+      <button class="orodja-tab-btn active" id="orodjaTab-csv" onclick="switchOrodjaTab('csv')" style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📋 Združevalnik SKU</button>
+      <button class="orodja-tab-btn" id="orodjaTab-hs" onclick="switchOrodjaTab('hs')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📦 Uvoz HS+</button>
+    </div>
+
+    <!-- TAB 1: CSV Združevalnik -->
+    <div id="orodjaSubpage-csv" style="padding:16px;display:grid;grid-template-columns:380px 1fr;gap:16px;height:calc(100vh - 7rem);overflow:hidden">
       <div style="overflow-y:auto">
         <div class="card">
           <span class="slabel">ZDRUŽEVALNIK SKU</span>
           <p style="font-size:12px;color:var(--text-secondary);margin:8px 0 12px;line-height:1.5">
             Naloži CSV z naročilnico (SKU + Količina). Orodje samodejno združi dvojnike in vrne XLSX s SKU + skupna količina.
           </p>
-
           <div id="orodjaDropZone" class="k-dropzone" style="margin-top:8px;padding:18px" onclick="document.getElementById('orodjaCsvInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="orodjaHandleDrop(event)">
             <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             <span style="font-size:12px">Klikni ali povleci CSV sem</span>
           </div>
           <input type="file" id="orodjaCsvInput" accept=".csv" style="display:none" onchange="orodjaProcess(this.files[0])">
-
           <div id="orodjaStatus" style="margin-top:10px;font-size:12px;color:var(--text-secondary);text-align:center;display:none"></div>
           <div id="orodjaError" style="margin-top:10px;font-size:12px;color:var(--red);display:none"></div>
         </div>
       </div>
-
-      <!-- Desni del: history -->
       <div style="overflow-y:auto">
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -1200,6 +1202,44 @@ input[type="text"].error { border-color: var(--red) !important; }
             <button onclick="orodjaLoadHistory()" style="padding:6px 10px;background:none;border:1px solid var(--border);color:var(--text-secondary);font-size:11px;border-radius:var(--radius);cursor:pointer;font-family:'DM Sans',sans-serif">↻ Osveži</button>
           </div>
           <div id="orodjaHistoryList" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Uvoz HS+ -->
+    <div id="orodjaSubpage-hs" style="display:none;padding:16px;height:calc(100vh - 7rem);overflow:hidden;display:none">
+      <div style="display:grid;grid-template-columns:380px 1fr;gap:16px;height:100%">
+        <!-- Levi: upload -->
+        <div style="overflow-y:auto">
+          <div class="card">
+            <span class="slabel">UVOZ HS+ PREDRAČUN</span>
+            <p style="font-size:12px;color:var(--text-secondary);margin:8px 0 12px;line-height:1.5">
+              Naloži PDF predračun. Sistem prebere SKU + količine. Lahko jih urediš pred izvozom.
+            </p>
+            <div id="hsDropZone" class="k-dropzone" style="margin-top:8px;padding:18px" onclick="document.getElementById('hsPdfInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="hsHandleDrop(event)">
+              <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span style="font-size:12px">Klikni ali povleci PDF sem</span>
+            </div>
+            <input type="file" id="hsPdfInput" accept=".pdf" style="display:none" onchange="hsProcess(this.files[0])">
+            <div id="hsStatus" style="margin-top:10px;font-size:12px;color:var(--text-secondary);text-align:center;display:none"></div>
+            <div id="hsError" style="margin-top:10px;font-size:12px;color:var(--red);display:none"></div>
+          </div>
+        </div>
+
+        <!-- Desni: tabela + akcije -->
+        <div style="overflow-y:auto">
+          <div class="card" id="hsResultsCard" style="display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+              <span class="slabel" style="margin:0" id="hsResultsCount">PREBRANE POSTAVKE</span>
+              <div style="display:flex;gap:6px">
+                <button onclick="hsCopyAll()" style="padding:7px 12px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📋 Kopiraj vse</button>
+                <button onclick="hsExportXlsx()" style="padding:7px 12px;background:#7c3aed;color:white;border:none;border-radius:var(--radius);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📦 XLSX</button>
+              </div>
+            </div>
+            <div id="hsItemsList" style="display:flex;flex-direction:column;gap:6px;max-height:calc(100vh - 16rem);overflow-y:auto"></div>
+            <div id="hsSummary" style="margin-top:12px;padding:10px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text-secondary)"></div>
+          </div>
+          <div id="hsEmpty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:2rem">Naloži PDF predračun za začetek.</div>
         </div>
       </div>
     </div>
@@ -4095,6 +4135,150 @@ document.addEventListener('DOMContentLoaded', () => {
   const navOrodja = document.getElementById('nav-orodja');
   if (navOrodja) navOrodja.addEventListener('click', () => setTimeout(orodjaLoadHistory, 100));
 });
+
+
+
+// ─── ORODJA SUB-TABS + HS+ ─────────────────────────────────────────────────
+function switchOrodjaTab(tab) {
+  ['csv', 'hs'].forEach(t => {
+    const btn = document.getElementById('orodjaTab-' + t);
+    const sub = document.getElementById('orodjaSubpage-' + t);
+    if (t === tab) {
+      if (btn) { btn.style.background = 'var(--accent)'; btn.style.color = 'white'; btn.style.border = 'none'; btn.classList.add('active'); }
+      if (sub) sub.style.display = (t === 'csv') ? 'grid' : 'block';
+    } else {
+      if (btn) { btn.style.background = 'transparent'; btn.style.color = 'var(--text-secondary)'; btn.style.border = '1px solid var(--border)'; btn.classList.remove('active'); }
+      if (sub) sub.style.display = 'none';
+    }
+  });
+}
+
+let hsItems = [];
+
+function hsHandleDrop(ev) {
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('drag-over');
+  const f = ev.dataTransfer.files[0];
+  if (f) hsProcess(f);
+}
+
+async function hsProcess(file) {
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    document.getElementById('hsError').textContent = 'Samo PDF datoteke.';
+    document.getElementById('hsError').style.display = 'block';
+    return;
+  }
+  document.getElementById('hsError').style.display = 'none';
+  const status = document.getElementById('hsStatus');
+  status.style.display = 'block';
+  status.textContent = '⏳ Berem PDF (lahko traja 10-30s)...';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    const res = await fetch('/orodja-import-hs-pdf', {method: 'POST', body: formData});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    hsItems = data.items || [];
+    window._hsPdfTotal = data.pdf_total || hsItems.reduce((s, it) => s + (parseInt(it.kolicina)||0), 0);
+    hsRenderItems();
+    status.textContent = '✓ Prebrano ' + hsItems.length + ' postavk';
+    status.style.color = 'var(--green)';
+    document.getElementById('hsResultsCard').style.display = 'block';
+    document.getElementById('hsEmpty').style.display = 'none';
+    document.getElementById('hsResultsCount').textContent = 'PREBRANE POSTAVKE (' + hsItems.length + ')';
+    document.getElementById('hsPdfInput').value = '';
+  } catch(e) {
+    document.getElementById('hsError').textContent = '✗ ' + e.message;
+    document.getElementById('hsError').style.display = 'block';
+    status.style.display = 'none';
+  }
+}
+
+function hsCalcTotal() {
+  return hsItems.reduce((sum, it) => sum + (parseInt(it.kolicina)||0), 0);
+}
+
+function hsUpdateSummary() {
+  const total = hsCalcTotal();
+  const count = hsItems.length;
+  const pdfTotal = window._hsPdfTotal || 0;
+  const summary = document.getElementById('hsSummary');
+  if (!summary) return;
+
+  let html = '<strong>' + count + ' postavk · skupna količina: ' + total + '</strong>';
+  if (pdfTotal > 0) {
+    if (total === pdfTotal) {
+      html += ' <span style="color:var(--green)">✓ Ujema se s PDF (' + pdfTotal + ')</span>';
+    } else {
+      html += ' <span style="color:var(--red)">⚠ Ne ujema! PDF: ' + pdfTotal + ' (razlika: ' + (total - pdfTotal) + ')</span>';
+    }
+  }
+  summary.innerHTML = html;
+}
+
+function hsRenderItems() {
+  const list = document.getElementById('hsItemsList');
+  if (!list) return;
+  list.innerHTML = hsItems.map((item, idx) => (
+    '<div style="display:flex;gap:8px;align-items:center;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius)">' +
+      '<input type="text" value="' + esc(item.sku) + '" oninput="hsUpdateField(' + idx + ',\'sku\',this.value)" style="flex:1;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;color:var(--text);font-family:\'DM Sans\',sans-serif;text-transform:uppercase">' +
+      '<input type="number" value="' + (item.kolicina||0) + '" oninput="hsUpdateField(' + idx + ',\'kolicina\',parseInt(this.value)||0)" style="width:80px;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:\'DM Sans\',sans-serif">' +
+      '<span style="font-size:10px;color:var(--text-tertiary);min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(item.opis||'') + '">' + esc(item.opis||'') + '</span>' +
+      '<button onclick="hsRemoveItem(' + idx + ')" style="padding:4px 8px;background:none;border:1px solid var(--border);color:var(--text-tertiary);font-size:11px;border-radius:var(--radius);cursor:pointer;font-family:\'DM Sans\',sans-serif">×</button>' +
+    '</div>'
+  )).join('');
+  hsUpdateSummary();
+}
+
+function hsUpdateField(idx, field, value) {
+  if (hsItems[idx]) hsItems[idx][field] = value;
+  if (field === 'kolicina') hsUpdateSummary();
+}
+
+function hsRemoveItem(idx) {
+  hsItems.splice(idx, 1);
+  hsRenderItems();
+  document.getElementById('hsResultsCount').textContent = 'PREBRANE POSTAVKE (' + hsItems.length + ')';
+  hsUpdateSummary();
+}
+
+function hsCopyAll() {
+  if (!hsItems.length) return;
+  const text = hsItems.map(it => 'SKU: ' + (it.sku||'') + '\nKoličina: ' + (it.kolicina||0)).join('\n\n');
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Kopirano ' + hsItems.length + ' postavk v clipboard!');
+  }).catch(e => {
+    alert('Napaka pri kopiranju: ' + e.message);
+  });
+}
+
+async function hsExportXlsx() {
+  if (!hsItems.length) return;
+  try {
+    const res = await fetch('/orodja-export-hs-xlsx', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({items: hsItems})
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({error: 'Napaka.'}));
+      throw new Error(err.error);
+    }
+    const filename = res.headers.get('X-Filename') || 'HS_Order.xlsx';
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setTimeout(() => orodjaLoadHistory(), 500);
+  } catch(e) {
+    alert('Napaka: ' + e.message);
+  }
+}
 
 
 </script>
