@@ -1174,7 +1174,7 @@ input[type="text"].error { border-color: var(--red) !important; }
   <div class="page" id="page-orodja">
     <!-- Tab nav -->
     <div style="display:flex;gap:8px;padding:12px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border)">
-      <button class="orodja-tab-btn active" id="orodjaTab-csv" onclick="switchOrodjaTab('csv')" style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📋 Združevalnik SKU</button>
+      <button class="orodja-tab-btn active" id="orodjaTab-csv" onclick="switchOrodjaTab('csv')" style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📋 Ikonka uvoz</button>
       <button class="orodja-tab-btn" id="orodjaTab-hs" onclick="switchOrodjaTab('hs')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📦 Uvoz HS+</button>
       <button class="orodja-tab-btn" id="orodjaTab-pricecheck" onclick="switchOrodjaTab('pricecheck')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">💰 Kontrola cen</button>
     </div>
@@ -1183,7 +1183,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div id="orodjaSubpage-csv" style="padding:16px;display:grid;grid-template-columns:380px 1fr;gap:16px;height:calc(100vh - 7rem);overflow:hidden">
       <div style="overflow-y:auto">
         <div class="card">
-          <span class="slabel">ZDRUŽEVALNIK SKU</span>
+          <span class="slabel">IKONKA UVOZ</span>
           <p style="font-size:12px;color:var(--text-secondary);margin:8px 0 12px;line-height:1.5">
             Naloži CSV z naročilnico (SKU + Količina). Orodje samodejno združi dvojnike in vrne XLSX s SKU + skupna količina.
           </p>
@@ -4091,7 +4091,7 @@ updateMeta();renderH();ttRenderHistory();ttLoadHistory();metaLoadServerHistory()
 
 
 
-// ─── ORODJA: Združevalnik SKU ───────────────────────────────────────────────
+// ─── ORODJA: Ikonka uvoz ─────────────────────────────────────────────────
 function orodjaHandleDrop(ev) {
   ev.preventDefault();
   ev.currentTarget.classList.remove('drag-over');
