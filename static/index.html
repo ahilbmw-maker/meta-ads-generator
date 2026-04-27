@@ -1176,6 +1176,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div style="display:flex;gap:8px;padding:12px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border)">
       <button class="orodja-tab-btn active" id="orodjaTab-csv" onclick="switchOrodjaTab('csv')" style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📋 Združevalnik SKU</button>
       <button class="orodja-tab-btn" id="orodjaTab-hs" onclick="switchOrodjaTab('hs')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📦 Uvoz HS+</button>
+      <button class="orodja-tab-btn" id="orodjaTab-pricecheck" onclick="switchOrodjaTab('pricecheck')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">💰 Kontrola cen</button>
     </div>
 
     <!-- TAB 1: CSV Združevalnik -->
@@ -1207,8 +1208,8 @@ input[type="text"].error { border-color: var(--red) !important; }
     </div>
 
     <!-- TAB 2: Uvoz HS+ -->
-    <div id="orodjaSubpage-hs" style="display:none;padding:16px;height:calc(100vh - 7rem);display:none">
-      <div style="display:grid;grid-template-columns:340px 1fr;gap:16px;height:100%;overflow:hidden">
+    <div id="orodjaSubpage-hs" style="display:none;padding:16px">
+      <div style="display:grid;grid-template-columns:340px 1fr;gap:16px">
         <!-- Levi: upload + history -->
         <div style="overflow-y:auto;display:flex;flex-direction:column;gap:12px">
           <div class="card">
@@ -1235,7 +1236,7 @@ input[type="text"].error { border-color: var(--red) !important; }
         </div>
 
         <!-- Desni: tabela + akcije -->
-        <div style="overflow-y:auto;padding-right:4px">
+        <div>
           <div class="card" id="hsResultsCard" style="display:none">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
               <span class="slabel" style="margin:0" id="hsResultsCount">PREBRANE POSTAVKE</span>
@@ -1248,6 +1249,52 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div id="hsSummary" style="margin-top:12px;padding:10px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text-secondary)"></div>
           </div>
           <div id="hsEmpty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:2rem">Naloži PDF predračun za začetek.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Kontrola cen -->
+    <div id="orodjaSubpage-pricecheck" style="display:none;padding:16px;height:calc(100vh - 7rem)">
+      <div style="display:grid;grid-template-columns:340px 1fr;gap:16px;height:100%;overflow:hidden">
+        <!-- Levi: upload zaloge + PDF -->
+        <div style="overflow-y:auto;display:flex;flex-direction:column;gap:12px">
+          <div class="card">
+            <span class="slabel">1. ZALOGA (CSV)</span>
+            <div id="pcStockInfo" style="margin-top:8px;padding:10px;background:var(--bg-secondary);border-radius:var(--radius);font-size:11px;color:var(--text-secondary)">Nalagam status...</div>
+            <div id="pcStockDropZone" class="k-dropzone" style="margin-top:8px;padding:14px" onclick="document.getElementById('pcStockInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="pcStockHandleDrop(event)">
+              <span style="font-size:11px">Klikni ali povleci CSV za posodobitev</span>
+            </div>
+            <input type="file" id="pcStockInput" accept=".csv" style="display:none" onchange="pcStockUpload(this.files[0])">
+            <div id="pcStockStatus" style="margin-top:8px;font-size:11px;color:var(--text-secondary);text-align:center;display:none"></div>
+          </div>
+
+          <div class="card">
+            <span class="slabel">2. PDF PREDRAČUN HS+</span>
+            <p style="font-size:11px;color:var(--text-secondary);margin:6px 0 10px;line-height:1.4">
+              Naloži PDF predračun. Sistem najprej prebere postavke, nato matchа s CSV zalogo in primerja cene.
+            </p>
+            <div id="pcPdfDropZone" class="k-dropzone" style="margin-top:8px;padding:14px" onclick="document.getElementById('pcPdfInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="pcPdfHandleDrop(event)">
+              <span style="font-size:11px">Klikni ali povleci PDF</span>
+            </div>
+            <input type="file" id="pcPdfInput" accept=".pdf" style="display:none" onchange="pcPdfProcess(this.files[0])">
+            <div id="pcStatus" style="margin-top:8px;font-size:11px;color:var(--text-secondary);text-align:center;display:none"></div>
+            <div id="pcError" style="margin-top:8px;font-size:11px;color:var(--red);display:none"></div>
+          </div>
+        </div>
+
+        <!-- Desni: rezultati -->
+        <div style="overflow-y:auto;padding-right:4px">
+          <div class="card" id="pcResultsCard" style="display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+              <span class="slabel" style="margin:0" id="pcResultsCount">PRIMERJAVA CEN</span>
+              <div style="display:flex;gap:6px">
+                <button onclick="pcExportXlsx()" style="padding:7px 12px;background:#7c3aed;color:white;border:none;border-radius:var(--radius);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📦 Izvozi XLSX</button>
+              </div>
+            </div>
+            <div id="pcStats" style="margin-bottom:12px;padding:10px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text-secondary)"></div>
+            <div id="pcItemsList" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+          <div id="pcEmpty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:2rem">Naloži zalogo (1) in PDF predračun (2) za začetek primerjave.</div>
         </div>
       </div>
     </div>
@@ -4148,7 +4195,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ─── ORODJA SUB-TABS + HS+ ─────────────────────────────────────────────────
 function switchOrodjaTab(tab) {
-  ['csv', 'hs'].forEach(t => {
+  ['csv', 'hs', 'pricecheck'].forEach(t => {
     const btn = document.getElementById('orodjaTab-' + t);
     const sub = document.getElementById('orodjaSubpage-' + t);
     if (t === tab) {
@@ -4160,6 +4207,7 @@ function switchOrodjaTab(tab) {
     }
   });
   if (tab === 'hs') hsLoadHistory();
+  if (tab === 'pricecheck') pcLoadStockStatus();
   if (tab === 'csv') orodjaLoadHistory();
 }
 
@@ -4233,11 +4281,11 @@ function hsRenderItems() {
   const list = document.getElementById('hsItemsList');
   if (!list) return;
   list.innerHTML = hsItems.map((item, idx) => (
-    '<div style="display:grid;grid-template-columns:1fr 110px 2fr 32px;gap:10px;align-items:center;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius)">' +
-      '<input type="text" value="' + esc(item.sku) + '" oninput="hsUpdateField(' + idx + ',\'sku\',this.value)" placeholder="SKU" style="padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-weight:600;color:var(--text);font-family:\'DM Sans\',sans-serif;text-transform:uppercase;width:100%;box-sizing:border-box">' +
-      '<input type="number" value="' + (item.kolicina||0) + '" oninput="hsUpdateField(' + idx + ',\'kolicina\',parseInt(this.value)||0)" placeholder="Količina" style="padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--text);font-family:\'DM Sans\',sans-serif;width:100%;box-sizing:border-box;text-align:center">' +
-      '<span style="font-size:11px;color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px" title="' + esc(item.opis||'') + '">' + esc(item.opis||'') + '</span>' +
-      '<button onclick="hsRemoveItem(' + idx + ')" style="padding:6px 0;background:none;border:1px solid var(--border);color:var(--text-tertiary);font-size:14px;border-radius:var(--radius);cursor:pointer;font-family:\'DM Sans\',sans-serif;width:32px;height:32px;display:flex;align-items:center;justify-content:center" title="Odstrani">×</button>' +
+    '<div style="display:grid;grid-template-columns:2fr 130px 3fr 36px;gap:12px;align-items:center;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius)">' +
+      '<input type="text" value="' + esc(item.sku) + '" oninput="hsUpdateField(' + idx + ',\'sku\',this.value)" placeholder="SKU" style="padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-weight:600;color:var(--text);font-family:\'DM Sans\',sans-serif;text-transform:uppercase;width:100%;box-sizing:border-box">' +
+      '<input type="number" value="' + (item.kolicina||0) + '" oninput="hsUpdateField(' + idx + ',\'kolicina\',parseInt(this.value)||0)" placeholder="Količina" style="padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:14px;color:var(--text);font-family:\'DM Sans\',sans-serif;width:100%;box-sizing:border-box;text-align:center;font-weight:500">' +
+      '<span style="font-size:12px;color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px" title="' + esc(item.opis||'') + '">' + esc(item.opis||'') + '</span>' +
+      '<button onclick="hsRemoveItem(' + idx + ')" style="padding:0;background:none;border:1px solid var(--border);color:var(--text-tertiary);font-size:16px;border-radius:var(--radius);cursor:pointer;font-family:\'DM Sans\',sans-serif;width:36px;height:36px;display:flex;align-items:center;justify-content:center" title="Odstrani">×</button>' +
     '</div>'
   )).join('');
   hsUpdateSummary();
@@ -4330,6 +4378,185 @@ async function hsHistoryDelete(filename) {
     await fetch('/orodja-hs-history/' + encodeURIComponent(filename), {method: 'DELETE'});
     hsLoadHistory();
   } catch(e) { alert('Napaka: ' + e.message); }
+}
+
+
+
+// ─── ORODJA: Kontrola cen ────────────────────────────────────────────────
+let pcResults = [];
+
+async function pcLoadStockStatus() {
+  try {
+    const res = await fetch('/orodja-stock-status');
+    const data = await res.json();
+    const info = document.getElementById('pcStockInfo');
+    if (!info) return;
+    if (data.loaded) {
+      const dt = new Date(data.uploaded_at);
+      const dateStr = dt.toLocaleString('sl-SI', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      info.innerHTML = '<strong style="color:var(--green)">✓ Naložena</strong><br>' + data.rows + ' vrstic · posodobljeno: ' + dateStr;
+    } else {
+      info.innerHTML = '<strong style="color:var(--text-tertiary)">⚠ Ni naložene zaloge</strong><br>Naloži CSV za začetek.';
+    }
+  } catch(e) {
+    document.getElementById('pcStockInfo').textContent = 'Napaka: ' + e.message;
+  }
+}
+
+function pcStockHandleDrop(ev) {
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('drag-over');
+  const f = ev.dataTransfer.files[0];
+  if (f) pcStockUpload(f);
+}
+
+async function pcStockUpload(file) {
+  if (!file) return;
+  const status = document.getElementById('pcStockStatus');
+  status.style.display = 'block';
+  status.textContent = '⏳ Nalagam zalogo...';
+  try {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    const res = await fetch('/orodja-stock-upload', {method: 'POST', body: formData});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    status.textContent = '✓ Naloženo ' + data.rows + ' vrstic';
+    status.style.color = 'var(--green)';
+    pcLoadStockStatus();
+    document.getElementById('pcStockInput').value = '';
+  } catch(e) {
+    status.textContent = '✗ ' + e.message;
+    status.style.color = 'var(--red)';
+  }
+}
+
+function pcPdfHandleDrop(ev) {
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('drag-over');
+  const f = ev.dataTransfer.files[0];
+  if (f) pcPdfProcess(f);
+}
+
+async function pcPdfProcess(file) {
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    document.getElementById('pcError').textContent = 'Samo PDF datoteke.';
+    document.getElementById('pcError').style.display = 'block';
+    return;
+  }
+  document.getElementById('pcError').style.display = 'none';
+  const status = document.getElementById('pcStatus');
+  status.style.display = 'block';
+  status.textContent = '⏳ Berem PDF in primerjam cene (10-30s)...';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    const res = await fetch('/orodja-price-check', {method: 'POST', body: formData});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    pcResults = data.items || [];
+    pcRenderResults(data);
+    status.textContent = '✓ Primerjano ' + data.matched + '/' + data.total + ' postavk';
+    status.style.color = 'var(--green)';
+    document.getElementById('pcPdfInput').value = '';
+  } catch(e) {
+    document.getElementById('pcError').textContent = '✗ ' + e.message;
+    document.getElementById('pcError').style.display = 'block';
+    status.style.display = 'none';
+  }
+}
+
+function pcRenderResults(data) {
+  document.getElementById('pcResultsCard').style.display = 'block';
+  document.getElementById('pcEmpty').style.display = 'none';
+  document.getElementById('pcResultsCount').textContent = 'PRIMERJAVA CEN (' + pcResults.length + ')';
+
+  // Stats
+  const matched = pcResults.filter(r => r.status !== 'no_match');
+  const vecje = pcResults.filter(r => r.status === 'vecja').length;
+  const manjse = pcResults.filter(r => r.status === 'manjsa').length;
+  const ujema = pcResults.filter(r => r.status === 'match').length;
+  const noMatch = pcResults.filter(r => r.status === 'no_match').length;
+
+  document.getElementById('pcStats').innerHTML =
+    '<strong>Pregled:</strong> ' + pcResults.length + ' postavk · ' +
+    '<span style="color:var(--green)">✓ Ujema: ' + ujema + '</span> · ' +
+    '<span style="color:var(--red)">↑ Dražje (PDF): ' + vecje + '</span> · ' +
+    '<span style="color:var(--green)">↓ Cenejše (PDF): ' + manjse + '</span>' +
+    (noMatch > 0 ? ' · <span style="color:var(--text-tertiary)">⚠ Brez matcha: ' + noMatch + '</span>' : '');
+
+  const list = document.getElementById('pcItemsList');
+  list.innerHTML = '<div style="display:grid;grid-template-columns:1.5fr 70px 80px 80px 90px 1fr;gap:10px;padding:8px 12px;background:var(--bg-secondary);border-radius:var(--radius);font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px"><span>SKU</span><span>Kol</span><span>PDF €</span><span>Neto €</span><span>Zaloga €</span><span>Razlika</span></div>';
+
+  list.innerHTML += pcResults.map((r, idx) => {
+    let bg = 'var(--surface2)';
+    let badge = '';
+    let razlikaTxt = '—';
+
+    if (r.status === 'no_match') {
+      bg = 'var(--bg-secondary)';
+      badge = '<span style="color:var(--text-tertiary);font-size:10px;font-weight:500">⚠ Brez matcha</span>';
+    } else if (r.status === 'match') {
+      badge = '<span style="color:var(--green);font-size:10px;font-weight:600">✓ Ujema</span>';
+      razlikaTxt = '0.00 €';
+    } else if (r.status === 'vecja') {
+      bg = 'rgba(248,81,73,0.06)';
+      badge = '<span style="color:var(--red);font-size:10px;font-weight:600">↑ +' + r.razlika.toFixed(2) + ' € (' + r.razlika_pct.toFixed(1) + '%)</span>';
+      razlikaTxt = '+' + r.razlika.toFixed(2) + ' €';
+    } else if (r.status === 'manjsa') {
+      bg = 'rgba(64,193,80,0.06)';
+      badge = '<span style="color:var(--green);font-size:10px;font-weight:600">↓ ' + r.razlika.toFixed(2) + ' € (' + r.razlika_pct.toFixed(1) + '%)</span>';
+      razlikaTxt = r.razlika.toFixed(2) + ' €';
+    }
+
+    const popustTxt = r.popust_pct > 0 ? ' (-' + r.popust_pct + '%)' : '';
+
+    return '<div style="display:grid;grid-template-columns:1.5fr 70px 80px 80px 90px 1fr;gap:10px;align-items:center;padding:10px 12px;background:' + bg + ';border:1px solid var(--border);border-radius:var(--radius);font-size:12px">' +
+      '<div><div style="font-weight:600;color:var(--text)">' + esc(r.sku) + '</div><div style="font-size:10px;color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(r.opis||'') + '">' + esc((r.title_zaloga || r.opis || '').substring(0, 50)) + '</div></div>' +
+      '<span style="color:var(--text-secondary);text-align:center">' + r.kolicina + '</span>' +
+      '<span style="color:var(--text-secondary);text-align:right">' + r.cena_pdf.toFixed(2) + popustTxt + '</span>' +
+      '<span style="color:var(--text);font-weight:600;text-align:right">' + r.cena_pdf_neto.toFixed(2) + '</span>' +
+      '<span style="color:' + (r.cena_zaloga !== null ? 'var(--text-secondary)' : 'var(--text-tertiary)') + ';text-align:right">' + (r.cena_zaloga !== null ? r.cena_zaloga.toFixed(2) : '—') + '</span>' +
+      '<div>' + badge + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function pcExportXlsx() {
+  if (!pcResults.length) return;
+  // Pošlji results na server za XLSX export
+  // Lažje: naredimo client-side z SheetJS
+  if (!window.XLSX) {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+  const data = pcResults.map(r => ({
+    'SKU': r.sku,
+    'Naziv': r.title_zaloga || r.opis,
+    'Količina': r.kolicina,
+    'PDF cena': r.cena_pdf,
+    'Popust %': r.popust_pct,
+    'PDF neto': r.cena_pdf_neto,
+    'Zaloga cena': r.cena_zaloga,
+    'Razlika €': r.razlika,
+    'Razlika %': r.razlika_pct,
+    'Status': r.status === 'match' ? 'Ujema se' :
+             r.status === 'vecja' ? 'PDF dražji' :
+             r.status === 'manjsa' ? 'PDF cenejši' :
+             'Brez matcha'
+  }));
+  const ws = window.XLSX.utils.json_to_sheet(data);
+  const wb = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(wb, ws, 'Kontrola cen');
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0];
+  window.XLSX.writeFile(wb, 'Kontrola_cen_' + ts + '.xlsx');
 }
 
 
