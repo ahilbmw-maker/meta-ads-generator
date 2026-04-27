@@ -3038,3 +3038,234 @@ async def orodja_stock_data():
     except Exception as e:
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ─── ANALIZA: Meta Ads CSV upload ──────────────────────────────────────────────
+
+META_ADS_FILE = DATA_DIR / "meta_ads_report.csv"
+META_ADS_META = DATA_DIR / "meta_ads_meta.json"
+
+
+# Stop words - skupne besede ki niso SKU
+SKU_STOPWORDS = {
+    'STOP', 'BIDCAP', 'COSTCAP', 'BID', 'CPA', 'BC', 'EX', 'WP', 'WV', 'EU', 'OFF',
+    'LOCAL', 'OUTLET', 'MAAARKET', 'MULTIPLE', 'MAAARKET.HR', 'MAAARKET.RS', 'MAAARKET.SK',
+    'NI', 'ZALOGE', 'NOVO', 'CATALOG', 'CATALOGSALE', 'CATEGORY', 'INTERESTED', 'AUTO',
+    'ADVANTAGE', 'PROSPECTING', 'REMARKETING', 'CAMPAIGN', 'LOOKALIKE', 'BROAD', 'AAA',
+    'DABA', 'COLD', 'KATALOG', 'INFLATED', 'INTERESTS', 'ABO', 'ZIPPLY', 'EASYZO', 'SUBAN',
+    'INTEREST', 'TOFU', 'BOFU', 'MOFU', 'ALL'
+}
+
+
+def _load_known_skus():
+    """Naloži SKU-je iz CSV zaloge (case-insensitive set)."""
+    if not STOCK_CSV_FILE.exists():
+        return set()
+    try:
+        text = STOCK_CSV_FILE.read_text(encoding="utf-8-sig", errors="replace")
+        first_line = text.split('\n', 1)[0]
+        sep = ';' if first_line.count(';') > first_line.count(',') else ','
+        import csv as _csv
+        from io import StringIO as _SIO
+        reader = _csv.DictReader(_SIO(text), delimiter=sep)
+        skus = set()
+        for row in reader:
+            sku = (row.get('product_sku') or row.get('sku') or '').strip()
+            if sku:
+                skus.add(sku.upper())
+                # Dodaj tudi koren (PLANTUP_white -> PLANTUP)
+                koren = re.split(r'[_\-\s]', sku)[0].upper()
+                if koren and len(koren) >= 4:
+                    skus.add(koren)
+        return skus
+    except Exception as e:
+        print(f"[meta] _load_known_skus err: {e}")
+        return set()
+
+
+def extract_skus_from_text(text: str, known_skus: set = None) -> list[str]:
+    """Izvleče SKU tokene iz teksta. Če je known_skus dan, vrača samo te."""
+    if not text:
+        return []
+    tokens = []
+    for raw in text.split():
+        # Odstrani emoji in posebne znake na začetku/koncu
+        cleaned = re.sub(r'^[^\w]+|[^\w]+$', '', raw)
+        if not cleaned or len(cleaned) < 4:
+            continue
+        # Mora bit UPPERCASE
+        if cleaned != cleaned.upper():
+            continue
+        # Ne sme vsebovati piko/decimal (filtrira 9.0BID, BID8.5)
+        if '.' in cleaned:
+            continue
+        # Mora vsebovati vsaj 1 črko
+        if not any(c.isalpha() for c in cleaned):
+            continue
+        # Skip stopwords
+        if cleaned in SKU_STOPWORDS:
+            continue
+        # Skip čiste številke + max 1 črka (90D, 7D, 30D, 1ER ipd.)
+        if re.match(r'^\d+[A-Z]?$', cleaned):
+            continue
+        # Če imamo seznam znanih SKU, preverim pripadnost
+        if known_skus is not None:
+            if cleaned in known_skus:
+                tokens.append(cleaned)
+            else:
+                # Tudi koren preverim (M261_red -> M261)
+                koren = re.split(r'[_\-]', cleaned)[0]
+                if koren in known_skus:
+                    tokens.append(cleaned)
+        else:
+            tokens.append(cleaned)
+    return tokens
+
+
+@app.post("/analiza-meta-upload")
+async def analiza_meta_upload(file: UploadFile = File(...)):
+    """Sprejme CSV iz FB Ads Manager export, shrani in vrne osnovne info."""
+    try:
+        content_bytes = await file.read()
+        META_ADS_FILE.write_bytes(content_bytes)
+
+        text = content_bytes.decode('utf-8-sig', errors='replace')
+        first_line = text.split('\n', 1)[0]
+        sep = ';' if first_line.count(';') > first_line.count(',') else ','
+
+        import csv as _csv
+        from io import StringIO as _SIO
+        reader = _csv.DictReader(_SIO(text), delimiter=sep)
+        rows = [r for r in reader if r.get('Campaign name', '').strip()]
+
+        meta = {
+            "uploaded_at": datetime.now().isoformat(),
+            "filename": file.filename,
+            "size": len(content_bytes),
+            "rows": len(rows),
+            "separator": sep,
+        }
+        META_ADS_META.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        return {"status": "ok", "rows": len(rows), "uploaded_at": meta["uploaded_at"], "filename": file.filename}
+    except Exception as e:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/analiza-meta-data")
+async def analiza_meta_data():
+    """Vrne agregirane podatke iz Meta Ads CSV: SKU → metrike po accountu."""
+    if not META_ADS_FILE.exists():
+        return {"loaded": False}
+
+    try:
+        text = META_ADS_FILE.read_text(encoding="utf-8-sig", errors="replace")
+        first_line = text.split('\n', 1)[0]
+        sep = ';' if first_line.count(';') > first_line.count(',') else ','
+
+        import csv as _csv
+        from io import StringIO as _SIO
+        reader = _csv.DictReader(_SIO(text), delimiter=sep)
+
+        # Agregirajmo po SKU (in kasneje v JS po accountu)
+        sku_data = {}  # sku → {accounts: {acc: {spend, purchases, etc}}, campaigns: [...]}
+
+        def _f(v):
+            try:
+                return float(str(v or '0').replace(',', '.'))
+            except:
+                return 0.0
+
+        def _i(v):
+            try:
+                return int(float(str(v or '0').replace(',', '.')))
+            except:
+                return 0
+
+        # Naloži znane SKU-je iz zaloge (za boljši filter)
+        known_skus = _load_known_skus()
+
+        for row in reader:
+            campaign_name = (row.get('Campaign name') or '').strip()
+            if not campaign_name:
+                continue
+
+            account = (row.get('Account name') or '').strip() or '—'
+            spend = _f(row.get('Amount spent (EUR)'))
+            purchases = _i(row.get('Purchases'))
+            cpa = _f(row.get('Cost per purchase'))
+            cpc = _f(row.get('CPC (cost per link click)'))
+            ctr = _f(row.get('CTR (link click-through rate)'))
+            atc = _i(row.get('Adds to cart'))
+            freq = _f(row.get('Frequency'))
+            is_stopped = '@stop' in campaign_name.lower() or '⛔' in campaign_name or '⛔off' in campaign_name.lower()
+
+            # Izvleci SKU-je iz imena (filtrirano po znanih SKU iz zaloge)
+            skus = extract_skus_from_text(campaign_name, known_skus if known_skus else None)
+            # Dedupliciraj
+            skus = list(dict.fromkeys(skus))
+
+            for sku in skus:
+                if sku not in sku_data:
+                    sku_data[sku] = {
+                        "sku": sku,
+                        "campaigns": [],
+                        "accounts": {},
+                        "total_spend": 0,
+                        "total_purchases": 0,
+                        "total_atc": 0,
+                        "total_clicks_value": 0,  # za uteženo CPC
+                        "campaign_count": 0,
+                        "stopped_count": 0,
+                    }
+                d = sku_data[sku]
+                d["campaigns"].append({
+                    "name": campaign_name,
+                    "account": account,
+                    "spend": spend,
+                    "purchases": purchases,
+                    "cpa": cpa,
+                    "atc": atc,
+                    "stopped": is_stopped,
+                })
+                if account not in d["accounts"]:
+                    d["accounts"][account] = {"spend": 0, "purchases": 0, "campaigns": 0}
+                d["accounts"][account]["spend"] += spend
+                d["accounts"][account]["purchases"] += purchases
+                d["accounts"][account]["campaigns"] += 1
+                d["total_spend"] += spend
+                d["total_purchases"] += purchases
+                d["total_atc"] += atc
+                d["campaign_count"] += 1
+                if is_stopped:
+                    d["stopped_count"] += 1
+
+        # Pripravi flat seznam za frontend
+        items = []
+        for sku, d in sku_data.items():
+            avg_cpa = (d["total_spend"] / d["total_purchases"]) if d["total_purchases"] > 0 else None
+            items.append({
+                "sku": sku,
+                "total_spend": round(d["total_spend"], 2),
+                "total_purchases": d["total_purchases"],
+                "total_atc": d["total_atc"],
+                "avg_cpa": round(avg_cpa, 2) if avg_cpa is not None else None,
+                "campaign_count": d["campaign_count"],
+                "stopped_count": d["stopped_count"],
+                "active_count": d["campaign_count"] - d["stopped_count"],
+                "accounts": [{"name": k, **v} for k, v in d["accounts"].items()],
+            })
+
+        meta = {}
+        if META_ADS_META.exists():
+            try:
+                meta = json.loads(META_ADS_META.read_text(encoding="utf-8"))
+            except: pass
+
+        return {"loaded": True, "items": items, "total_skus": len(items), **meta}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": str(e)}, status_code=500)
