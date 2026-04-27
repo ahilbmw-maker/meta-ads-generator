@@ -5584,7 +5584,14 @@ async function anLoadMetaFromServer() {
       const sku = item.sku;
       const accountsObj = {};
       for (const a of (item.accounts || [])) {
-        accountsObj[a.name] = {spend: a.spend, purchases: a.purchases, campaigns: a.campaigns};
+        accountsObj[a.name] = {
+          spend: a.spend,
+          purchases: a.purchases,
+          campaigns: a.campaigns,
+          active: a.active || 0,
+          paused: a.paused || 0,
+          status: a.status || null,
+        };
       }
       skuMap[sku] = {
         sku: sku,
