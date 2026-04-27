@@ -1369,16 +1369,7 @@ input[type="text"].error { border-color: var(--red) !important; }
           </div>
 
           <!-- Quick filtri (nad tabelo) -->
-          <div id="anQuickFilters" style="display:flex;gap:8px;margin-bottom:12px;padding:10px 12px;background:var(--bg-secondary);border-radius:var(--radius);flex-wrap:wrap;align-items:center;font-size:11px">
-            <span style="color:var(--text-tertiary);font-weight:500">FILTRI:</span>
-            <input type="text" id="anFilterAccount" placeholder="Ad account..." oninput="window._anPage = 1; anRenderTable()" style="padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:'DM Sans',sans-serif;width:140px">
-            <span style="color:var(--text-tertiary)">CPA:</span>
-            <input type="number" id="anFilterCpaMin" placeholder="min" oninput="window._anPage = 1; anRenderTable()" step="0.5" style="padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:'DM Sans',sans-serif;width:60px">
-            <input type="number" id="anFilterCpaMax" placeholder="max" oninput="window._anPage = 1; anRenderTable()" step="0.5" style="padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:'DM Sans',sans-serif;width:60px">
-            <span style="color:var(--text-tertiary)">Spend min €:</span>
-            <input type="number" id="anFilterSpendMin" placeholder="0" oninput="window._anPage = 1; anRenderTable()" step="10" style="padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:'DM Sans',sans-serif;width:70px">
-            <button onclick="anClearFilters()" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text-tertiary);cursor:pointer;font-family:'DM Sans',sans-serif">↻ Počisti</button>
-          </div>
+          <div id="anQuickFilters" style="display:flex;gap:8px;margin-bottom:10px;padding:10px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);flex-wrap:wrap;align-items:center;font-size:11px"></div>
 
           <div id="anTable" style="display:flex;flex-direction:column;gap:6px;overflow-x:auto"></div>
           <div id="anEmpty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:2rem">Naloži CSV zalogo v zavihku <strong>Orodja → Kontrola cen</strong>.</div>
@@ -5100,6 +5091,22 @@ function anSortByAccount(acc) {
   anRenderTable();
 }
 
+function anToggleAccount(acc, checked) {
+  const TARGET_ACCOUNTS = ['Maaarket X', 'Maaarket ALL', 'Maaarket ALL2', 'Maaarket ALL3 + RS', 'Zipply.', 'si_SUBAN_Maaarket SK', 'Maaarket PL/RO', 'Maaarket HR', 'si_Suban_Maaarket HR', 'Easyzo'];
+  if (!window._anCheckedAccounts) window._anCheckedAccounts = new Set(TARGET_ACCOUNTS);
+  if (checked) window._anCheckedAccounts.add(acc);
+  else window._anCheckedAccounts.delete(acc);
+  window._anPage = 1;
+  anRenderTable();
+}
+
+function anToggleAllAccounts(all) {
+  const TARGET_ACCOUNTS = ['Maaarket X', 'Maaarket ALL', 'Maaarket ALL2', 'Maaarket ALL3 + RS', 'Zipply.', 'si_SUBAN_Maaarket SK', 'Maaarket PL/RO', 'Maaarket HR', 'si_Suban_Maaarket HR', 'Easyzo'];
+  window._anCheckedAccounts = all ? new Set(TARGET_ACCOUNTS) : new Set();
+  window._anPage = 1;
+  anRenderTable();
+}
+
 function anRenderTable() {
   const search = (document.getElementById('anSearch')?.value || '').toLowerCase().trim();
   const skuMap = window._anSkuMap || {};
@@ -5147,25 +5154,37 @@ function anRenderTable() {
     };
   });
 
-  // FILTRI iznad tabele
-  const accFilter = (document.getElementById('anFilterAccount')?.value || '').trim();
-  const cpaMin = parseFloat(document.getElementById('anFilterCpaMin')?.value || '');
-  const cpaMax = parseFloat(document.getElementById('anFilterCpaMax')?.value || '');
-  const spendMin = parseFloat(document.getElementById('anFilterSpendMin')?.value || '');
+  // FILTRI iznad tabele — checkboxi po accountih (kot v Obrat 14 dni)
+  if (!window._anCheckedAccounts) window._anCheckedAccounts = new Set(TARGET_ACCOUNTS);
+  const checkedAccounts = window._anCheckedAccounts;
 
-  if (accFilter) {
-    const accLower = accFilter.toLowerCase();
-    filtered = filtered.filter(r => r._ad && Object.keys(r._ad.accounts || {}).some(a => a.toLowerCase().includes(accLower)));
+  // Filter: SKU obdržimo, če ima oglas na vsaj enem izbranem accountu
+  // ALI če nima oglasa sploh (kategorija "brez oglasov" ostane vidna v stolpcih z —)
+  // ALI če v sidebar filtru ni izbran "active_ads"/"only_stopped"
+  if (checkedAccounts.size === 0) {
+    // Nobeden checkan → samo SKU brez oglasov
+    filtered = filtered.filter(r => !r._ad || r._ad.campaign_count === 0);
+  } else if (checkedAccounts.size < TARGET_ACCOUNTS.length) {
+    // Subset: če ima oglas, mora imeti vsaj en izbran account; SKU brez oglasov ostanejo
+    filtered = filtered.filter(r => {
+      if (!r._ad || r._ad.campaign_count === 0) return true;
+      return Object.keys(r._ad.accounts || {}).some(acc => checkedAccounts.has(acc));
+    });
+    // Skrči _ad podatke samo na izbrane accounte za pravilen prikaz spend/cpa/status
     filtered = filtered.map(r => {
       if (!r._ad) return r;
       const matchedAccounts = {};
-      let spend = 0, purchases = 0, campaigns = 0;
+      let spend = 0, purchases = 0, campaigns = 0, stopped = 0;
       for (const [acc, data] of Object.entries(r._ad.accounts || {})) {
-        if (acc.toLowerCase().includes(accLower)) {
+        if (checkedAccounts.has(acc)) {
           matchedAccounts[acc] = data;
           spend += data.spend || 0;
           purchases += data.purchases || 0;
           campaigns += data.campaigns || 0;
+          // izpeljemo "stopped" iz statusa accounta (paused = vse kampanje na tem accountu so pavzirane)
+          if ((data.status === 'paused') || ((data.active || 0) === 0 && (data.campaigns || 0) > 0)) {
+            stopped += data.campaigns || 0;
+          }
         }
       }
       return {
@@ -5175,13 +5194,11 @@ function anRenderTable() {
         ad_cpa: purchases > 0 ? (spend / purchases) : null,
         ad_accounts: Object.keys(matchedAccounts).join(', '),
         ad_campaign_count: campaigns,
-        _ad: { ...r._ad, accounts: matchedAccounts, total_spend: spend, total_purchases: purchases, campaign_count: campaigns, stopped_count: 0, _filtered: true },
+        _ad: { ...r._ad, accounts: matchedAccounts, total_spend: spend, total_purchases: purchases, campaign_count: campaigns, stopped_count: stopped, _filtered: true },
       };
     });
   }
-  if (!isNaN(cpaMin)) filtered = filtered.filter(r => r.ad_cpa !== null && r.ad_cpa >= cpaMin);
-  if (!isNaN(cpaMax)) filtered = filtered.filter(r => r.ad_cpa !== null && r.ad_cpa <= cpaMax);
-  if (!isNaN(spendMin)) filtered = filtered.filter(r => r.ad_spend !== null && r.ad_spend >= spendMin);
+  // checkedAccounts.size === TARGET_ACCOUNTS.length → vse accounti vidni, brez filtriranja
 
   // Filter po kategoriji (sidebar)
   if (anFilter === 'high_stock_no_obrat') {
@@ -5292,15 +5309,18 @@ function anRenderTable() {
       '</div>';
   }
 
-  // Header — account stolpci direktno v gridu (vodoravno)
+  // Vidni accounti (po izbranih checkboxih)
+  const visibleAccounts = TARGET_ACCOUNTS.filter(a => checkedAccounts.has(a));
+
+  // Header — account stolpci direktno v gridu (vodoravno), samo izbrani
   // Brez RAZM. stolpca; namesto zneskov v account stolpcih le simboli ✓ / ⏸ / —
-  const accountColsTpl = hasMetaData ? TARGET_ACCOUNTS.map(() => '54px').join(' ') : '';
+  const accountColsTpl = (hasMetaData && visibleAccounts.length > 0) ? visibleAccounts.map(() => '54px').join(' ') : '';
   const cols = hasMetaData
-    ? '1.3fr 2.2fr 70px 75px 130px ' + accountColsTpl + ' 80px 70px 70px'
+    ? '1.3fr 2.2fr 70px 75px 130px ' + accountColsTpl + (visibleAccounts.length > 0 ? ' ' : '') + '80px 70px 70px'
     : '1.3fr 2.2fr 70px 75px';
 
   // Min širina za grid, da se ne stiska — sumiraj fr in px približno
-  const accCount = hasMetaData ? TARGET_ACCOUNTS.length : 0;
+  const accCount = hasMetaData ? visibleAccounts.length : 0;
   const minWidth = hasMetaData ? (260 + 440 + 70 + 75 + 130 + (accCount * 54) + 80 + 70 + 70 + (accCount + 8) * 10) : 800;
 
   let html = legendHtml +
@@ -5311,7 +5331,7 @@ function anRenderTable() {
     '<span style="text-align:center;cursor:pointer" onclick="anSortBy(\'stock30\')">Obrat 30d' + sortInd('stock30') + '</span>' +
     (hasMetaData
       ? '<span>Status</span>' +
-        TARGET_ACCOUNTS.map(acc => {
+        visibleAccounts.map(acc => {
           const lbl = ACC_SHORT[acc] || acc;
           // Escape za inline onclick atribut: nadomesti ' z ASCII string-om znotraj single-quoted JS arg
           const accEsc = String(acc).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -5353,7 +5373,7 @@ function anRenderTable() {
       // Helper: zgenerira account celice (✓ / ⏸ / —) glede na stanje za ta SKU
       const buildAccountInline = () => {
         if (!hasMetaData) return '';
-        return TARGET_ACCOUNTS.map(acc => {
+        return visibleAccounts.map(acc => {
           const accData = adData ? (adData.accounts?.[acc]) : null;
           if (!accData || (accData.campaigns || 0) === 0 || (accData.spend === 0 && accData.purchases === 0 && (accData.campaigns || 0) === 0)) {
             // Ni oglaševan
@@ -5382,7 +5402,7 @@ function anRenderTable() {
             bg = 'rgba(124,58,237,0.10)';
             statusBadge = '<span style="font-size:11px;color:#7c3aed;font-weight:600">🚀 Potencial</span>';
           }
-          accountInlineCells = TARGET_ACCOUNTS.map(acc =>
+          accountInlineCells = visibleAccounts.map(acc =>
             '<div style="text-align:center;color:var(--text-tertiary);font-size:14px" title="' + esc(acc) + ': ni oglaševan">—</div>'
           ).join('');
           statusCells =
@@ -5451,6 +5471,30 @@ function anRenderTable() {
         pageButtons.join('') +
         '<span style="margin-left:14px;font-size:11px;color:var(--text-tertiary)">Stran ' + window._anPage + ' / ' + totalPages + ' · prikazano ' + (pageStart + 1) + '–' + Math.min(pageEnd, filtered.length) + ' od ' + filtered.length + '</span>' +
       '</div>';
+    }
+  }
+
+  // Render account checkbox bar (samo ko imamo Meta podatke)
+  const filterBar = document.getElementById('anQuickFilters');
+  if (filterBar) {
+    if (hasMetaData) {
+      filterBar.style.display = 'flex';
+      filterBar.innerHTML =
+        '<span style="font-size:11px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.4px">Ad accounti:</span>' +
+        '<button onclick="anToggleAllAccounts(true)" style="padding:4px 10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:10px;color:var(--text-secondary);cursor:pointer;font-family:\'DM Sans\',sans-serif">✓ Vsi</button>' +
+        '<button onclick="anToggleAllAccounts(false)" style="padding:4px 10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:10px;color:var(--text-secondary);cursor:pointer;font-family:\'DM Sans\',sans-serif">✗ Nobeden</button>' +
+        TARGET_ACCOUNTS.map(acc => {
+          const isChecked = checkedAccounts.has(acc);
+          const lbl = ACC_SHORT[acc] || acc;
+          const accEsc = String(acc).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          return '<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:' + (isChecked ? 'rgba(64,193,80,0.12)' : 'var(--surface)') + ';border:1px solid ' + (isChecked ? 'rgba(64,193,80,0.4)' : 'var(--border)') + ';border-radius:4px;cursor:pointer;font-size:11px;color:' + (isChecked ? 'var(--green)' : 'var(--text-secondary)') + ';font-weight:500" title="' + esc(acc) + '">' +
+            '<input type="checkbox" ' + (isChecked ? 'checked' : '') + ' onchange="anToggleAccount(\'' + accEsc + '\', this.checked)" style="margin:0;cursor:pointer">' +
+            esc(lbl) +
+          '</label>';
+        }).join('');
+    } else {
+      filterBar.style.display = 'none';
+      filterBar.innerHTML = '';
     }
   }
 
@@ -5710,10 +5754,8 @@ function anMatchAndRender() { anRenderTable(); return; /*deprecated*/
 }
 
 function anClearFilters() {
-  ['anFilterAccount', 'anFilterCpaMin', 'anFilterCpaMax', 'anFilterSpendMin'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
+  const TARGET_ACCOUNTS = ['Maaarket X', 'Maaarket ALL', 'Maaarket ALL2', 'Maaarket ALL3 + RS', 'Zipply.', 'si_SUBAN_Maaarket SK', 'Maaarket PL/RO', 'Maaarket HR', 'si_Suban_Maaarket HR', 'Easyzo'];
+  window._anCheckedAccounts = new Set(TARGET_ACCOUNTS);
   window._anPage = 1;
   anRenderTable();
 }
