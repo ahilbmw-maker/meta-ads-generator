@@ -3269,3 +3269,170 @@ async def analiza_meta_data():
         traceback.print_exc()
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ─── ANALIZA: Obrat 14 dni ─────────────────────────────────────────────────────
+
+OBRAT14_FILE = DATA_DIR / "obrat_14dni.txt"
+OBRAT14_META = DATA_DIR / "obrat_14dni_meta.json"
+
+# Whitelist accounts za Obrat 14dni view
+TARGET_ACCOUNTS = ['Maaarket X', 'Maaarket ALL', 'Zipply.', 'si_SUBAN_Maaarket SK', 'Maaarket PL/RO', 'Easyzo', 'Maaarket ALL2', 'Maaarket ALL3 + RS', 'Maaarket HR', 'si_Suban_Maaarket HR']
+
+
+@app.post("/analiza-obrat14-upload")
+async def analiza_obrat14_upload(file: UploadFile = File(...)):
+    """Sprejme TXT/TSV iz top obratov, shrani."""
+    try:
+        content_bytes = await file.read()
+        OBRAT14_FILE.write_bytes(content_bytes)
+
+        text = content_bytes.decode('utf-8-sig', errors='replace')
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+
+        meta = {
+            "uploaded_at": datetime.now().isoformat(),
+            "filename": file.filename,
+            "size": len(content_bytes),
+            "rows": max(0, len(lines) - 1),
+        }
+        OBRAT14_META.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        return {"status": "ok", "rows": meta["rows"], "uploaded_at": meta["uploaded_at"], "filename": file.filename}
+    except Exception as e:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/analiza-obrat14-data")
+async def analiza_obrat14_data():
+    """Vrne obrat 14dni podatke + match z FB Ads (po accountu, samo whitelist)."""
+    if not OBRAT14_FILE.exists():
+        return {"loaded": False}
+
+    try:
+        # Naloži obrat14
+        text = OBRAT14_FILE.read_text(encoding="utf-8-sig", errors="replace")
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        if len(lines) < 2:
+            return {"loaded": False, "error": "Prazna datoteka."}
+
+        # Detect separator (tab ali ;)
+        first = lines[0]
+        if '\t' in first:
+            sep = '\t'
+        elif ';' in first:
+            sep = ';'
+        else:
+            sep = ','
+
+        items = []
+        # Skip header
+        for line in lines[1:]:
+            parts = line.split(sep)
+            if len(parts) < 3:
+                continue
+            sku = parts[0].strip()
+            naziv = parts[1].strip()
+            try:
+                kolicina = int(float(parts[2].strip().replace(',', '.')))
+            except:
+                kolicina = 0
+            if not sku:
+                continue
+            items.append({
+                "sku": sku,
+                "naziv": naziv,
+                "kolicina": kolicina,
+            })
+
+        # Match z FB Ads — uporabljaj že shranjen META_ADS_FILE
+        sku_ads_map = {}  # sku.upper() → {account: {spend, purchases}, ...}
+        if META_ADS_FILE.exists():
+            try:
+                fb_text = META_ADS_FILE.read_text(encoding="utf-8-sig", errors="replace")
+                fb_first = fb_text.split('\n', 1)[0]
+                fb_sep = ';' if fb_first.count(';') > fb_first.count(',') else ','
+                import csv as _csv
+                from io import StringIO as _SIO
+                reader = _csv.DictReader(_SIO(fb_text), delimiter=fb_sep)
+
+                # Pripravi seznam znanih SKU iz obrat14 (za extract_skus filter)
+                known_skus_obrat = set()
+                for it in items:
+                    s = it["sku"].upper()
+                    known_skus_obrat.add(s)
+                    koren = re.split(r'[_\-\s]', s)[0]
+                    if koren and len(koren) >= 4:
+                        known_skus_obrat.add(koren)
+
+                def _f(v):
+                    try: return float(str(v or '0').replace(',', '.'))
+                    except: return 0.0
+                def _i(v):
+                    try: return int(float(str(v or '0').replace(',', '.')))
+                    except: return 0
+
+                for row in reader:
+                    cname = (row.get('Campaign name') or '').strip()
+                    if not cname:
+                        continue
+                    account = (row.get('Account name') or '').strip() or '—'
+                    spend = _f(row.get('Amount spent (EUR)'))
+                    purchases = _i(row.get('Purchases'))
+
+                    # Izvleci SKU iz imena
+                    skus = extract_skus_from_text(cname, known_skus_obrat)
+                    skus = list(dict.fromkeys(skus))
+
+                    for sku_token in skus:
+                        # Najdi kateri SKU iz našega seznama je to
+                        sku_upper = sku_token.upper()
+                        # Poskusi exact
+                        target_sku = None
+                        for it in items:
+                            if it["sku"].upper() == sku_upper:
+                                target_sku = it["sku"]
+                                break
+                            # Primerjaj koren
+                            koren_item = re.split(r'[_\-\s]', it["sku"])[0].upper()
+                            if koren_item == sku_upper or koren_item == re.split(r'[_\-\s]', sku_upper)[0]:
+                                target_sku = it["sku"]
+                                break
+
+                        if not target_sku:
+                            continue
+
+                        if target_sku not in sku_ads_map:
+                            sku_ads_map[target_sku] = {}
+                        if account not in sku_ads_map[target_sku]:
+                            sku_ads_map[target_sku][account] = {"spend": 0, "purchases": 0, "campaigns": 0}
+                        sku_ads_map[target_sku][account]["spend"] += spend
+                        sku_ads_map[target_sku][account]["purchases"] += purchases
+                        sku_ads_map[target_sku][account]["campaigns"] += 1
+            except Exception as e:
+                print(f"[obrat14] FB match err: {e}")
+
+        # Agregiraj
+        for it in items:
+            it["accounts"] = sku_ads_map.get(it["sku"], {})
+            it["has_ads"] = len(it["accounts"]) > 0
+
+        meta = {}
+        if OBRAT14_META.exists():
+            try:
+                meta = json.loads(OBRAT14_META.read_text(encoding="utf-8"))
+            except: pass
+
+        return {
+            "loaded": True,
+            "items": items,
+            "total": len(items),
+            "target_accounts": TARGET_ACCOUNTS,
+            **meta,
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": str(e)}, status_code=500)
