@@ -5,7 +5,7 @@ import asyncio
 import shutil
 import uuid
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from urllib.parse import urlparse
 from pathlib import Path
@@ -2757,7 +2757,7 @@ async def orodja_stock_upload(file: UploadFile = File(...)):
             valid_count = rows
 
         meta = {
-            "uploaded_at": datetime.now().isoformat(),
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
             "filename": file.filename,
             "size": len(content_bytes),
             "rows": valid_count,
@@ -3182,7 +3182,7 @@ async def analiza_meta_upload(file: UploadFile = File(...)):
         rows = [r for r in reader if r.get('Campaign name', '').strip()]
 
         meta = {
-            "uploaded_at": datetime.now().isoformat(),
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
             "filename": file.filename,
             "size": len(content_bytes),
             "rows": len(rows),
@@ -3242,7 +3242,15 @@ async def analiza_meta_data():
             ctr = _f(row.get('CTR (link click-through rate)'))
             atc = _i(row.get('Adds to cart'))
             freq = _f(row.get('Frequency'))
-            is_stopped = '@stop' in campaign_name.lower() or '⛔' in campaign_name or '⛔off' in campaign_name.lower()
+            # Status iz FB Campaign Delivery (active/inactive) — to je resnica
+            delivery = (row.get('Campaign Delivery') or '').strip().lower()
+            if delivery == 'inactive':
+                is_stopped = True
+            elif delivery == 'active':
+                is_stopped = False
+            else:
+                # Fallback: če stolpec manjka, uporabi ime kampanje
+                is_stopped = '@stop' in campaign_name.lower() or '⛔' in campaign_name
 
             # Izvleci SKU-je iz imena (filtrirano po znanih SKU iz zaloge)
             skus = extract_skus_from_text(campaign_name, known_skus if known_skus else None)
@@ -3334,7 +3342,7 @@ async def analiza_obrat14_upload(file: UploadFile = File(...)):
         lines = [l.strip() for l in text.splitlines() if l.strip()]
 
         meta = {
-            "uploaded_at": datetime.now().isoformat(),
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
             "filename": file.filename,
             "size": len(content_bytes),
             "rows": max(0, len(lines) - 1),
