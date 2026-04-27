@@ -5728,7 +5728,10 @@ function anMatchAndRender() { anRenderTable(); return; /*deprecated*/
     const spend = spendKey ? parseFloat(String(row[spendKey]).replace(',', '.')) || 0 : 0;
     const purchases = purchaseKey ? parseInt(row[purchaseKey]) || 0 : 0;
     const roas = roasKey ? parseFloat(String(row[roasKey]).replace(',', '.')) || 0 : 0;
-    const isStopped = /@stop|⛔|off/i.test(campaign);
+    // DEPRECATED PATH — funkcija vrne early na začetku, ta koda se ne izvaja.
+    // Statusa NE določamo iz imena kampanje — to je samo naš interni napis.
+    // Resnica je samo "Campaign Delivery" kolona, ki jo prebere backend.
+    const isStopped = false;
 
     const skus = extractSkuTokens(campaign);
     for (const sku of skus) {
