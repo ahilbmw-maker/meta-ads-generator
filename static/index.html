@@ -1365,18 +1365,18 @@ input[type="text"].error { border-color: var(--red) !important; }
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
             <span class="slabel" style="margin:0" id="anTableTitle">ZALOGA IZDELKOV (0)</span>
-            <input type="text" id="anSearch" placeholder="🔍 Išči SKU ali naziv..." oninput="anRenderTable()" style="padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:'DM Sans',sans-serif;width:240px">
+            <input type="text" id="anSearch" placeholder="🔍 Išči SKU ali naziv..." oninput="window._anPage = 1; anRenderTable()" style="padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:'DM Sans',sans-serif;width:240px">
           </div>
 
           <!-- Quick filtri (nad tabelo) -->
           <div id="anQuickFilters" style="display:flex;gap:8px;margin-bottom:12px;padding:10px 12px;background:var(--bg-secondary);border-radius:var(--radius);flex-wrap:wrap;align-items:center;font-size:11px">
             <span style="color:var(--text-tertiary);font-weight:500">FILTRI:</span>
-            <input type="text" id="anFilterAccount" placeholder="Ad account..." oninput="anRenderTable()" style="padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:'DM Sans',sans-serif;width:140px">
+            <input type="text" id="anFilterAccount" placeholder="Ad account..." oninput="window._anPage = 1; anRenderTable()" style="padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:'DM Sans',sans-serif;width:140px">
             <span style="color:var(--text-tertiary)">CPA:</span>
-            <input type="number" id="anFilterCpaMin" placeholder="min" oninput="anRenderTable()" step="0.5" style="padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:'DM Sans',sans-serif;width:60px">
-            <input type="number" id="anFilterCpaMax" placeholder="max" oninput="anRenderTable()" step="0.5" style="padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:'DM Sans',sans-serif;width:60px">
+            <input type="number" id="anFilterCpaMin" placeholder="min" oninput="window._anPage = 1; anRenderTable()" step="0.5" style="padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:'DM Sans',sans-serif;width:60px">
+            <input type="number" id="anFilterCpaMax" placeholder="max" oninput="window._anPage = 1; anRenderTable()" step="0.5" style="padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:'DM Sans',sans-serif;width:60px">
             <span style="color:var(--text-tertiary)">Spend min €:</span>
-            <input type="number" id="anFilterSpendMin" placeholder="0" oninput="anRenderTable()" step="10" style="padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:'DM Sans',sans-serif;width:70px">
+            <input type="number" id="anFilterSpendMin" placeholder="0" oninput="window._anPage = 1; anRenderTable()" step="10" style="padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text);font-family:'DM Sans',sans-serif;width:70px">
             <button onclick="anClearFilters()" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text-tertiary);cursor:pointer;font-family:'DM Sans',sans-serif">↻ Počisti</button>
           </div>
 
@@ -1423,7 +1423,7 @@ input[type="text"].error { border-color: var(--red) !important; }
           <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
               <span class="slabel" style="margin:0" id="o14TableTitle">OBRAT IZDELKOV (0)</span>
-              <input type="text" id="o14Search" placeholder="🔍 Išči SKU ali naziv..." oninput="o14RenderTable()" style="padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:'DM Sans',sans-serif;width:240px">
+              <input type="text" id="o14Search" placeholder="🔍 Išči SKU ali naziv..." oninput="window._o14Page = 1; o14RenderTable()" style="padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:'DM Sans',sans-serif;width:240px">
             </div>
             <div id="o14Table" style="display:flex;flex-direction:column;gap:6px;overflow-x:auto"></div>
             <div id="o14Empty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:2rem">Naloži obrat 14 dni za začetek.</div>
@@ -4840,6 +4840,7 @@ async function o14LoadData() {
 
 function o14SetFilter(filter, btn) {
   o14Filter = filter;
+  window._o14Page = 1;
   document.querySelectorAll('.o14-filter-btn').forEach(b => {
     b.style.background = 'transparent';
     b.style.color = 'var(--text-secondary)';
@@ -4921,6 +4922,15 @@ function o14RenderTable() {
     });
   }
 
+  // Paginacija
+  const PAGE_SIZE = 50;
+  if (typeof window._o14Page === 'undefined') window._o14Page = 1;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  if (window._o14Page > totalPages) window._o14Page = totalPages;
+  const pageStart = (window._o14Page - 1) * PAGE_SIZE;
+  const pageEnd = pageStart + PAGE_SIZE;
+  const pageItems = filtered.slice(pageStart, pageEnd);
+
   document.getElementById('o14TableTitle').textContent = 'OBRAT IZDELKOV (' + filtered.length + ')';
   const table = document.getElementById('o14Table');
   const empty = document.getElementById('o14Empty');
@@ -4978,7 +4988,7 @@ function o14RenderTable() {
   if (filtered.length === 0) {
     html += '<div style="padding:2rem;text-align:center;color:var(--text-tertiary);font-size:12px">Ni rezultatov.</div>';
   } else {
-    html += filtered.map(r => {
+    html += pageItems.map(r => {
       const accCells = visibleAccounts.map(acc => {
         const data = r.accounts?.[acc];
         if (!data || data.campaigns === 0) {
@@ -5013,6 +5023,7 @@ function o14RenderTable() {
 function o14SortBy(col) {
   if (window._o14SortCol === col) window._o14SortDir = -(window._o14SortDir || 1);
   else { window._o14SortCol = col; window._o14SortDir = -1; }
+  window._o14Page = 1;
   o14RenderTable();
 }
 
@@ -5020,16 +5031,19 @@ function o14ToggleAccount(acc, checked) {
   if (!window._o14CheckedAccounts) window._o14CheckedAccounts = new Set(o14TargetAccounts);
   if (checked) window._o14CheckedAccounts.add(acc);
   else window._o14CheckedAccounts.delete(acc);
+  window._o14Page = 1;
   o14RenderTable();
 }
 
 function o14ToggleAllAccounts(all) {
   window._o14CheckedAccounts = all ? new Set(o14TargetAccounts) : new Set();
+  window._o14Page = 1;
   o14RenderTable();
 }
 
 function anSetFilter(filter, btn) {
   anFilter = filter;
+  window._anPage = 1;
   document.querySelectorAll('.an-filter-btn').forEach(b => {
     b.classList.remove('active');
     b.style.background = 'transparent';
@@ -5074,6 +5088,7 @@ async function anLoadStock() {
 function anSortBy(col) {
   if (anSortCol === col) anSortDir = -anSortDir;
   else { anSortCol = col; anSortDir = -1; }
+  window._anPage = 1;
   anRenderTable();
 }
 
@@ -5202,6 +5217,16 @@ function anRenderTable() {
   }
 
   anFilteredData = filtered;
+
+  // Paginacija (500/stran)
+  const PAGE_SIZE = 500;
+  if (typeof window._anPage === 'undefined') window._anPage = 1;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  if (window._anPage > totalPages) window._anPage = totalPages;
+  const pageStart = (window._anPage - 1) * PAGE_SIZE;
+  const pageEnd = pageStart + PAGE_SIZE;
+  const pageItems = filtered.slice(pageStart, pageEnd);
+
   document.getElementById('anTableTitle').textContent = 'ZALOGA IZDELKOV (' + filtered.length + ')';
 
   const table = document.getElementById('anTable');
@@ -5264,7 +5289,7 @@ function anRenderTable() {
   if (filtered.length === 0) {
     html += '<div style="padding:2rem;text-align:center;color:var(--text-tertiary);font-size:12px">Ni rezultatov.</div>';
   } else {
-    html += filtered.map(r => {
+    html += pageItems.map(r => {
       let bg = 'var(--surface2)';
       let stockColor = 'var(--text-secondary)';
       let obratColor = 'var(--text-secondary)';
@@ -5362,9 +5387,41 @@ function anRenderTable() {
         accountBar +
       '</div>';
     }).join('');
+
+    // Paginacija footer
+    if (totalPages > 1) {
+      const pageButtons = [];
+      pageButtons.push('<button onclick="anSetPage(' + Math.max(1, window._anPage - 1) + ')" ' + (window._anPage === 1 ? 'disabled' : '') + ' style="padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-radius:4px;cursor:' + (window._anPage === 1 ? 'not-allowed' : 'pointer') + ';font-size:12px;color:' + (window._anPage === 1 ? 'var(--text-tertiary)' : 'var(--text)') + ';font-family:\'DM Sans\',sans-serif">‹ Prejšnja</button>');
+
+      const showPages = new Set();
+      showPages.add(1); showPages.add(totalPages);
+      for (let i = Math.max(1, window._anPage - 2); i <= Math.min(totalPages, window._anPage + 2); i++) showPages.add(i);
+      const sortedPages = Array.from(showPages).sort((a, b) => a - b);
+
+      let lastP = 0;
+      for (const p of sortedPages) {
+        if (p - lastP > 1) pageButtons.push('<span style="padding:6px 4px;color:var(--text-tertiary)">…</span>');
+        const isActive = p === window._anPage;
+        pageButtons.push('<button onclick="anSetPage(' + p + ')" style="padding:7px 13px;background:' + (isActive ? 'var(--accent)' : 'var(--surface)') + ';border:1px solid ' + (isActive ? 'var(--accent)' : 'var(--border)') + ';border-radius:4px;cursor:pointer;font-size:12px;color:' + (isActive ? 'white' : 'var(--text)') + ';font-weight:' + (isActive ? '600' : '400') + ';font-family:\'DM Sans\',sans-serif">' + p + '</button>');
+        lastP = p;
+      }
+
+      pageButtons.push('<button onclick="anSetPage(' + Math.min(totalPages, window._anPage + 1) + ')" ' + (window._anPage === totalPages ? 'disabled' : '') + ' style="padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-radius:4px;cursor:' + (window._anPage === totalPages ? 'not-allowed' : 'pointer') + ';font-size:12px;color:' + (window._anPage === totalPages ? 'var(--text-tertiary)' : 'var(--text)') + ';font-family:\'DM Sans\',sans-serif">Naslednja ›</button>');
+
+      html += '<div style="display:flex;gap:6px;justify-content:center;align-items:center;padding:18px 0 4px;flex-wrap:wrap">' +
+        pageButtons.join('') +
+        '<span style="margin-left:14px;font-size:11px;color:var(--text-tertiary)">Stran ' + window._anPage + ' / ' + totalPages + ' · prikazano ' + (pageStart + 1) + '–' + Math.min(pageEnd, filtered.length) + ' od ' + filtered.length + '</span>' +
+      '</div>';
+    }
   }
 
   table.innerHTML = html;
+}
+
+function anSetPage(p) {
+  window._anPage = p;
+  anRenderTable();
+  document.getElementById('anTable')?.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 
 let anMetaData = []; // FB ads rows
@@ -5618,6 +5675,7 @@ function anClearFilters() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  window._anPage = 1;
   anRenderTable();
 }
 
