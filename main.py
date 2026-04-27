@@ -3281,10 +3281,14 @@ async def analiza_meta_data():
                     "stopped": is_stopped,
                 })
                 if account not in d["accounts"]:
-                    d["accounts"][account] = {"spend": 0, "purchases": 0, "campaigns": 0}
+                    d["accounts"][account] = {"spend": 0, "purchases": 0, "campaigns": 0, "active": 0, "paused": 0}
                 d["accounts"][account]["spend"] += spend
                 d["accounts"][account]["purchases"] += purchases
                 d["accounts"][account]["campaigns"] += 1
+                if is_stopped:
+                    d["accounts"][account]["paused"] += 1
+                else:
+                    d["accounts"][account]["active"] += 1
                 d["total_spend"] += spend
                 d["total_purchases"] += purchases
                 d["total_atc"] += atc
@@ -3296,6 +3300,17 @@ async def analiza_meta_data():
         items = []
         for sku, d in sku_data.items():
             avg_cpa = (d["total_spend"] / d["total_purchases"]) if d["total_purchases"] > 0 else None
+            # Izračunaj per-account status (active = vsaj 1 aktivna, paused = vse pavzirane)
+            accounts_with_status = []
+            for k, v in d["accounts"].items():
+                acc = {"name": k, **v}
+                if v.get("active", 0) > 0:
+                    acc["status"] = "active"
+                elif v.get("paused", 0) > 0:
+                    acc["status"] = "paused"
+                else:
+                    acc["status"] = "none"
+                accounts_with_status.append(acc)
             items.append({
                 "sku": sku,
                 "total_spend": round(d["total_spend"], 2),
@@ -3305,7 +3320,7 @@ async def analiza_meta_data():
                 "campaign_count": d["campaign_count"],
                 "stopped_count": d["stopped_count"],
                 "active_count": d["campaign_count"] - d["stopped_count"],
-                "accounts": [{"name": k, **v} for k, v in d["accounts"].items()],
+                "accounts": accounts_with_status,
             })
 
         meta = {}
