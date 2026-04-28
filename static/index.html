@@ -1321,7 +1321,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     </div>
 
     <!-- TAB: Meta Ads -->
-    <div id="analizaSubpage-meta" style="padding:14px;display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start">
+    <div id="analizaSubpage-meta" style="padding:14px;display:grid;grid-template-columns:260px minmax(0, 1fr);gap:14px;align-items:start">
       <!-- Levo: nastavitve + povzetek -->
       <div>
         <div class="card">
@@ -1381,7 +1381,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     </div>
     <!-- TAB: Obrat 14 dni -->
     <div id="analizaSubpage-obrat14" style="display:none;padding:14px">
-      <div style="display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start">
+      <div style="display:grid;grid-template-columns:260px minmax(0, 1fr);gap:14px;align-items:start">
         <!-- Levo: upload -->
         <div>
           <div class="card">
@@ -5361,7 +5361,7 @@ function anRenderTable() {
     // Ker prve 2 stolpca sta fr-ja, težko izračunamo natančno px → uporabimo flex hack: pozicionira se relativno na grid
     // Lažja rešitev: dodamo grid bar ki ima isto cols strukturo, in dark label samo span-a account stolpce
     const labelGridCols = cols; // ista struktura kot header
-    let labelHtml = '<div style="display:grid;grid-template-columns:' + labelGridCols + ';gap:10px;padding:0 14px;min-width:' + minWidth + 'px;margin-bottom:0">';
+    let labelHtml = '<div style="display:grid;grid-template-columns:' + labelGridCols + ';gap:10px;padding:0 14px;min-width:' + minWidth + 'px;width:100%;margin-bottom:0">';
     // Empty cells for SKU, Naziv, Zaloga, Obrat, Status (5 cells)
     labelHtml += '<span></span><span></span><span></span><span></span><span></span>';
     // Dark label spans across all visible account columns
@@ -5373,7 +5373,7 @@ function anRenderTable() {
   }
 
   html +=
-    '<div style="display:grid;grid-template-columns:' + cols + ';gap:10px;padding:12px 14px;background:var(--bg-secondary);border-radius:var(--radius);font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;user-select:none;min-width:' + minWidth + 'px">' +
+    '<div style="display:grid;grid-template-columns:' + cols + ';gap:10px;padding:12px 14px;background:var(--bg-secondary);border-radius:var(--radius);font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;user-select:none;min-width:' + minWidth + 'px;width:100%">' +
     '<span style="cursor:pointer" onclick="anSortBy(\'sku\')">SKU' + sortInd('sku') + '</span>' +
     '<span style="cursor:pointer" onclick="anSortBy(\'title\')">Naziv izdelka' + sortInd('title') + '</span>' +
     '<span style="text-align:center;cursor:pointer" onclick="anSortBy(\'stock\')">Zaloga' + sortInd('stock') + '</span>' +
@@ -5492,7 +5492,7 @@ function anRenderTable() {
         }
       }
 
-      return '<div style="display:grid;grid-template-columns:' + cols + ';gap:10px;align-items:center;padding:12px 14px;background:' + bg + ';border:1px solid var(--border);border-radius:var(--radius);font-size:13px;min-width:' + minWidth + 'px">' +
+      return '<div style="display:grid;grid-template-columns:' + cols + ';gap:10px;align-items:center;padding:12px 14px;background:' + bg + ';border:1px solid var(--border);border-radius:var(--radius);font-size:13px;min-width:' + minWidth + 'px;width:100%">' +
         '<div style="font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(r.sku) + '">' + esc(r.sku) + '</div>' +
         '<div style="color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(r.title) + '">' + esc(r.title) + '</div>' +
         '<div style="text-align:center;font-weight:600;color:' + stockColor + '">' + r.stock + '</div>' +
