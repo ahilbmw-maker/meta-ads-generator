@@ -5211,16 +5211,39 @@ function anRenderTable() {
     'Easyzo': 'Easyzo',
   };
 
+  // JS verzija smart_root — identična Python smart_root()
+  // Maaa61lightBrown → Maaa61, M377grey → M377, SOLEBRACE_SM → SOLEBRACE
+  const smartRoot = (s) => {
+    if (!s) return s;
+    const base = s.split(/[_\-\s]/)[0];
+    let cut = null;
+    // Camel-case: lower→Upper prehod (Maaa61lightBrown → Maaa61)
+    const m = base.match(/[a-z][A-Z]/);
+    if (m) {
+      // m.index je pozicija lowercase znaka, prehod je na m.index+1
+      let idx = m.index + 1;
+      // Pomikamo se nazaj dokler je lowercase (Python: while idx>1 and base[idx-1].islower())
+      while (idx > 1 && base[idx-1] >= 'a' && base[idx-1] <= 'z') idx--;
+      if (idx > 0) cut = idx;
+    }
+    // Digit followed by lowercase (M377grey → M377)
+    if (cut === null) {
+      const m2 = base.match(/\d[a-z]/);
+      if (m2) cut = m2.index + 1;
+    }
+    return cut !== null ? base.slice(0, cut) : base;
+  };
+
   const _isAdvertised = (sku) => {
     const upper = (sku || '').toUpperCase();
-    const koren = upper.split(/[_\-]/)[0];
-    const d = skuMap[upper] || skuMap[koren];
+    const koren = smartRoot(sku || '').toUpperCase();
+    const d = skuMap[upper] || (koren !== upper ? skuMap[koren] : null);
     return d && d.campaign_count > 0;
   };
   const getAdData = (sku) => {
     const upper = (sku || '').toUpperCase();
-    const koren = upper.split(/[_\-]/)[0];
-    return skuMap[upper] || skuMap[koren] || null;
+    const koren = smartRoot(sku || '').toUpperCase();
+    return skuMap[upper] || (koren !== upper ? skuMap[koren] : null) || null;
   };
 
   // Pripravi vrstice z merged ad data za sortiranje
