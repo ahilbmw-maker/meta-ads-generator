@@ -3567,3 +3567,209 @@ async def analiza_obrat14_data():
         traceback.print_exc()
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": str(e)}, status_code=500)
+
+# ═══════════════════════════════════════════════════════════════
+# HS+ UVOZ — naročilnice z združevanjem SKU + history
+# ═══════════════════════════════════════════════════════════════
+HSUVOZ_DIR = DATA_DIR / "hsuvoz_history"
+HSUVOZ_DIR.mkdir(exist_ok=True, parents=True)
+HSUVOZ_CURRENT = DATA_DIR / "hsuvoz_current.json"
+
+
+def hsuvoz_cleanup():
+    """Briše JSON datoteke starejše od 30 dni."""
+    try:
+        cutoff = datetime.now().timestamp() - (30 * 86400)
+        for f in HSUVOZ_DIR.glob("*.json"):
+            if f.stat().st_mtime < cutoff:
+                f.unlink()
+    except Exception as e:
+        print(f"[hsuvoz] cleanup err: {e}")
+
+
+@app.post("/hsuvoz-upload")
+async def hsuvoz_upload(file: UploadFile = File(...)):
+    """Sprejme CSV naročilnic, združi količine po SKU, shrani v current + history."""
+    import csv
+    from io import StringIO
+    try:
+        content = (await file.read()).decode("utf-8-sig", errors="replace")
+        reader = csv.DictReader(StringIO(content))
+
+        # Normalizacija headerjev
+        rows = []
+        for row in reader:
+            norm = {k.strip().replace('\ufeff', ''): v.strip() for k, v in row.items()}
+            rows.append(norm)
+
+        if not rows:
+            return JSONResponse({"error": "Prazen CSV."}, status_code=400)
+
+        # Najdi kolone (ID naročila, SKU, Naziv, Količina)
+        sample = rows[0]
+        keys = list(sample.keys())
+
+        def find_col(candidates):
+            for c in candidates:
+                for k in keys:
+                    if c.lower() in k.lower():
+                        return k
+            return None
+
+        id_col  = find_col(["id naročila", "id narocila", "id"])
+        sku_col = find_col(["sku"])
+        naz_col = find_col(["naziv", "name"])
+        qty_col = find_col(["količina", "kolicina", "qty", "quantity"])
+
+        if not sku_col or not qty_col:
+            return JSONResponse({"error": f"Ne najdem SKU/Količina kolon. Najdene: {keys}"}, status_code=400)
+
+        # Združi po SKU
+        sku_map = {}  # sku → {naziv, qty, orders: [id,...]}
+        for row in rows:
+            sku = (row.get(sku_col) or "").strip()
+            if not sku:
+                continue
+            try:
+                qty = int(float((row.get(qty_col) or "0").replace(",", ".")))
+            except:
+                qty = 0
+            naziv = (row.get(naz_col) or "").strip() if naz_col else ""
+            order_id = (row.get(id_col) or "").strip() if id_col else ""
+
+            if sku not in sku_map:
+                sku_map[sku] = {"sku": sku, "naziv": naziv, "qty": 0, "orders": [], "done": False}
+            sku_map[sku]["qty"] += qty
+            if order_id and order_id not in sku_map[sku]["orders"]:
+                sku_map[sku]["orders"].append(order_id)
+            # Ohrani naziv (vzemi prvega ki ni prazen)
+            if not sku_map[sku]["naziv"] and naziv:
+                sku_map[sku]["naziv"] = naziv
+
+        items = sorted(sku_map.values(), key=lambda x: -x["qty"])
+
+        # Naloži obstoječe done state iz currenta (ohrani done flag)
+        if HSUVOZ_CURRENT.exists():
+            try:
+                existing = json.loads(HSUVOZ_CURRENT.read_text(encoding="utf-8"))
+                done_map = {it["sku"]: it.get("done", False) for it in existing.get("items", [])}
+                for it in items:
+                    if it["sku"] in done_map:
+                        it["done"] = done_map[it["sku"]]
+            except:
+                pass
+
+        ts = datetime.now(timezone.utc).isoformat()
+        payload = {
+            "uploaded_at": ts,
+            "filename": file.filename,
+            "total_skus": len(items),
+            "items": items,
+        }
+
+        # Shrani current
+        HSUVOZ_CURRENT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        # Shrani v history
+        hsuvoz_cleanup()
+        hist_file = HSUVOZ_DIR / f"hsuvoz_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
+        hist_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        return {"ok": True, "total_skus": len(items), "uploaded_at": ts, "filename": file.filename}
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/hsuvoz-data")
+async def hsuvoz_data():
+    """Vrne trenutne HS+ uvoz podatke."""
+    try:
+        if not HSUVOZ_CURRENT.exists():
+            return {"loaded": False, "items": []}
+        data = json.loads(HSUVOZ_CURRENT.read_text(encoding="utf-8"))
+        return {"loaded": True, **data}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/hsuvoz-set-done")
+async def hsuvoz_set_done(request: Request):
+    """Nastavi done flag za SKU."""
+    try:
+        body = await request.json()
+        sku = body.get("sku")
+        done = bool(body.get("done", False))
+        if not HSUVOZ_CURRENT.exists():
+            return JSONResponse({"error": "Ni podatkov."}, status_code=404)
+        data = json.loads(HSUVOZ_CURRENT.read_text(encoding="utf-8"))
+        for it in data.get("items", []):
+            if it["sku"] == sku:
+                it["done"] = done
+                break
+        HSUVOZ_CURRENT.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/hsuvoz-edit-sku")
+async def hsuvoz_edit_sku(request: Request):
+    """Preimenuje SKU."""
+    try:
+        body = await request.json()
+        old_sku = body.get("old_sku")
+        new_sku = (body.get("new_sku") or "").strip()
+        if not new_sku:
+            return JSONResponse({"error": "Nov SKU je prazen."}, status_code=400)
+        if not HSUVOZ_CURRENT.exists():
+            return JSONResponse({"error": "Ni podatkov."}, status_code=404)
+        data = json.loads(HSUVOZ_CURRENT.read_text(encoding="utf-8"))
+        for it in data.get("items", []):
+            if it["sku"] == old_sku:
+                it["sku"] = new_sku
+                break
+        HSUVOZ_CURRENT.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/hsuvoz-history")
+async def hsuvoz_history():
+    """Vrne seznam zgodovinskih uploadov (30 dni)."""
+    hsuvoz_cleanup()
+    try:
+        items = []
+        for f in sorted(HSUVOZ_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
+            try:
+                d = json.loads(f.read_text(encoding="utf-8"))
+                items.append({
+                    "filename": f.name,
+                    "original_filename": d.get("filename", f.name),
+                    "uploaded_at": d.get("uploaded_at", ""),
+                    "total_skus": d.get("total_skus", 0),
+                    "size": f.stat().st_size,
+                })
+            except:
+                pass
+        return {"items": items}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/hsuvoz-load-history")
+async def hsuvoz_load_history(request: Request):
+    """Naloži zgodovinski upload kot current."""
+    try:
+        body = await request.json()
+        fname = body.get("filename")
+        hist_file = HSUVOZ_DIR / fname
+        if not hist_file.exists():
+            return JSONResponse({"error": "Datoteka ne obstaja."}, status_code=404)
+        data = json.loads(hist_file.read_text(encoding="utf-8"))
+        HSUVOZ_CURRENT.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"ok": True, "total_skus": data.get("total_skus", 0)}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
