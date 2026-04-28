@@ -1490,6 +1490,33 @@ input[type="text"].error { border-color: var(--red) !important; }
 </div>
 
 <script>
+// ══════════════════════════════════════════════════════════════
+// AD ACCOUNTS KONFIGURACIJA — UREDI SAMO TUKAJ
+// Dodaj nov account: { name: 'Ime v FB', short: 'KRATICA', hidden: false }
+// hidden: true = privzeto odznačen v checkboxih
+// ══════════════════════════════════════════════════════════════
+const AD_ACCOUNTS_CONFIG = [
+  { name: 'Maaarket X',            short: 'M.X',       hidden: false },
+  { name: 'Maaarket ALL',          short: 'M.ALL',     hidden: false },
+  { name: 'Maaarket ALL2',         short: 'M.ALL2',    hidden: false },
+  { name: 'Maaarket ALL3 + RS',    short: 'M.ALL3+RS', hidden: true  },
+  { name: 'Zipply.',               short: 'Zipply',    hidden: false },
+  { name: 'si_SUBAN_Maaarket SK',  short: 'SK',        hidden: false },
+  { name: 'Maaarket PL/RO',        short: 'PL/RO',     hidden: false },
+  { name: 'Maaarket HR',           short: 'HR',        hidden: true  },
+  { name: 'si_Suban_Maaarket HR',  short: 'HR2',       hidden: true  },
+  { name: 'Easyzo',                short: 'Easyzo',    hidden: false },
+  // Ko dobiš nova accounta, dodaj ju sem:
+  // { name: 'Novi Account 1', short: 'NOV1', hidden: false },
+  // { name: 'Novi Account 2', short: 'NOV2', hidden: true },  // privzeto skrit
+];
+
+// Izpeljane konstante — NE UREJAJ
+const TARGET_ACCOUNTS = AD_ACCOUNTS_CONFIG.map(a => a.name);
+const ACC_SHORT = Object.fromEntries(AD_ACCOUNTS_CONFIG.map(a => [a.name, a.short]));
+const ACC_DEFAULT_HIDDEN = new Set(AD_ACCOUNTS_CONFIG.filter(a => a.hidden).map(a => a.name));
+// ══════════════════════════════════════════════════════════════
+
 // ── STATE ──
 const metaState = {pt:1, hl:1, qmode:'fast'};
 const MAX=5, HKEY='meta_ads_history_v2', HMAX=8;
@@ -5008,12 +5035,7 @@ function o14RenderTable() {
   };
 
   // Krajše labele za accounti
-  const ACC_SHORT = {
-    'Maaarket X': 'M.X', 'Maaarket ALL': 'M.ALL', 'Maaarket ALL2': 'M.ALL2',
-    'Maaarket ALL3 + RS': 'M.ALL3+RS', 'Zipply.': 'Zipply', 'si_SUBAN_Maaarket SK': 'SK',
-    'Maaarket PL/RO': 'PL/RO', 'Maaarket HR': 'HR', 'si_Suban_Maaarket HR': 'HR2',
-    'Easyzo': 'Easyzo',
-  };
+  // ACC_SHORT → globalna konstanta (AD_ACCOUNTS_CONFIG)
 
   // Filtriraj account stolpce po checkanu
   const visibleAccounts = o14TargetAccounts.filter(a => checkedAccounts.has(a));
@@ -5176,8 +5198,7 @@ function anSortByAccount(acc) {
 }
 
 function anToggleAccount(acc, checked) {
-  const TARGET_ACCOUNTS = ['Maaarket X', 'Maaarket ALL', 'Maaarket ALL2', 'Maaarket ALL3 + RS', 'Zipply.', 'si_SUBAN_Maaarket SK', 'Maaarket PL/RO', 'Maaarket HR', 'si_Suban_Maaarket HR', 'Easyzo'];
-  if (!window._anCheckedAccounts) window._anCheckedAccounts = new Set(TARGET_ACCOUNTS);
+  if (!window._anCheckedAccounts) window._anCheckedAccounts = new Set(TARGET_ACCOUNTS.filter(a => !ACC_DEFAULT_HIDDEN.has(a)));
   if (checked) window._anCheckedAccounts.add(acc);
   else window._anCheckedAccounts.delete(acc);
   window._anPage = 1;
@@ -5185,7 +5206,6 @@ function anToggleAccount(acc, checked) {
 }
 
 function anToggleAllAccounts(all) {
-  const TARGET_ACCOUNTS = ['Maaarket X', 'Maaarket ALL', 'Maaarket ALL2', 'Maaarket ALL3 + RS', 'Zipply.', 'si_SUBAN_Maaarket SK', 'Maaarket PL/RO', 'Maaarket HR', 'si_Suban_Maaarket HR', 'Easyzo'];
   window._anCheckedAccounts = all ? new Set(TARGET_ACCOUNTS) : new Set();
   window._anPage = 1;
   anRenderTable();
@@ -5196,20 +5216,9 @@ function anRenderTable() {
   const skuMap = window._anSkuMap || {};
   
   // Whitelist accounts za prikaz pasov
-  const TARGET_ACCOUNTS = ['Maaarket X', 'Maaarket ALL', 'Maaarket ALL2', 'Maaarket ALL3 + RS', 'Zipply.', 'si_SUBAN_Maaarket SK', 'Maaarket PL/RO', 'Maaarket HR', 'si_Suban_Maaarket HR', 'Easyzo'];
+  // TARGET_ACCOUNTS → globalna konstanta (AD_ACCOUNTS_CONFIG)
   // Krajše labele
-  const ACC_SHORT = {
-    'Maaarket X': 'M.X',
-    'Maaarket ALL': 'M.ALL',
-    'Maaarket ALL2': 'M.ALL2',
-    'Maaarket ALL3 + RS': 'M.ALL3+RS',
-    'Zipply.': 'Zipply',
-    'si_SUBAN_Maaarket SK': 'SK',
-    'Maaarket PL/RO': 'PL/RO',
-    'Maaarket HR': 'HR',
-    'si_Suban_Maaarket HR': 'HR2',
-    'Easyzo': 'Easyzo',
-  };
+  // ACC_SHORT → globalna konstanta (AD_ACCOUNTS_CONFIG)
 
   // JS verzija smart_root — identična Python smart_root()
   // Maaa61lightBrown → Maaa61, M377grey → M377, SOLEBRACE_SM → SOLEBRACE
@@ -5262,7 +5271,7 @@ function anRenderTable() {
   });
 
   // FILTRI iznad tabele — checkboxi po accountih (kot v Obrat 14 dni)
-  if (!window._anCheckedAccounts) window._anCheckedAccounts = new Set(TARGET_ACCOUNTS);
+  if (!window._anCheckedAccounts) window._anCheckedAccounts = new Set(TARGET_ACCOUNTS.filter(a => !ACC_DEFAULT_HIDDEN.has(a)));
   const checkedAccounts = window._anCheckedAccounts;
 
   // Filter: SKU obdržimo, če ima oglas na vsaj enem izbranem accountu
@@ -5902,8 +5911,8 @@ function anMatchAndRender() { anRenderTable(); return; /*deprecated*/
 }
 
 function anClearFilters() {
-  const TARGET_ACCOUNTS = ['Maaarket X', 'Maaarket ALL', 'Maaarket ALL2', 'Maaarket ALL3 + RS', 'Zipply.', 'si_SUBAN_Maaarket SK', 'Maaarket PL/RO', 'Maaarket HR', 'si_Suban_Maaarket HR', 'Easyzo'];
-  window._anCheckedAccounts = new Set(TARGET_ACCOUNTS);
+  // TARGET_ACCOUNTS → globalna konstanta (AD_ACCOUNTS_CONFIG)
+  window._anCheckedAccounts = new Set(TARGET_ACCOUNTS.filter(a => !ACC_DEFAULT_HIDDEN.has(a)));
   window._anPage = 1;
   anRenderTable();
 }
