@@ -6139,7 +6139,9 @@ async function hsuvozClearOrder() {
 async function hsuvozClearCurrent() {
   if (!confirm('Zbriši vse SKU-je iz seznama "Za naročilo"?')) return;
   try {
-    await fetch('/hsuvoz-delete-item', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sku:'__ALL__', source:'current'}) });
+    const res = await fetch('/hsuvoz-current-clear', { method:'POST' });
+    const data = await res.json();
+    if (data.error) { alert('Napaka: '+data.error); return; }
     await hsuvozLoadCurrent();
   } catch(e) { alert('Napaka: '+e.message); }
 }
