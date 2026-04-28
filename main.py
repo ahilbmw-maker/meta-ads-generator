@@ -3167,33 +3167,98 @@ def extract_skus_from_text(text: str, known_skus: set = None) -> list[str]:
 
 @app.post("/analiza-meta-upload")
 async def analiza_meta_upload(file: UploadFile = File(...)):
-    """Sprejme CSV iz FB Ads Manager export, shrani in vrne osnovne info."""
+    """Sprejme CSV iz FB Ads Manager export, DODA k obstoječim (accumulate po Campaign name unikatnosti)."""
     try:
-        content_bytes = await file.read()
-        META_ADS_FILE.write_bytes(content_bytes)
-
-        text = content_bytes.decode('utf-8-sig', errors='replace')
-        first_line = text.split('\n', 1)[0]
-        sep = ';' if first_line.count(';') > first_line.count(',') else ','
-
         import csv as _csv
         from io import StringIO as _SIO
-        reader = _csv.DictReader(_SIO(text), delimiter=sep)
-        rows = [r for r in reader if r.get('Campaign name', '').strip()]
 
+        content_bytes = await file.read()
+        new_text = content_bytes.decode('utf-8-sig', errors='replace')
+        first_line = new_text.split('\n', 1)[0]
+        sep = ';' if first_line.count(';') > first_line.count(',') else ','
+
+        # Preberi nove vrstice
+        new_reader = _csv.DictReader(_SIO(new_text), delimiter=sep)
+        new_rows = [r for r in new_reader if r.get('Campaign name', '').strip()]
+        if not new_rows:
+            return JSONResponse({"error": "CSV nima veljavnih vrstic."}, status_code=400)
+
+        headers = list(new_rows[0].keys())
+
+        # Preberi obstoječe vrstice (če obstajajo)
+        existing_rows = []
+        if META_ADS_FILE.exists():
+            try:
+                ex_text = META_ADS_FILE.read_text(encoding='utf-8-sig', errors='replace')
+                ex_sep = ';' if ex_text.split('\n',1)[0].count(';') > ex_text.split('\n',1)[0].count(',') else ','
+                ex_reader = _csv.DictReader(_SIO(ex_text), delimiter=ex_sep)
+                existing_rows = [r for r in ex_reader if r.get('Campaign name', '').strip()]
+            except: pass
+
+        # Deduplikacija: ključ = Campaign name + Account name + Reporting starts
+        def row_key(r):
+            return (r.get('Campaign name','').strip(), r.get('Account name','').strip(), r.get('Reporting starts','').strip())
+
+        existing_keys = {row_key(r) for r in existing_rows}
+        added = [r for r in new_rows if row_key(r) not in existing_keys]
+        merged = existing_rows + added
+
+        # Shrani merged CSV
+        out = _SIO()
+        # Združi vse headerje (union)
+        all_headers = list(dict.fromkeys(headers + [h for h in (existing_rows[0].keys() if existing_rows else []) if h not in headers]))
+        writer = _csv.DictWriter(out, fieldnames=all_headers, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(merged)
+        META_ADS_FILE.write_text(out.getvalue(), encoding='utf-8')
+
+        # Zapiši meta (seznam vseh naloženih fileov)
+        meta = {}
+        if META_ADS_META.exists():
+            try: meta = json.loads(META_ADS_META.read_text(encoding='utf-8'))
+            except: pass
+        uploads = meta.get('uploads', [])
+        uploads.append({
+            "filename": file.filename,
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
+            "rows_added": len(added),
+            "rows_total": len(merged),
+        })
         meta = {
             "uploaded_at": datetime.now(timezone.utc).isoformat(),
             "filename": file.filename,
-            "size": len(content_bytes),
-            "rows": len(rows),
-            "separator": sep,
+            "rows": len(merged),
+            "rows_added": len(added),
+            "uploads": uploads[-10:],  # ohrani zadnjih 10
         }
-        META_ADS_META.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        META_ADS_META.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding='utf-8')
 
-        return {"status": "ok", "rows": len(rows), "uploaded_at": meta["uploaded_at"], "filename": file.filename}
+        # Zberi accounte iz merged podatkov
+        accounts = sorted(set(r.get('Account name','').strip() for r in merged if r.get('Account name','').strip()))
+
+        return {
+            "status": "ok",
+            "rows_added": len(added),
+            "rows_total": len(merged),
+            "uploaded_at": meta["uploaded_at"],
+            "filename": file.filename,
+            "accounts": accounts,
+        }
     except Exception as e:
-        from fastapi.responses import JSONResponse
+        import traceback; traceback.print_exc()
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/analiza-meta-clear")
+async def analiza_meta_clear():
+    """Počisti vse naložene Meta Ads CSV podatke."""
+    try:
+        if META_ADS_FILE.exists(): META_ADS_FILE.unlink()
+        if META_ADS_META.exists(): META_ADS_META.unlink()
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 
 
 @app.get("/analiza-meta-data")
@@ -3325,13 +3390,27 @@ async def analiza_meta_data():
                 "accounts": accounts_with_status,
             })
 
+        # Zberi vse accounte dinamično iz podatkov (ne hardkodiran whitelist)
+        all_accounts = sorted(set(
+            acc_name
+            for d in sku_data.values()
+            for acc_name in d["accounts"].keys()
+            if acc_name and acc_name != '—'
+        ))
+
         meta = {}
         if META_ADS_META.exists():
             try:
                 meta = json.loads(META_ADS_META.read_text(encoding="utf-8"))
             except: pass
 
-        return {"loaded": True, "items": items, "total_skus": len(items), **meta}
+        return {
+            "loaded": True,
+            "items": items,
+            "total_skus": len(items),
+            "accounts": all_accounts,  # dynamic lista za frontend checkboxe
+            **{k: v for k, v in meta.items() if k != 'accounts'},
+        }
     except Exception as e:
         import traceback
         traceback.print_exc()
