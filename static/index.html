@@ -106,7 +106,6 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 /* ── MAIN CONTENT ── */
 .main { flex: 1; padding: 2rem 2rem 5rem; max-width: 1000px; }
 .main.wide { max-width: 100%; padding: 1.5rem 1.5rem 5rem; }
-.main:has(#page-analiza.active) { max-width: 100% !important; padding: 1.5rem 1.5rem 5rem !important; }
 #page-analiza { width: 100%; max-width: 100%; }
 #analizaSubpage-meta, #analizaSubpage-obrat14 { width: 100%; max-width: 100%; box-sizing: border-box; }
 .page { display: none; }
@@ -1312,13 +1311,13 @@ input[type="text"].error { border-color: var(--red) !important; }
   <!-- ═══ ANALIZA PAGE ═══ -->
   <div class="page" id="page-analiza">
     <!-- Tab nav -->
-    <div style="display:flex;gap:8px;padding:0 0 12px;background:transparent;border-bottom:1px solid var(--border)">
+    <div style="display:flex;gap:8px;padding:12px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border)">
       <button class="analiza-tab-btn active" id="analizaTab-meta" onclick="switchAnalizaTab('meta')" style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📘 Meta Ads</button>
       <button class="analiza-tab-btn" id="analizaTab-obrat14" onclick="switchAnalizaTab('obrat14')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📊 Obrat 14 dni</button>
     </div>
 
     <!-- TAB: Meta Ads -->
-    <div id="analizaSubpage-meta" style="padding:14px 0 0;display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start">
+    <div id="analizaSubpage-meta" style="padding:14px;display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start">
       <!-- Levo: nastavitve + povzetek -->
       <div>
         <div class="card">
@@ -1377,7 +1376,7 @@ input[type="text"].error { border-color: var(--red) !important; }
       </div>
     </div>
     <!-- TAB: Obrat 14 dni -->
-    <div id="analizaSubpage-obrat14" style="display:none;padding:14px 0 0">
+    <div id="analizaSubpage-obrat14" style="display:none;padding:14px">
       <div style="display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start">
         <!-- Levo: upload -->
         <div>
