@@ -1279,7 +1279,7 @@ input[type="text"].error { border-color: var(--red) !important; }
           <div class="card" style="margin-top:0">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
               <span class="slabel" style="margin:0">ZGODOVINA (30 DNI)</span>
-              <button onclick="hsuvozLoadHistory()" style="padding:3px 8px;background:none;border:1px solid var(--border);border-radius:var(--radius);font-size:10px;color:var(--text-tertiary);cursor:pointer;font-family:'DM Sans',sans-serif">↻</button>
+              <button onclick="hsuvozLoadHistory()" style="padding:3px 8px;background:none;border:1px solid var(--border);border-radius:var(--radius);font-size:10px;color:var(--text-tertiary);cursor:pointer;font-family:'DM Sans',sans-serif">↻ Osveži</button>
             </div>
             <div id="hsuvozHistoryList" style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--text-secondary)">Nalagam...</div>
           </div>
@@ -1297,8 +1297,8 @@ input[type="text"].error { border-color: var(--red) !important; }
                 <button onclick="hsuvozToggleDone()" id="hsuvozToggleDoneBtn" style="padding:5px 10px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">👁 Done</button>
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:28px 1fr 1.8fr 50px 90px 110px;gap:8px;padding:7px 10px;background:var(--bg-secondary);border-radius:var(--radius);font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">
-              <span>#</span><span>SKU</span><span>Naziv</span><span style="text-align:center">Kol.</span><span>Naročila</span><span></span>
+            <div style="display:grid;grid-template-columns:28px 130px 1fr 55px 85px 85px 120px;gap:10px;padding:8px 12px;background:var(--bg-secondary);border-radius:var(--radius);font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">
+              <span>#</span><span>SKU</span><span>Naziv</span><span style="text-align:center">Kol.</span><span style="text-align:center">Obrat 30d</span><span style="text-align:center">Naročila</span><span></span>
             </div>
             <div id="hsuvozList" style="display:flex;flex-direction:column;gap:3px"></div>
           </div>
@@ -1314,8 +1314,8 @@ input[type="text"].error { border-color: var(--red) !important; }
               </div>
             </div>
             <div id="hsuvozOrderEmpty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:1.5rem">Premakni SKU-je sem z gumbom "→ Naročilo".</div>
-            <div style="display:grid;grid-template-columns:28px 1fr 1.8fr 50px 90px 110px;gap:8px;padding:7px 10px;background:rgba(15,118,110,0.08);border-radius:var(--radius);font-size:10px;font-weight:600;color:#0f766e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;display:none" id="hsuvozOrderHeader">
-              <span>#</span><span>SKU</span><span>Naziv</span><span style="text-align:center">Kol.</span><span>Naročila</span><span></span>
+            <div style="display:grid;grid-template-columns:28px 130px 1fr 55px 85px 85px 120px;gap:10px;padding:8px 12px;background:rgba(15,118,110,0.08);border-radius:var(--radius);font-size:10px;font-weight:600;color:#0f766e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;display:none" id="hsuvozOrderHeader">
+              <span>#</span><span>SKU</span><span>Naziv</span><span style="text-align:center">Kol.</span><span style="text-align:center">Obrat 30d</span><span style="text-align:center">Naročila</span><span></span>
             </div>
             <div id="hsuvozOrderList" style="display:flex;flex-direction:column;gap:3px"></div>
           </div>
@@ -5977,7 +5977,7 @@ function hsuvozRender(items, listId, source) {
   const list = document.getElementById(listId);
   const visible = (source === 'current' && !_hsuvozShowDone) ? items.filter(it => !it.done) : items;
   if (!visible.length) {
-    list.innerHTML = source === 'order' ? '' : '<div style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:1rem">Vsi SKU-ji so v naročilu ali done. \U0001f389</div>';
+    list.innerHTML = source === 'order' ? '' : '<div style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:1rem">Vsi SKU-ji so v naročilu ali done. 🎉</div>';
     return;
   }
 
@@ -5989,6 +5989,8 @@ function hsuvozRender(items, listId, source) {
     const isDone = it.done;
     const obrat = _hsuvozStock[(it.sku||'').toUpperCase()];
     const obratColor = obrat > 10 ? '#16a34a' : obrat > 3 ? '#d97706' : obrat !== undefined ? 'var(--red)' : 'var(--text-tertiary)';
+    const obratBg = obrat > 10 ? 'rgba(22,163,74,0.08)' : obrat > 3 ? 'rgba(217,119,6,0.08)' : obrat !== undefined ? 'rgba(239,68,68,0.08)' : 'transparent';
+    const obratBorder = obrat > 10 ? 'rgba(22,163,74,0.25)' : obrat > 3 ? 'rgba(217,119,6,0.25)' : obrat !== undefined ? 'rgba(239,68,68,0.25)' : 'transparent';
     const ordersId = 'hsuvoz-orders-' + source + '-' + idx;
     const ordersCount = (it.orders || []).length;
     const orderLinks = (it.orders || []).map(function(id) {
@@ -6001,25 +6003,39 @@ function hsuvozRender(items, listId, source) {
     const skuDeco = isDone ? 'line-through' : 'none';
 
     const btnMove = source === 'current'
-      ? '<button data-action="move" data-idx="' + idx + '" data-source="current" style="padding:3px 7px;background:#0f766e;color:white;border:none;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap">&rarr; Naro\u010dilo</button>'
+      ? '<button data-action="move" data-idx="' + idx + '" data-source="current" style="padding:3px 7px;background:#0f766e;color:white;border:none;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap">&rarr; Naročilo</button>'
       : '<button data-action="back" data-idx="' + idx + '" data-source="order" style="padding:3px 7px;background:none;border:1px solid var(--border);color:var(--text-secondary);border-radius:4px;font-size:10px;cursor:pointer">&larr; Nazaj</button>';
 
     return '<div style="border:' + rowBorder + ';border-radius:var(--radius);background:' + rowBg + ';' + (isDone ? 'opacity:0.5' : '') + '">'
-      + '<div style="display:grid;grid-template-columns:28px 1fr 1.8fr 50px 90px 110px;gap:8px;padding:8px 10px;font-size:12px;align-items:center">'
+      + '<div style="display:grid;grid-template-columns:28px 130px 1fr 55px 85px 85px 120px;gap:10px;padding:9px 12px;font-size:12px;align-items:center">'
+      // #
       + '<span style="color:var(--text-tertiary);font-size:11px">' + (idx + 1) + '</span>'
-      + '<span style="font-weight:600;color:' + skuColor + ';text-decoration:' + skuDeco + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="hsuvoz-sku-' + source + '-' + idx + '">' + esc(it.sku) + '</span>'
+      // SKU
+      + '<span style="font-weight:700;font-size:12px;color:' + skuColor + ';text-decoration:' + skuDeco + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="hsuvoz-sku-' + source + '-' + idx + '">' + esc(it.sku) + '</span>'
+      // Naziv
       + '<span style="color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">' + esc(it.naziv || '—') + '</span>'
-      + '<div style="text-align:center"><span style="font-weight:700">' + it.qty + '</span>'
-      + (obrat !== undefined ? '<div style="font-size:9px;color:' + obratColor + ';font-weight:600">' + obrat + '/30d</div>' : '')
+      // Količina naročeno
+      + '<div style="text-align:center">'
+      + '<span style="font-weight:700;font-size:15px;color:var(--text)">' + it.qty + '</span>'
+      + '<div style="font-size:9px;color:var(--text-tertiary);margin-top:1px">kos</div>'
       + '</div>'
-      + '<button data-action="orders" data-id="' + ordersId + '" style="padding:3px 6px;background:rgba(24,119,242,0.07);border:1px solid rgba(24,119,242,0.2);border-radius:4px;font-size:10px;color:var(--accent);cursor:pointer">\U0001f4e6 ' + ordersCount + '</button>'
+      // Obrat 30d — lasten stolpec, velik badge
+      + (obrat !== undefined
+        ? '<div style="text-align:center;background:' + obratBg + ';border-radius:6px;padding:4px 6px;border:1px solid ' + obratBorder + '">'
+          + '<div style="font-weight:700;font-size:14px;color:' + obratColor + '">' + obrat + '</div>'
+          + '<div style="font-size:9px;color:' + obratColor + ';opacity:0.8">obr/30d</div>'
+          + '</div>'
+        : '<div style="text-align:center;color:var(--text-tertiary);font-size:11px">—</div>')
+      // Naročila (accordion gumb)
+      + '<button data-action="orders" data-id="' + ordersId + '" style="padding:4px 8px;background:rgba(24,119,242,0.07);border:1px solid rgba(24,119,242,0.2);border-radius:6px;font-size:11px;color:var(--accent);cursor:pointer;width:100%;text-align:center">📦 ' + ordersCount + ' naroč.</button>'
+      // Akcije
       + '<div style="display:flex;gap:4px;justify-content:flex-end">'
       + btnMove
-      + '<button data-action="edit" data-idx="' + idx + '" data-source="' + source + '" style="padding:3px 6px;background:none;border:1px solid var(--border);color:var(--text-tertiary);border-radius:4px;font-size:10px;cursor:pointer">&#9998;</button>'
-      + '<button data-action="delete" data-idx="' + idx + '" data-source="' + source + '" style="padding:3px 6px;background:none;border:1px solid rgba(239,68,68,0.3);color:var(--red);border-radius:4px;font-size:10px;cursor:pointer">\U0001f5d1</button>'
+      + '<button data-action="edit" data-idx="' + idx + '" data-source="' + source + '" title="Preimenuj SKU" style="padding:4px 6px;background:none;border:1px solid var(--border);color:var(--text-tertiary);border-radius:4px;font-size:10px;cursor:pointer">✏</button>'
+      + '<button data-action="delete" data-idx="' + idx + '" data-source="' + source + '" title="Zbriši" style="padding:4px 6px;background:none;border:1px solid rgba(239,68,68,0.3);color:var(--red);border-radius:4px;font-size:10px;cursor:pointer">🗑</button>'
       + '</div>'
       + '</div>'
-      + '<div id="' + ordersId + '" style="display:none;padding:5px 10px 8px 44px;flex-wrap:wrap;gap:4px">' + orderLinks + '</div>'
+      + '<div id="' + ordersId + '" style="display:none;padding:5px 12px 10px 50px;flex-wrap:wrap;gap:5px">' + orderLinks + '</div>'
       + '</div>';
   });
 
@@ -6175,13 +6191,20 @@ async function hsuvozLoadHistory() {
         + '<div style="font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">' + esc(it.original_filename) + '</div>'
         + '<div style="color:var(--text-tertiary);font-size:10px">' + dt + ' · ' + it.total_skus + ' SKU</div>'
         + '</div>'
-        + '<button data-hfilename="' + esc(it.filename) + '" style="flex-shrink:0;padding:3px 7px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:10px;font-weight:600;cursor:pointer">&#8617;</button>'
+        + '<button data-hfilename="' + esc(it.filename) + '" style="flex-shrink:0;padding:4px 10px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap">↩ Naloži</button>'
         + '</div>';
     }).join('');
     // Event delegation za history gumbe
-    el.onclick = function(e) {
+    el.onclick = async function(e) {
       const btn = e.target.closest('[data-hfilename]');
-      if (btn) hsuvozLoadFromHistory(btn.dataset.hfilename);
+      if (!btn) return;
+      const orig = btn.textContent;
+      btn.textContent = '⏳';
+      btn.disabled = true;
+      await hsuvozLoadFromHistory(btn.dataset.hfilename);
+      btn.textContent = '✓ Naloženo!';
+      btn.style.background = '#16a34a';
+      setTimeout(function() { btn.textContent = orig; btn.style.background = 'var(--accent)'; btn.disabled = false; }, 1500);
     };
   } catch(e) { el.innerHTML = '<span style="color:var(--red)">Napaka.</span>'; }
 }
