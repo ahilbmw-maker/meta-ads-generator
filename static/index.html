@@ -5658,11 +5658,15 @@ function anRenderTable() {
   if (filterBar) {
     if (hasMetaData) {
       filterBar.style.display = 'flex';
+      // Prikaži VSE accounte: config + server (union), da so privzeto skriti vedno vidni
+      const serverAccs = _effectiveAccounts || [];
+      const configAccs = TARGET_ACCOUNTS;
+      const allAccs = [...new Set([...configAccs, ...serverAccs])];
       filterBar.innerHTML =
         '<span style="font-size:11px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.4px">Ad accounti:</span>' +
         '<button onclick="anToggleAllAccounts(true)" style="padding:4px 10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:10px;color:var(--text-secondary);cursor:pointer;font-family:\'DM Sans\',sans-serif">✓ Vsi</button>' +
         '<button onclick="anToggleAllAccounts(false)" style="padding:4px 10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:10px;color:var(--text-secondary);cursor:pointer;font-family:\'DM Sans\',sans-serif">✗ Nobeden</button>' +
-        _effectiveAccounts.map(acc => {
+        allAccs.map(acc => {
           const isChecked = checkedAccounts.has(acc);
           const lbl = ACC_SHORT[acc] || acc;
           const accEsc = String(acc).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
