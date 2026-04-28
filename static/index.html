@@ -4969,30 +4969,43 @@ function o14RenderTable() {
   const cols = '1.3fr 2.5fr 80px' + (visibleAccounts.length > 0 ? ' ' + accountCols : '');
 
   let html = accCheckboxes;
+
+  // Variant D: Dark label nad account stolpci (samo če imamo vidne accounte)
+  if (visibleAccounts.length > 0) {
+    html += '<div style="display:grid;grid-template-columns:' + cols + ';gap:10px;padding:0 14px;margin-bottom:0">';
+    // Empty cells for SKU, Naziv, Obrat (3 cells)
+    html += '<span></span><span></span><span></span>';
+    // Dark label spans across all visible account columns
+    html += '<span style="grid-column:span ' + visibleAccounts.length + ';display:flex;align-items:center;justify-content:center;background:#1f2937;color:#fff;font-size:9px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;border-radius:5px 5px 0 0;padding:3px 8px;height:18px">Ad accounti — status oglasov</span>';
+    html += '</div>';
+  }
+
   html += '<div style="display:grid;grid-template-columns:' + cols + ';gap:10px;padding:12px 14px;background:var(--bg-secondary);border-radius:var(--radius);font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.4px;user-select:none">' +
     '<span style="cursor:pointer" onclick="o14SortBy(\'sku\')">SKU' + sortInd('sku') + '</span>' +
     '<span style="cursor:pointer" onclick="o14SortBy(\'naziv\')">Naziv' + sortInd('naziv') + '</span>' +
     '<span style="text-align:center;cursor:pointer" onclick="o14SortBy(\'kolicina\')">Obrat' + sortInd('kolicina') + '</span>' +
-    visibleAccounts.map(a => '<span style="text-align:center;cursor:pointer;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="o14SortBy(\'acc:' + esc(a).replace(/\\/g, '\\\\').replace(/\'/g, "\\\'") + '\')" title="' + esc(a) + '">' + esc(ACC_SHORT[a] || a) + sortInd('acc:' + a) + '</span>').join('') +
+    visibleAccounts.map(a => '<span style="text-align:center;cursor:pointer;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(0,0,0,0.05);border-radius:3px;padding:3px 2px;color:var(--text-secondary);font-weight:600" onclick="o14SortBy(\'acc:' + esc(a).replace(/\\/g, '\\\\').replace(/\'/g, "\\\'") + '\')" title="' + esc(a) + '">' + esc(ACC_SHORT[a] || a) + sortInd('acc:' + a) + '</span>').join('') +
   '</div>';
 
   if (filtered.length === 0) {
     html += '<div style="padding:2rem;text-align:center;color:var(--text-tertiary);font-size:12px">Ni rezultatov.</div>';
   } else {
+    // Variant D: vsaka account celica ima rahel siv pill bg za vizualno izpostavitev skupine
+    const O14_ACC_CELL_BG = 'rgba(0,0,0,0.04)';
     html += pageItems.map(r => {
       const accCells = visibleAccounts.map(acc => {
         const data = r.accounts?.[acc];
         if (!data || data.campaigns === 0) {
           // — sivi pomišljaj (ni v 14d reportu — potencialni kandidat za reaktivacijo, info v tooltip)
-          return '<div style="text-align:center;color:var(--text-tertiary);font-size:14px" title="' + esc(acc) + ': brez oglasov v 14d (kandidat za reaktivacijo)">—</div>';
+          return '<div style="text-align:center;color:var(--text-tertiary);font-size:14px;background:' + O14_ACC_CELL_BG + ';border-radius:3px;padding:3px 0" title="' + esc(acc) + ': brez oglasov v 14d (kandidat za reaktivacijo)">—</div>';
         }
         const status = data.status || 'none';
         if (status === 'active') {
-          return '<div style="text-align:center;color:var(--green);font-size:15px;font-weight:700" title="' + esc(acc) + ': aktiven · ' + (data.active || 0) + ' aktivnih · ' + (data.paused || 0) + ' pavziranih · ' + data.spend.toFixed(2) + '€ · ' + data.purchases + ' nakupov">✓</div>';
+          return '<div style="text-align:center;color:var(--green);font-size:15px;font-weight:700;background:' + O14_ACC_CELL_BG + ';border-radius:3px;padding:1px 0" title="' + esc(acc) + ': aktiven · ' + (data.active || 0) + ' aktivnih · ' + (data.paused || 0) + ' pavziranih · ' + data.spend.toFixed(2) + '€ · ' + data.purchases + ' nakupov">✓</div>';
         } else if (status === 'paused') {
-          return '<div style="text-align:center;color:#d97706;font-size:14px;font-weight:700" title="' + esc(acc) + ': pavzirano · vse kampanje STOP · ' + data.spend.toFixed(2) + '€ · ' + data.purchases + ' nakupov">⏸</div>';
+          return '<div style="text-align:center;color:#d97706;font-size:14px;font-weight:700;background:' + O14_ACC_CELL_BG + ';border-radius:3px;padding:2px 0" title="' + esc(acc) + ': pavzirano · vse kampanje STOP · ' + data.spend.toFixed(2) + '€ · ' + data.purchases + ' nakupov">⏸</div>';
         }
-        return '<div style="text-align:center;color:var(--text-tertiary);font-size:14px" title="' + esc(acc) + ': ni oglaševan">—</div>';
+        return '<div style="text-align:center;color:var(--text-tertiary);font-size:14px;background:' + O14_ACC_CELL_BG + ';border-radius:3px;padding:3px 0" title="' + esc(acc) + ': ni oglaševan">—</div>';
       }).join('');
 
       const bg = !r.has_ads ? 'rgba(124,58,237,0.08)' : 'var(--surface2)';
@@ -5323,7 +5336,26 @@ function anRenderTable() {
   const accCount = hasMetaData ? visibleAccounts.length : 0;
   const minWidth = hasMetaData ? (260 + 440 + 70 + 75 + 130 + (accCount * 54) + 80 + 70 + 70 + (accCount + 8) * 10) : 800;
 
-  let html = legendHtml +
+  let html = legendHtml;
+
+  // Variant D: Dark label nad account stolpci (samo ko imamo Meta data + vidne accounte)
+  if (hasMetaData && visibleAccounts.length > 0) {
+    // Položaj dark labela: levi offset = SKU (1.3fr) + Naziv (2.2fr) + Zaloga (70) + Obrat (75) + Status (130) + 5×gap (10*5=50)
+    // Ker prve 2 stolpca sta fr-ja, težko izračunamo natančno px → uporabimo flex hack: pozicionira se relativno na grid
+    // Lažja rešitev: dodamo grid bar ki ima isto cols strukturo, in dark label samo span-a account stolpce
+    const labelGridCols = cols; // ista struktura kot header
+    let labelHtml = '<div style="display:grid;grid-template-columns:' + labelGridCols + ';gap:10px;padding:0 14px;min-width:' + minWidth + 'px;margin-bottom:0">';
+    // Empty cells for SKU, Naziv, Zaloga, Obrat, Status (5 cells)
+    labelHtml += '<span></span><span></span><span></span><span></span><span></span>';
+    // Dark label spans across all visible account columns
+    labelHtml += '<span style="grid-column:span ' + visibleAccounts.length + ';display:flex;align-items:center;justify-content:center;background:#1f2937;color:#fff;font-size:9px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;border-radius:5px 5px 0 0;padding:3px 8px;height:18px">Ad accounti — status oglasov</span>';
+    // Empty cells for Spend, Nakupi, CPA (3 cells)
+    labelHtml += '<span></span><span></span><span></span>';
+    labelHtml += '</div>';
+    html += labelHtml;
+  }
+
+  html +=
     '<div style="display:grid;grid-template-columns:' + cols + ';gap:10px;padding:12px 14px;background:var(--bg-secondary);border-radius:var(--radius);font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;user-select:none;min-width:' + minWidth + 'px">' +
     '<span style="cursor:pointer" onclick="anSortBy(\'sku\')">SKU' + sortInd('sku') + '</span>' +
     '<span style="cursor:pointer" onclick="anSortBy(\'title\')">Naziv izdelka' + sortInd('title') + '</span>' +
@@ -5335,7 +5367,8 @@ function anRenderTable() {
           const lbl = ACC_SHORT[acc] || acc;
           // Escape za inline onclick atribut: nadomesti ' z ASCII string-om znotraj single-quoted JS arg
           const accEsc = String(acc).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-          return '<span style="text-align:center;cursor:pointer;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="anSortByAccount(\'' + accEsc + '\')" title="' + esc(acc) + ' — klik za sortiranje">' + esc(lbl) + sortInd('acc:' + acc) + '</span>';
+          // Variant D: pill style header (sivi bg)
+          return '<span style="text-align:center;cursor:pointer;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(0,0,0,0.05);border-radius:3px;padding:3px 2px;color:var(--text-secondary);font-weight:600" onclick="anSortByAccount(\'' + accEsc + '\')" title="' + esc(acc) + ' — klik za sortiranje">' + esc(lbl) + sortInd('acc:' + acc) + '</span>';
         }).join('') +
         '<span style="text-align:right;cursor:pointer" onclick="anSortBy(\'ad_spend\')">Spend' + sortInd('ad_spend') + '</span>' +
         '<span style="text-align:right;cursor:pointer" onclick="anSortBy(\'ad_purchases\')">Nakupi' + sortInd('ad_purchases') + '</span>' +
@@ -5371,13 +5404,15 @@ function anRenderTable() {
       const adData = r._ad;
 
       // Helper: zgenerira account celice (✓ / ⏸ / —) glede na stanje za ta SKU
+      // Variant D: vsaka celica ima rahel siv pill bg za vizualno izpostavitev account skupine
+      const ACC_CELL_BG = 'rgba(0,0,0,0.04)';
       const buildAccountInline = () => {
         if (!hasMetaData) return '';
         return visibleAccounts.map(acc => {
           const accData = adData ? (adData.accounts?.[acc]) : null;
           if (!accData || (accData.campaigns || 0) === 0 || (accData.spend === 0 && accData.purchases === 0 && (accData.campaigns || 0) === 0)) {
             // Ni oglaševan
-            return '<div style="text-align:center;color:var(--text-tertiary);font-size:14px" title="' + esc(acc) + ': ni oglaševan">—</div>';
+            return '<div style="text-align:center;color:var(--text-tertiary);font-size:14px;background:' + ACC_CELL_BG + ';border-radius:3px;padding:3px 0" title="' + esc(acc) + ': ni oglaševan">—</div>';
           }
           // accData.status: 'active' | 'paused' (če nimamo, izpeljemo iz active/paused števca)
           let status = accData.status;
@@ -5387,11 +5422,11 @@ function anRenderTable() {
           }
           if (status === 'active') {
             const tip = esc(acc) + ': aktiven · ' + (accData.spend || 0).toFixed(2) + '€ · ' + (accData.purchases || 0) + ' nakupov · ' + (accData.campaigns || 0) + ' kampanj';
-            return '<div style="text-align:center;color:var(--green);font-size:15px;font-weight:700" title="' + tip + '">✓</div>';
+            return '<div style="text-align:center;color:var(--green);font-size:15px;font-weight:700;background:' + ACC_CELL_BG + ';border-radius:3px;padding:1px 0" title="' + tip + '">✓</div>';
           }
           // paused (bil aktiven a sedaj STOP)
           const tip = esc(acc) + ': pavzirano · ' + (accData.spend || 0).toFixed(2) + '€ · ' + (accData.purchases || 0) + ' nakupov';
-          return '<div style="text-align:center;color:#d97706;font-size:14px;font-weight:700" title="' + tip + '">⏸</div>';
+          return '<div style="text-align:center;color:#d97706;font-size:14px;font-weight:700;background:' + ACC_CELL_BG + ';border-radius:3px;padding:2px 0" title="' + tip + '">⏸</div>';
         }).join('');
       };
 
@@ -5403,7 +5438,7 @@ function anRenderTable() {
             statusBadge = '<span style="font-size:11px;color:#7c3aed;font-weight:600">🚀 Potencial</span>';
           }
           accountInlineCells = visibleAccounts.map(acc =>
-            '<div style="text-align:center;color:var(--text-tertiary);font-size:14px" title="' + esc(acc) + ': ni oglaševan">—</div>'
+            '<div style="text-align:center;color:var(--text-tertiary);font-size:14px;background:' + ACC_CELL_BG + ';border-radius:3px;padding:3px 0" title="' + esc(acc) + ': ni oglaševan">—</div>'
           ).join('');
           statusCells =
             '<div>' + statusBadge + '</div>' +
