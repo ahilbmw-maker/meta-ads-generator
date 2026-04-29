@@ -6283,18 +6283,14 @@ async function hsuvozMoveSelectedToOrder() {
 
 async function hsuvozDeleteSelected() {
   if (!window._hsuvozSelected) return;
-  const allKeys = [...window._hsuvozSelected];
-  const skus = allKeys
+  const skus = [...window._hsuvozSelected]
     .filter(k => k.endsWith('|current'))
     .map(k => k.slice(0, k.lastIndexOf('|current')));
-  console.log('[hsuvoz] deleteSelected skus:', skus);
   if (!skus.length) return;
   try {
     for (const sku of skus) {
-      const res = await fetch('/hsuvoz-delete-item', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({sku: sku, source: 'current'})
+      const res = await fetch('/hsuvoz-delete-item?sku=' + encodeURIComponent(sku) + '&source=current', {
+        method: 'POST'
       });
       console.log('[hsuvoz] delete', sku, res.status);
       window._hsuvozSelected.delete(sku + '|current');
@@ -6311,10 +6307,8 @@ async function hsuvozDeleteSelectedOrder() {
   if (!skus.length) return;
   try {
     for (const sku of skus) {
-      await fetch('/hsuvoz-delete-item', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({sku: sku, source: 'order'})
+      await fetch('/hsuvoz-delete-item?sku=' + encodeURIComponent(sku) + '&source=order', {
+        method: 'POST'
       });
       window._hsuvozSelected.delete(sku + '|order');
     }
