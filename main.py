@@ -4004,22 +4004,28 @@ async def hsuvoz_move_back(request: Request):
 
 @app.post("/hsuvoz-delete-item")
 async def hsuvoz_delete_item(request: Request):
-    """Zbriše SKU iz 'za naročilo' ali 'order'. Če sku='__ALL__', zbriše vse."""
+    """Zbriše SKU(s) iz 'za naročilo' ali 'order'. Podpira single sku ali seznam skus."""
     try:
         body = await request.json()
-        sku = body.get("sku")
         source = body.get("source", "current")
         file = HSUVOZ_CURRENT if source == "current" else HSUVOZ_ORDER
         if not file.exists():
             return JSONResponse({"error": "Ni podatkov."}, status_code=404)
         data = json.loads(file.read_text(encoding="utf-8"))
-        if sku == "__ALL__":
-            data["items"] = []
-        else:
-            data["items"] = [it for it in data.get("items", []) if it["sku"] != sku]
+
+        # Podpira bulk: {"skus": [...], "source": "current"}
+        # ali single: {"sku": "...", "source": "current"}
+        skus_to_delete = body.get("skus") or ([body.get("sku")] if body.get("sku") else [])
+        skus_set = set(str(s) for s in skus_to_delete if s)
+
+        if not skus_set:
+            return JSONResponse({"error": "Ni SKU-jev za brisanje."}, status_code=400)
+
+        data["items"] = [it for it in data.get("items", []) if it["sku"] not in skus_set]
         file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        return {"ok": True}
+        return {"ok": True, "deleted": len(skus_set)}
     except Exception as e:
+        import traceback; traceback.print_exc()
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
