@@ -6283,16 +6283,21 @@ async function hsuvozMoveSelectedToOrder() {
 
 async function hsuvozDeleteSelected() {
   if (!window._hsuvozSelected) return;
-  const skus = [...window._hsuvozSelected]
+  const allKeys = [...window._hsuvozSelected];
+  const skus = allKeys
     .filter(k => k.endsWith('|current'))
     .map(k => k.slice(0, k.lastIndexOf('|current')));
-  if (!skus.length) return;
+  console.log('[hsuvoz] deleteSelected - allKeys:', allKeys, 'skus:', skus);
+  if (!skus.length) { console.warn('[hsuvoz] no skus to delete'); return; }
   try {
+    const body = JSON.stringify({skus, source: 'current'});
+    console.log('[hsuvoz] sending:', body);
     const res = await fetch('/hsuvoz-delete-item', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({skus, source: 'current'})
+      body
     });
+    console.log('[hsuvoz] response status:', res.status);
     const data = await res.json();
     if (data.error) { alert('Napaka: ' + data.error); return; }
     skus.forEach(s => window._hsuvozSelected.delete(s + '|current'));
@@ -6422,24 +6427,25 @@ async function hsuvozLoadHistory() {
     const res = await fetch('/hsuvoz-history');
     const data = await res.json();
     if (!data.items?.length) { el.innerHTML = '<span style="color:var(--text-tertiary)">Ni zgodovine.</span>'; return; }
-    el.innerHTML = data.items.map(function(it) {
+    window._hsvHistory = data.items;
+    el.innerHTML = data.items.map(function(it, hidx) {
       const dt = it.uploaded_at ? new Date(it.uploaded_at).toLocaleString('sl-SI', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);gap:6px">'
         + '<div style="min-width:0">'
         + '<div style="font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">' + esc(it.original_filename) + '</div>'
         + '<div style="color:var(--text-tertiary);font-size:10px">' + dt + ' · ' + it.total_skus + ' SKU</div>'
         + '</div>'
-        + '<button data-hfilename="' + esc(it.filename) + '" style="flex-shrink:0;padding:4px 10px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap">↩ Naloži</button>'
+        + '<button onclick="window._hsvLoadHist(' + hidx + ',this)" style="flex-shrink:0;padding:4px 10px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap">↩ Naloži</button>'
         + '</div>';
     }).join('');
-    // Event delegation za history gumbe
-    el.onclick = async function(e) {
-      const btn = e.target.closest('[data-hfilename]');
-      if (!btn) return;
+
+    window._hsvLoadHist = async function(hidx, btn) {
+      if (!window._hsvHistory || hidx >= window._hsvHistory.length) return;
+      const filename = window._hsvHistory[hidx].filename;
       const orig = btn.textContent;
       btn.textContent = '⏳';
       btn.disabled = true;
-      await hsuvozLoadFromHistory(btn.dataset.hfilename);
+      await hsuvozLoadFromHistory(filename);
       btn.textContent = '✓ Naloženo!';
       btn.style.background = '#16a34a';
       setTimeout(function() { btn.textContent = orig; btn.style.background = 'var(--accent)'; btn.disabled = false; }, 1500);
