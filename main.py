@@ -1815,23 +1815,33 @@ def get_subtitle_style_for_format(width: int, height: int) -> dict:
     """Vrne optimalne subtitle nastavitve glede na video format."""
     if width == 0 or height == 0:
         # Default: assume 9:16
-        return {"fontsize": 64, "marginv": 100, "outline": 5, "max_words": 4, "playresx": 1080, "playresy": 1920}
-    
-    ratio = width / height
-    
-    if ratio < 0.7:
-        # 9:16 vertical (TikTok, Reels, Stories) — 0.5625
-        return {"fontsize": 64, "marginv": 100, "outline": 5, "max_words": 4, "playresx": width, "playresy": height}
-    elif ratio < 1.2:
-        # 1:1 square (Insta/FB feed) — 1.0
-        return {"fontsize": 50, "marginv": 70, "outline": 4, "max_words": 5, "playresx": width, "playresy": height}
-    elif ratio < 1.6:
-        # 4:3 (1.33)
-        return {"fontsize": 44, "marginv": 60, "outline": 4, "max_words": 5, "playresx": width, "playresy": height}
-    else:
-        # 16:9 horizontal (YouTube, etc.) — 1.78
-        return {"fontsize": 42, "marginv": 50, "outline": 3, "max_words": 6, "playresx": width, "playresy": height}
+        return {"fontsize": 64, "marginv": 150, "outline": 5, "max_words": 4, "playresx": 1080, "playresy": 1920}
 
+    ratio = width / height
+
+    # MarginV kot % višine — podnapisi so vedno vidni ne glede na crop
+    # Za pokončne videe damo podnapise višje (večji %) da ne padejo v safe-zone
+    if ratio < 0.4:
+        # Ultra ozki pokončni videi (6:19, 9:21 ipd.) — podnapisi zelo visoko
+        # ker se spodnji del pogosto odreže pri predvajanju
+        marginv = max(int(height * 0.35), 120)
+        return {"fontsize": max(int(height * 0.038), 48), "marginv": marginv, "outline": 5, "max_words": 3, "playresx": width, "playresy": height}
+    elif ratio < 0.7:
+        # 9:16 vertical (TikTok, Reels, Stories) — 0.5625
+        marginv = max(int(height * 0.08), 100)
+        return {"fontsize": max(int(height * 0.038), 56), "marginv": marginv, "outline": 5, "max_words": 4, "playresx": width, "playresy": height}
+    elif ratio < 1.2:
+        # 1:1 square (Insta/FB feed)
+        marginv = max(int(height * 0.07), 60)
+        return {"fontsize": max(int(height * 0.045), 44), "marginv": marginv, "outline": 4, "max_words": 5, "playresx": width, "playresy": height}
+    elif ratio < 1.6:
+        # 4:3
+        marginv = max(int(height * 0.07), 50)
+        return {"fontsize": max(int(height * 0.05), 40), "marginv": marginv, "outline": 4, "max_words": 5, "playresx": width, "playresy": height}
+    else:
+        # 16:9 horizontal
+        marginv = max(int(height * 0.06), 40)
+        return {"fontsize": max(int(height * 0.055), 36), "marginv": marginv, "outline": 3, "max_words": 6, "playresx": width, "playresy": height}
 
 def build_ass(alignment: dict, video_width: int = 1080, video_height: int = 1920) -> str:
     """Generira ASS karaoke podnapise — Stil B (bela+rumena, debela obroba), prilagojen formatu."""
