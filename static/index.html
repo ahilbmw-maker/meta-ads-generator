@@ -1460,6 +1460,7 @@ input[type="text"].error { border-color: var(--red) !important; }
           <!-- Quick filtri (nad tabelo) -->
           <div id="anQuickFilters" style="display:flex;gap:8px;margin-bottom:10px;padding:10px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);flex-wrap:wrap;align-items:center;font-size:11px"></div>
 
+          <div id="anTableHeaderWrap" style="position:sticky;top:0;z-index:20;background:var(--bg);padding-bottom:2px"></div>
           <div id="anTable" style="display:flex;flex-direction:column;gap:6px;overflow-x:auto"></div>
           <div id="anEmpty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:2rem">Naloži CSV zalogo v zavihku <strong>Orodja → Kontrola cen</strong>.</div>
         </div>
@@ -5444,6 +5445,8 @@ function anRenderTable() {
 
   if (!anStockData.length) {
     table.innerHTML = '';
+    const hw = document.getElementById('anTableHeaderWrap');
+    if (hw) hw.innerHTML = '';
     empty.style.display = 'block';
     return;
   }
@@ -5499,26 +5502,20 @@ function anRenderTable() {
   const minWidth = hasMetaData ? (260 + 440 + 70 + 75 + 130 + (accCount * 54) + 80 + 70 + 70 + (accCount + 8) * 10) : 800;
 
   let html = legendHtml;
+  let headerHtml = '';
 
-  // Variant D: Dark label nad account stolpci (samo ko imamo Meta data + vidne accounte)
+  // Variant D: Dark label nad account stolpci
   if (hasMetaData && visibleAccounts.length > 0) {
-    // Položaj dark labela: levi offset = SKU (1.3fr) + Naziv (2.2fr) + Zaloga (70) + Obrat (75) + Status (130) + 5×gap (10*5=50)
-    // Ker prve 2 stolpca sta fr-ja, težko izračunamo natančno px → uporabimo flex hack: pozicionira se relativno na grid
-    // Lažja rešitev: dodamo grid bar ki ima isto cols strukturo, in dark label samo span-a account stolpce
-    const labelGridCols = cols; // ista struktura kot header
-    let labelHtml = '<div style="display:grid;grid-template-columns:' + labelGridCols + ';gap:10px;padding:0 14px;min-width:' + minWidth + 'px;width:100%;margin-bottom:0">';
-    // Empty cells for SKU, Naziv, Zaloga, Obrat, Status (5 cells)
-    labelHtml += '<span></span><span></span><span></span><span></span><span></span>';
-    // Dark label spans across all visible account columns
-    labelHtml += '<span style="grid-column:span ' + visibleAccounts.length + ';display:flex;align-items:center;justify-content:center;background:#1f2937;color:#fff;font-size:9px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;border-radius:5px 5px 0 0;padding:3px 8px;height:18px">Ad accounti — status oglasov</span>';
-    // Empty cells for Spend, Nakupi, CPA (3 cells)
-    labelHtml += '<span></span><span></span><span></span>';
-    labelHtml += '</div>';
-    html += labelHtml;
+    const labelGridCols = cols;
+    headerHtml += '<div style="display:grid;grid-template-columns:' + labelGridCols + ';gap:10px;padding:0 14px;min-width:' + minWidth + 'px;width:100%;margin-bottom:0">';
+    headerHtml += '<span></span><span></span><span></span><span></span><span></span>';
+    headerHtml += '<span style="grid-column:span ' + visibleAccounts.length + ';display:flex;align-items:center;justify-content:center;background:#1f2937;color:#fff;font-size:9px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;border-radius:5px 5px 0 0;padding:3px 8px;height:18px">Ad accounti — status oglasov</span>';
+    headerHtml += '<span></span><span></span><span></span>';
+    headerHtml += '</div>';
   }
 
-  html +=
-    '<div style="display:grid;grid-template-columns:' + cols + ';gap:10px;padding:12px 14px;background:var(--bg-secondary);border-radius:var(--radius);font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;user-select:none;min-width:' + minWidth + 'px;width:100%">' +
+  headerHtml +=
+    '<div style="display:grid;grid-template-columns:' + cols + ';gap:10px;padding:12px 14px;background:var(--bg-secondary);border-radius:var(--radius);font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;user-select:none;min-width:' + minWidth + 'px;width:100%;border-bottom:2px solid var(--border)">' +
     '<span style="cursor:pointer" onclick="anSortBy(\'sku\')">SKU' + sortInd('sku') + '</span>' +
     '<span style="cursor:pointer" onclick="anSortBy(\'title\')">Naziv izdelka' + sortInd('title') + '</span>' +
     '<span style="text-align:center;cursor:pointer" onclick="anSortBy(\'stock\')">Zaloga' + sortInd('stock') + '</span>' +
@@ -5527,9 +5524,7 @@ function anRenderTable() {
       ? '<span>Status</span>' +
         visibleAccounts.map(acc => {
           const lbl = ACC_SHORT[acc] || acc;
-          // Escape za inline onclick atribut: nadomesti ' z ASCII string-om znotraj single-quoted JS arg
           const accEsc = String(acc).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-          // Inverzni style: moder pill bg (var. 3), bel tekst — header izstopi kot informacijska skupina
           return '<span style="text-align:center;cursor:pointer;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#185FA5;border-radius:3px;padding:4px 2px;color:#fff;font-weight:600" onclick="anSortByAccount(\'' + accEsc + '\')" title="' + esc(acc) + ' — klik za sortiranje">' + esc(lbl) + sortIndAcc('acc:' + acc) + '</span>';
         }).join('') +
         '<span style="text-align:right;cursor:pointer" onclick="anSortBy(\'ad_spend\')">Spend' + sortInd('ad_spend') + '</span>' +
@@ -5537,6 +5532,10 @@ function anRenderTable() {
         '<span style="text-align:right;cursor:pointer" onclick="anSortBy(\'ad_cpa\')">CPA' + sortInd('ad_cpa') + '</span>'
       : '') +
     '</div>';
+
+  // Sticky header wrapper
+  const headerWrap = document.getElementById('anTableHeaderWrap');
+  if (headerWrap) headerWrap.innerHTML = headerHtml;
 
   // Vrstice
   if (filtered.length === 0) {
