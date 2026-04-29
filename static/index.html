@@ -6207,14 +6207,14 @@ function hsuvozToggleOrders(id, btn) {
 
 async function hsuvozMoveToOrder(sku) {
   try {
-    await fetch('/hsuvoz-move-to-order', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sku}) });
+    await fetch('/hsuvoz-move-to-order?sku=' + encodeURIComponent(sku), {method:'POST'});
     await Promise.all([hsuvozLoadCurrent(), hsuvozLoadOrderPanel()]);
   } catch(e) { alert('Napaka: '+e.message); }
 }
 
 async function hsuvozMoveBack(sku) {
   try {
-    await fetch('/hsuvoz-move-back', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sku}) });
+    await fetch('/hsuvoz-move-back?sku=' + encodeURIComponent(sku), {method:'POST'});
     await Promise.all([hsuvozLoadCurrent(), hsuvozLoadOrderPanel()]);
   } catch(e) { alert('Napaka: '+e.message); }
 }
@@ -6225,27 +6225,94 @@ async function hsuvozMoveAllToOrder() {
     const data = await res.json();
     const active = (data.items||[]).filter(it=>!it.done);
     for (const it of active) {
-      await fetch('/hsuvoz-move-to-order', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sku:it.sku}) });
+      await fetch('/hsuvoz-move-to-order?sku=' + encodeURIComponent(it.sku), {method:'POST'});
     }
     await Promise.all([hsuvozLoadCurrent(), hsuvozLoadOrderPanel()]);
   } catch(e) { alert('Napaka: '+e.message); }
 }
 
+async function hsuvozMoveSelectedToOrder() {
+  if (!window._hsuvozSelected) return;
+  const skus = [...window._hsuvozSelected].filter(k=>k.endsWith('|current')).map(k=>k.slice(0,k.lastIndexOf('|current')));
+  if (!skus.length) return;
+  for (const sku of skus) {
+    await fetch('/hsuvoz-move-to-order?sku=' + encodeURIComponent(sku), {method:'POST'});
+    window._hsuvozSelected.delete(sku + '|current');
+  }
+  await Promise.all([hsuvozLoadCurrent(), hsuvozLoadOrderPanel()]);
+}
+
+async function hsuvozMoveSelectedBack() {
+  if (!window._hsuvozSelected) return;
+  const skus = [...window._hsuvozSelected].filter(k=>k.endsWith('|order')).map(k=>k.slice(0,k.lastIndexOf('|order')));
+  if (!skus.length) return;
+  for (const sku of skus) {
+    await fetch('/hsuvoz-move-back?sku=' + encodeURIComponent(sku), {method:'POST'});
+    window._hsuvozSelected.delete(sku + '|order');
+  }
+  await Promise.all([hsuvozLoadCurrent(), hsuvozLoadOrderPanel()]);
+}
+
+async function hsuvozDeleteItem(sku, source) {
+  try {
+    await fetch('/hsuvoz-delete-item?sku=' + encodeURIComponent(sku) + '&source=' + source, {method:'POST'});
+    if (source === 'current') await hsuvozLoadCurrent();
+    else await hsuvozLoadOrderPanel();
+  } catch(e) { alert('Napaka: '+e.message); }
+}
+
+async function hsuvozSetDone(sku, done) {
+  try {
+    await fetch('/hsuvoz-set-done?sku=' + encodeURIComponent(sku) + '&done=' + (done?'1':'0'), {method:'POST'});
+    await hsuvozLoadCurrent();
+  } catch(e) {}
+}
+
+async function hsuvozSaveEdit(oldSku, source) {
+  const input = document.getElementById('hsuvoz-edit-input');
+  const newSku = input?.value?.trim();
+  if (!newSku || newSku === oldSku) { source === 'current' ? hsuvozLoadCurrent() : hsuvozLoadOrderPanel(); return; }
+  try {
+    const res = await fetch('/hsuvoz-edit-sku?old_sku=' + encodeURIComponent(oldSku) + '&new_sku=' + encodeURIComponent(newSku) + '&source=' + source, {method:'POST'});
+    const data = await res.json();
+    if (data.error) { alert('Napaka: '+data.error); return; }
+    source === 'current' ? await hsuvozLoadCurrent() : await hsuvozLoadOrderPanel();
+  } catch(e) { alert('Napaka: '+e.message); }
+}
+
+async function hsuvozLoadFromHistory(filename) {
+  try {
+    const res = await fetch('/hsuvoz-load-history?filename=' + encodeURIComponent(filename), {method:'POST'});
+    const data = await res.json();
+    if (data.error) { alert('Napaka: '+data.error); return; }
+    await hsuvozLoadCurrent();
+  } catch(e) { alert('Napaka: '+e.message); }
+}
+
+// ── Bulk bar & checkbox funkcije ──────────────────────────
 function hsuvozUpdateBulkBar(src) {
   if (!window._hsuvozSelected) window._hsuvozSelected = new Set();
-  const sel = [...window._hsuvozSelected].filter(k => k.endsWith('|' + src));
-  const count = sel.length;
+  const count = [...window._hsuvozSelected].filter(k => k.endsWith('|' + src)).length;
   if (src === 'current') {
     const bar = document.getElementById('hsuvozBulkBar');
     const cnt = document.getElementById('hsuvozSelCount');
-    if (bar) { bar.style.display = count > 0 ? 'flex' : 'none'; }
+    if (bar) bar.style.display = count > 0 ? 'flex' : 'none';
     if (cnt) cnt.textContent = count + ' označenih';
   } else {
     const bar = document.getElementById('hsuvozOrderBulkBar');
     const cnt = document.getElementById('hsuvozOrderSelCount');
-    if (bar) { bar.style.display = count > 0 ? 'flex' : 'none'; }
+    if (bar) bar.style.display = count > 0 ? 'flex' : 'none';
     if (cnt) cnt.textContent = count + ' označenih';
   }
+}
+
+function hsuvozDeselectAll(src) {
+  if (!window._hsuvozSelected) return;
+  [...window._hsuvozSelected].filter(k => k.endsWith('|' + src))
+    .forEach(k => window._hsuvozSelected.delete(k));
+  hsuvozUpdateBulkBar(src);
+  if (src === 'current') hsuvozLoadCurrent();
+  else hsuvozLoadOrderPanel();
 }
 
 function hsuvozToggleSelectAll(src, checked) {
@@ -6257,84 +6324,33 @@ function hsuvozToggleSelectAll(src, checked) {
     if (checked) window._hsuvozSelected.add(key);
     else window._hsuvozSelected.delete(key);
   });
-  // Re-render da se checkboxi posodobijo
+  hsuvozUpdateBulkBar(src);
   if (src === 'current') hsuvozLoadCurrent();
   else hsuvozLoadOrderPanel();
-}
-
-function hsuvozDeselectAll(src) {
-  if (!window._hsuvozSelected) return;
-  const keys = [...window._hsuvozSelected].filter(k => k.endsWith('|' + src));
-  keys.forEach(k => window._hsuvozSelected.delete(k));
-  if (src === 'current') hsuvozLoadCurrent();
-  else hsuvozLoadOrderPanel();
-}
-
-async function hsuvozMoveSelectedToOrder() {
-  if (!window._hsuvozSelected) return;
-  const skus = [...window._hsuvozSelected].filter(k => k.endsWith('|current')).map(k => k.slice(0, k.lastIndexOf('|current')));
-  if (!skus.length) return;
-  for (const sku of skus) {
-    await fetch('/hsuvoz-move-to-order', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sku}) });
-    window._hsuvozSelected.delete(sku + '|current');
-  }
-  await Promise.all([hsuvozLoadCurrent(), hsuvozLoadOrderPanel()]);
 }
 
 async function hsuvozDeleteSelected() {
   if (!window._hsuvozSelected) return;
-  const skus = [...window._hsuvozSelected]
-    .filter(k => k.endsWith('|current'))
-    .map(k => k.slice(0, k.lastIndexOf('|current')));
+  const skus = [...window._hsuvozSelected].filter(k=>k.endsWith('|current')).map(k=>k.slice(0,k.lastIndexOf('|current')));
   if (!skus.length) return;
-  try {
-    for (const sku of skus) {
-      const res = await fetch('/hsuvoz-delete-item?sku=' + encodeURIComponent(sku) + '&source=current', {
-        method: 'POST'
-      });
-      console.log('[hsuvoz] delete', sku, res.status);
-      window._hsuvozSelected.delete(sku + '|current');
-    }
-    await hsuvozLoadCurrent();
-  } catch(e) { alert('Napaka: ' + e.message); }
+  for (const sku of skus) {
+    await fetch('/hsuvoz-delete-item?sku=' + encodeURIComponent(sku) + '&source=current', {method:'POST'});
+    window._hsuvozSelected.delete(sku + '|current');
+  }
+  hsuvozUpdateBulkBar('current');
+  await hsuvozLoadCurrent();
 }
 
 async function hsuvozDeleteSelectedOrder() {
   if (!window._hsuvozSelected) return;
-  const skus = [...window._hsuvozSelected]
-    .filter(k => k.endsWith('|order'))
-    .map(k => k.slice(0, k.lastIndexOf('|order')));
-  if (!skus.length) return;
-  try {
-    for (const sku of skus) {
-      await fetch('/hsuvoz-delete-item?sku=' + encodeURIComponent(sku) + '&source=order', {
-        method: 'POST'
-      });
-      window._hsuvozSelected.delete(sku + '|order');
-    }
-    await hsuvozLoadOrderPanel();
-  } catch(e) { alert('Napaka: ' + e.message); }
-}
-
-async function hsuvozMoveSelectedBack() {
-  if (!window._hsuvozSelected) return;
-  const skus = [...window._hsuvozSelected].filter(k => k.endsWith('|order')).map(k => k.slice(0, k.lastIndexOf('|order')));
+  const skus = [...window._hsuvozSelected].filter(k=>k.endsWith('|order')).map(k=>k.slice(0,k.lastIndexOf('|order')));
   if (!skus.length) return;
   for (const sku of skus) {
-    await fetch('/hsuvoz-move-back', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sku}) });
+    await fetch('/hsuvoz-delete-item?sku=' + encodeURIComponent(sku) + '&source=order', {method:'POST'});
     window._hsuvozSelected.delete(sku + '|order');
   }
-  await Promise.all([hsuvozLoadCurrent(), hsuvozLoadOrderPanel()]);
-}
-
-async function hsuvozDeleteItem(sku, source) {
-  try {
-    const res = await fetch('/hsuvoz-delete-item', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sku, source}) });
-    const data = await res.json();
-    if (data.error) { alert('Napaka: ' + data.error); return; }
-    if (source === 'current') await hsuvozLoadCurrent();
-    else await hsuvozLoadOrderPanel();
-  } catch(e) { alert('Napaka: '+e.message); }
+  hsuvozUpdateBulkBar('order');
+  await hsuvozLoadOrderPanel();
 }
 
 async function hsuvozCopyOrder() {
@@ -6360,16 +6376,6 @@ async function hsuvozClearOrder() {
   } catch(e) { alert('Napaka: '+e.message); }
 }
 
-async function hsuvozClearCurrent() {
-  if (!confirm('Zbriši vse SKU-je iz seznama "Za naročilo"?')) return;
-  try {
-    const res = await fetch('/hsuvoz-current-clear', { method:'POST' });
-    const data = await res.json();
-    if (data.error) { alert('Napaka: '+data.error); return; }
-    await hsuvozLoadCurrent();
-  } catch(e) { alert('Napaka: '+e.message); }
-}
-
 function hsuvozToggleDone() {
   _hsuvozShowDone = !_hsuvozShowDone;
   const btn = document.getElementById('hsuvozToggleDoneBtn');
@@ -6378,39 +6384,14 @@ function hsuvozToggleDone() {
   hsuvozLoadCurrent();
 }
 
-async function hsuvozSetDone(sku, done) {
+async function hsuvozClearCurrent() {
+  if (!confirm('Zbriši vse SKU-je iz seznama?')) return;
   try {
-    await fetch('/hsuvoz-set-done', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sku, done}) });
-    await hsuvozLoadCurrent();
-  } catch(e) {}
-}
-
-function hsuvozStartEdit(sku, source, idx) {
-  const span = document.getElementById('hsuvoz-sku-' + source + '-' + idx);
-  if (!span) return;
-  span.innerHTML = '<input id="hsuvoz-edit-input" value="' + sku.replace(/&/g,'&amp;').replace(/"/g,'&quot;') + '" style="padding:2px 6px;border:1px solid var(--accent);border-radius:4px;font-size:12px;font-family:DM Sans,sans-serif;width:100px">'
-    + '<button id="hsuvoz-edit-ok" style="padding:2px 5px;background:var(--accent);color:white;border:none;border-radius:3px;font-size:10px;cursor:pointer;margin-left:3px">&#10003;</button>'
-    + '<button id="hsuvoz-edit-cancel" style="padding:2px 5px;background:none;border:1px solid var(--border);border-radius:3px;font-size:10px;cursor:pointer;margin-left:2px">&#10007;</button>';
-  const inp = document.getElementById('hsuvoz-edit-input');
-  inp?.focus();
-  inp?.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') hsuvozSaveEdit(sku, source);
-    if (e.key === 'Escape') source === 'current' ? hsuvozLoadCurrent() : hsuvozLoadOrderPanel();
-  });
-  document.getElementById('hsuvoz-edit-ok')?.addEventListener('click', function() { hsuvozSaveEdit(sku, source); });
-  document.getElementById('hsuvoz-edit-cancel')?.addEventListener('click', function() { source === 'current' ? hsuvozLoadCurrent() : hsuvozLoadOrderPanel(); });
-}
-
-async function hsuvozSaveEdit(oldSku, source) {
-  const input = document.getElementById('hsuvoz-edit-input');
-  const newSku = input?.value?.trim();
-  if (!newSku || newSku === oldSku) { source === 'current' ? hsuvozLoadCurrent() : hsuvozLoadOrderPanel(); return; }
-  try {
-    const res = await fetch('/hsuvoz-edit-sku', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({old_sku:oldSku, new_sku:newSku, source}) });
+    const res = await fetch('/hsuvoz-current-clear', { method:'POST' });
     const data = await res.json();
-    if (data.error) { alert('Napaka: '+data.error); return; }
-    source === 'current' ? await hsuvozLoadCurrent() : await hsuvozLoadOrderPanel();
-  } catch(e) { alert('Napaka: '+e.message); }
+    if (data.error) { alert('Napaka: ' + data.error); return; }
+    await hsuvozLoadCurrent();
+  } catch(e) { alert('Napaka: ' + e.message); }
 }
 
 async function hsuvozLoadHistory() {
@@ -6427,10 +6408,9 @@ async function hsuvozLoadHistory() {
         + '<div style="font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">' + esc(it.original_filename) + '</div>'
         + '<div style="color:var(--text-tertiary);font-size:10px">' + dt + ' · ' + it.total_skus + ' SKU</div>'
         + '</div>'
-        + '<button onclick="window._hsvLoadHist(' + hidx + ',this)" style="flex-shrink:0;padding:4px 10px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap">↩ Naloži</button>'
+        + '<button onclick="window._hsvLoadHist(' + hidx + ',this)" style="flex-shrink:0;padding:4px 10px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap">&#8617; Naloži</button>'
         + '</div>';
     }).join('');
-
     window._hsvLoadHist = async function(hidx, btn) {
       if (!window._hsvHistory || hidx >= window._hsvHistory.length) return;
       const filename = window._hsvHistory[hidx].filename;
@@ -6443,15 +6423,6 @@ async function hsuvozLoadHistory() {
       setTimeout(function() { btn.textContent = orig; btn.style.background = 'var(--accent)'; btn.disabled = false; }, 1500);
     };
   } catch(e) { el.innerHTML = '<span style="color:var(--red)">Napaka.</span>'; }
-}
-
-async function hsuvozLoadFromHistory(filename) {
-  try {
-    const res = await fetch('/hsuvoz-load-history', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({filename}) });
-    const data = await res.json();
-    if (data.error) { alert('Napaka: '+data.error); return; }
-    await hsuvozLoadCurrent();
-  } catch(e) { alert('Napaka: '+e.message); }
 }
 
 </script>
