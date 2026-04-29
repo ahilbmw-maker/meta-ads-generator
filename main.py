@@ -3845,18 +3845,23 @@ async def hsuvoz_data():
 
 
 @app.post("/hsuvoz-set-done")
-async def hsuvoz_set_done(request: Request):
-    """Nastavi done flag za SKU."""
+async def hsuvoz_set_done(sku: str = None, done: str = "1", request: Request = None):
     try:
-        body = await request.json()
-        sku = body.get("sku")
-        done = bool(body.get("done", False))
+        if not sku and request:
+            try:
+                raw = await request.body()
+                if raw:
+                    body = json.loads(raw)
+                    sku = body.get("sku")
+                    done = str(body.get("done", True)).lower()
+            except: pass
+        done_bool = done not in ("0", "false", "False")
         if not HSUVOZ_CURRENT.exists():
             return JSONResponse({"error": "Ni podatkov."}, status_code=404)
         data = json.loads(HSUVOZ_CURRENT.read_text(encoding="utf-8"))
         for it in data.get("items", []):
             if it["sku"] == sku:
-                it["done"] = done
+                it["done"] = done_bool
                 break
         HSUVOZ_CURRENT.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         return {"ok": True}
@@ -3865,13 +3870,19 @@ async def hsuvoz_set_done(request: Request):
 
 
 @app.post("/hsuvoz-edit-sku")
-async def hsuvoz_edit_sku(request: Request):
+async def hsuvoz_edit_sku(old_sku: str = None, new_sku: str = None, source: str = "current", request: Request = None):
     """Preimenuje SKU v current ali order."""
     try:
-        body = await request.json()
-        old_sku = body.get("old_sku")
-        new_sku = (body.get("new_sku") or "").strip()
-        source = body.get("source", "current")
+        if (not old_sku or not new_sku) and request:
+            try:
+                raw = await request.body()
+                if raw:
+                    body = __import__("json").loads(raw)
+                    old_sku = old_sku or body.get("old_sku")
+                    new_sku = new_sku or (body.get("new_sku") or "").strip()
+                    source = body.get("source", source)
+            except: pass
+        new_sku = (new_sku or "").strip()
         if not new_sku:
             return JSONResponse({"error": "Nov SKU je prazen."}, status_code=400)
         file = HSUVOZ_CURRENT if source == "current" else HSUVOZ_ORDER
@@ -3912,11 +3923,15 @@ async def hsuvoz_history():
 
 
 @app.post("/hsuvoz-load-history")
-async def hsuvoz_load_history(request: Request):
+async def hsuvoz_load_history(filename: str = None, request: Request = None):
     """Naloži zgodovinski upload kot current."""
     try:
-        body = await request.json()
-        fname = body.get("filename")
+        if not filename and request:
+            try:
+                raw = await request.body()
+                if raw: filename = __import__("json").loads(raw).get("filename")
+            except: pass
+        fname = filename
         hist_file = HSUVOZ_DIR / fname
         if not hist_file.exists():
             return JSONResponse({"error": "Datoteka ne obstaja."}, status_code=404)
@@ -3932,11 +3947,14 @@ async def hsuvoz_load_history(request: Request):
 HSUVOZ_ORDER = DATA_DIR / "hsuvoz_order.json"
 
 @app.post("/hsuvoz-move-to-order")
-async def hsuvoz_move_to_order(request: Request):
+async def hsuvoz_move_to_order(sku: str = None, request: Request = None):
     """Premakne SKU iz 'za naročilo' v 'naročilo'."""
     try:
-        body = await request.json()
-        sku = body.get("sku")
+        if not sku and request:
+            try:
+                raw = await request.body()
+                if raw: sku = __import__("json").loads(raw).get("sku")
+            except: pass
         if not sku or not HSUVOZ_CURRENT.exists():
             return JSONResponse({"error": "Ni podatkov."}, status_code=400)
 
@@ -3971,11 +3989,14 @@ async def hsuvoz_move_to_order(request: Request):
 
 
 @app.post("/hsuvoz-move-back")
-async def hsuvoz_move_back(request: Request):
+async def hsuvoz_move_back(sku: str = None, request: Request = None):
     """Vrne SKU iz naročila nazaj v 'za naročilo'."""
     try:
-        body = await request.json()
-        sku = body.get("sku")
+        if not sku and request:
+            try:
+                raw = await request.body()
+                if raw: sku = __import__("json").loads(raw).get("sku")
+            except: pass
         if not sku or not HSUVOZ_ORDER.exists():
             return JSONResponse({"error": "Ni podatkov."}, status_code=400)
 
