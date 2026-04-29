@@ -4004,26 +4004,32 @@ async def hsuvoz_move_back(request: Request):
 
 @app.post("/hsuvoz-delete-item")
 async def hsuvoz_delete_item(request: Request):
-    """Zbriše SKU(s) iz 'za naročilo' ali 'order'. Podpira single sku ali seznam skus."""
     try:
-        body = await request.json()
-        source = body.get("source", "current")
+        raw = await request.body()
+        try:
+            body = json.loads(raw)
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+
+        source = str(body.get("source") or "current")
         file = HSUVOZ_CURRENT if source == "current" else HSUVOZ_ORDER
         if not file.exists():
             return JSONResponse({"error": "Ni podatkov."}, status_code=404)
+
         data = json.loads(file.read_text(encoding="utf-8"))
 
-        # Podpira bulk: {"skus": [...], "source": "current"}
-        # ali single: {"sku": "...", "source": "current"}
-        skus_to_delete = body.get("skus") or ([body.get("sku")] if body.get("sku") else [])
-        skus_set = set(str(s) for s in skus_to_delete if s)
+        # Sprejme: {"sku": "X"} ali {"skus": ["X","Y"]}
+        skus_raw = body.get("skus") or ([body.get("sku")] if body.get("sku") else [])
+        skus_set = set(str(s).strip() for s in skus_raw if s)
 
         if not skus_set:
-            return JSONResponse({"error": "Ni SKU-jev za brisanje."}, status_code=400)
+            return JSONResponse({"error": "Ni SKU-jev."}, status_code=400)
 
-        data["items"] = [it for it in data.get("items", []) if it["sku"] not in skus_set]
+        before = len(data.get("items", []))
+        data["items"] = [it for it in data.get("items", []) if str(it.get("sku","")).strip() not in skus_set]
+        after = len(data["items"])
         file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        return {"ok": True, "deleted": len(skus_set)}
+        return {"ok": True, "deleted": before - after}
     except Exception as e:
         import traceback; traceback.print_exc()
         return JSONResponse({"error": str(e)}, status_code=500)
