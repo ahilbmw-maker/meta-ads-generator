@@ -2764,6 +2764,9 @@ async def orodja_stock_upload(file: UploadFile = File(...)):
         stock_col = find_col('stock', 'qty', 'quantity', 'kolicina', 'količina')
         s30_col   = find_col('stock30', 'stock_30', 'obrat30', 'obrat_30')
         title_col = find_col('title', 'naziv', 'name')
+        price_col = find_col('price_netto', 'price', 'cena')
+        pos_col   = find_col('position', 'pozicija', 'lokacija')
+        note_col  = find_col('note', 'opomba', 'komentar')
 
         if not sku_col:
             return JSONResponse({"error": f"Ne najdem SKU stolpca. Najdeni: {keys}"}, status_code=400)
@@ -2791,19 +2794,29 @@ async def orodja_stock_upload(file: UploadFile = File(...)):
                     merged[sku]['stock30'] = new_s30
                 if title and not merged[sku]['title']:
                     merged[sku]['title'] = title
+                # Ohrani price/position/note iz prve lokacije (ali posodobi če prazno)
+                for fld, src_col in [('price', price_col), ('position', pos_col), ('note', note_col), ('product_id', 'product_id')]:
+                    new_val = (row.get(src_col) or '').strip() if src_col else ''
+                    if new_val and not merged[sku].get(fld):
+                        merged[sku][fld] = new_val
                 updated += 1
             else:
                 merged[sku] = {
+                    'product_id': (row.get('product_id') or '').strip(),
                     'product_sku': sku,
                     'title': title,
                     'stock': new_stock,
                     'stock30': new_s30,
+                    'price': (row.get(price_col) or '').strip() if price_col else '',
+                    'position': (row.get(pos_col) or '').strip() if pos_col else '',
+                    'note': (row.get(note_col) or '').strip() if note_col else '',
                 }
                 added += 1
 
-        # Shrani nazaj kot CSV
+        # Shrani nazaj kot CSV z vsemi kolonami
         out = _SIO()
-        writer = _csv.DictWriter(out, fieldnames=['product_sku', 'title', 'stock', 'stock30'])
+        fieldnames = ['product_id', 'product_sku', 'title', 'stock', 'stock30', 'price', 'position', 'note']
+        writer = _csv.DictWriter(out, fieldnames=fieldnames, extrasaction='ignore')
         writer.writeheader()
         writer.writerows(merged.values())
         STOCK_CSV_FILE.write_text(out.getvalue(), encoding='utf-8')
