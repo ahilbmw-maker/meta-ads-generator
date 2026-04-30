@@ -1526,33 +1526,36 @@ input[type="text"].error { border-color: var(--red) !important; }
 
       <!-- STICKY TOOLBAR: upload + iskalnik + filter -->
       <div style="position:sticky;top:0;z-index:30;background:var(--bg);padding-bottom:6px">
-        <div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
+        <div style="display:flex;gap:10px;align-items:center;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
           <!-- Upload -->
-          <div style="display:flex;flex-direction:column;gap:3px">
-            <div id="zalogaDropZone" onclick="document.getElementById('zalogaInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="zalogaHandleDrop(event)" style="display:flex;align-items:center;gap:7px;padding:7px 12px;background:var(--bg-secondary);border:1px dashed var(--border);border-radius:var(--radius);cursor:pointer;white-space:nowrap;font-size:12px;color:var(--text-secondary)">
-              <span>📂</span><span>Naloži CSV zaloge</span>
-            </div>
-            <input type="file" id="zalogaInput" accept=".csv" style="display:none" onchange="zalogaUpload(this.files[0])">
-            <div id="zalogaInfo" style="font-size:10px;color:var(--text-tertiary)">Ni naloženih podatkov.</div>
+          <div id="zalogaDropZone" onclick="document.getElementById('zalogaInput').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="zalogaHandleDrop(event)" style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:var(--bg-secondary);border:1px dashed var(--border);border-radius:var(--radius);cursor:pointer;white-space:nowrap;font-size:12px;color:var(--text-secondary);flex-shrink:0">
+            <span>📂</span><span>Naloži CSV</span>
+          </div>
+          <input type="file" id="zalogaInput" accept=".csv" style="display:none" onchange="zalogaUpload(this.files[0])">
+          <!-- Info status -->
+          <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">
+            <div id="zalogaInfo" style="font-size:10px;color:var(--text-tertiary);white-space:nowrap">Ni naloženih podatkov.</div>
             <div id="zalogaStatus" style="font-size:10px;color:var(--text-secondary);display:none"></div>
           </div>
+          <!-- Separator -->
+          <div style="width:1px;height:28px;background:var(--border);flex-shrink:0"></div>
           <!-- Iskalnik -->
-          <div style="position:relative">
-            <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-tertiary);pointer-events:none">🔍</span>
-            <input type="text" id="zalogaSearch" placeholder="Išči SKU, naziv, ID, pozicijo, opombo..." oninput="zalogaRender()" style="width:100%;padding:9px 12px 9px 34px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;box-sizing:border-box">
+          <div style="position:relative;flex:1">
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-tertiary);pointer-events:none;font-size:13px">🔍</span>
+            <input type="text" id="zalogaSearch" placeholder="Išči SKU, naziv, ID, pozicijo, opombo..." oninput="zalogaRender()" style="width:100%;padding:8px 12px 8px 32px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;box-sizing:border-box">
           </div>
           <!-- Samo na zalogi -->
-          <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;white-space:nowrap">
-            <input type="checkbox" id="zalogaOnlyStock" onchange="zalogaRender()" style="cursor:pointer;accent-color:var(--green);width:15px;height:15px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0">
+            <input type="checkbox" id="zalogaOnlyStock" onchange="zalogaRender()" style="cursor:pointer;accent-color:var(--green);width:14px;height:14px">
             <span>Samo na zalogi</span>
           </label>
           <!-- Stats -->
-          <div id="zalogaStats" style="font-size:11px;color:var(--text-tertiary);white-space:nowrap;text-align:right;min-width:160px"></div>
+          <div id="zalogaStats" style="font-size:11px;color:var(--text-tertiary);white-space:nowrap;flex-shrink:0"></div>
         </div>
 
         <!-- Sticky header tabele -->
         <div id="zalogaHeaderWrap" style="background:var(--bg);padding-top:4px;display:none">
-          <div style="display:grid;grid-template-columns:70px 120px 1.8fr 70px 70px 70px 100px 180px;gap:8px;padding:9px 14px;background:var(--bg-secondary);border-radius:var(--radius);font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid var(--border);cursor:pointer;user-select:none;min-width:900px">
+          <div style="display:grid;grid-template-columns:70px 120px 2fr 80px 70px 80px 110px 1fr;gap:8px;padding:9px 14px;background:var(--bg-secondary);border-radius:var(--radius);font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid var(--border);cursor:pointer;user-select:none">
             <span onclick="zalogaSortBy('product_id')">ID <span id="zSort-product_id">↕</span></span>
             <span onclick="zalogaSortBy('product_sku')">SKU <span id="zSort-product_sku">↕</span></span>
             <span onclick="zalogaSortBy('title')">Naziv <span id="zSort-title">↕</span></span>
@@ -1566,7 +1569,7 @@ input[type="text"].error { border-color: var(--red) !important; }
       </div>
 
       <!-- TABELA -->
-      <div id="zalogaTable" style="display:flex;flex-direction:column;gap:3px;overflow-x:auto;min-width:900px"></div>
+      <div id="zalogaTable" style="display:flex;flex-direction:column;gap:3px"></div>
       <div id="zalogaEmpty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:3rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">Naloži CSV za prikaz zaloge.</div>
 
     </div>
@@ -6190,7 +6193,7 @@ function zalogaRender() {
   if (headerWrap) headerWrap.style.display = 'block';
   empty.style.display = 'none';
 
-  const GRID = '70px 120px 1.8fr 70px 70px 70px 100px 180px';
+  const GRID = '70px 120px 2fr 80px 70px 80px 110px 1fr';
 
   tableEl.innerHTML = items.map(it => {
     const stock = parseInt(it.stock) || 0;
@@ -6201,7 +6204,7 @@ function zalogaRender() {
     const rowBg = stock === 0 ? 'rgba(0,0,0,0.02)' : 'var(--surface)';
     const rowOpacity = stock === 0 ? '0.5' : '1';
 
-    return '<div style="display:grid;grid-template-columns:' + GRID + ';gap:8px;padding:8px 14px;background:' + rowBg + ';border:1px solid var(--border);border-radius:var(--radius);font-size:12px;align-items:center;opacity:' + rowOpacity + ';min-width:900px">'
+    return '<div style="display:grid;grid-template-columns:' + GRID + ';gap:8px;padding:8px 14px;background:' + rowBg + ';border:1px solid var(--border);border-radius:var(--radius);font-size:12px;align-items:center;opacity:' + rowOpacity + '">'
       + '<span style="color:var(--text-tertiary);font-size:11px">' + esc(it.product_id||'—') + '</span>'
       + '<span style="font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(it.product_sku) + '">' + esc(it.product_sku||'—') + '</span>'
       + '<span style="color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px" title="' + esc(it.title) + '">' + esc(it.title||'—') + '</span>'
