@@ -755,13 +755,16 @@ function renderMultiView(rows) {
   const totalOrders = multiIds.length;
   const totalItems = multiIds.reduce((s, [, items]) => s + items.length, 0);
   const withErrors = multiIds.filter(([, items]) => items.some(r => r.status === 'error' && !r.resolved)).length;
+  const allResolved = multiIds.filter(([, items]) => items.every(r => r.status === 'ok' || r.resolved)).length;
 
   multiView.innerHTML = `
-    <div class="multi-stats">
-      🔗 <strong style="color:#c4b5fd">${totalOrders}</strong> združenih naročil · 
-      <strong>${totalItems}</strong> skupaj postavk · 
-      povprečno <strong>${(totalItems / totalOrders).toFixed(1)}</strong> postavke/naročilo
+    <div class="multi-stats" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <span>🔗 <strong style="color:#c4b5fd">${totalOrders}</strong> združenih naročil · 
+      <strong>${totalItems}</strong> postavk · 
+      povprečno <strong>${(totalItems / totalOrders).toFixed(1)}</strong>/naročilo
       ${withErrors > 0 ? ` · <span style="color:var(--red)">⛔ ${withErrors} z napakami</span>` : ''}
+      ${allResolved > 0 ? ` · <span style="color:var(--green)">✓ ${allResolved} urejenih</span>` : ''}</span>
+      ${allResolved > 0 ? `<button class="btn secondary" onclick="multiClearResolved()" style="font-size:11px;background:rgba(248,81,73,0.1);color:var(--red);border-color:rgba(248,81,73,0.4)">🗑 Zbriši pregledana (${allResolved})</button>` : ''}
     </div>
     <div id="groupsList"></div>
   `;
@@ -771,16 +774,32 @@ function renderMultiView(rows) {
   list.innerHTML = multiIds.map(([id, items]) => {
     const hasError = items.some(r => r.status === 'error' && !r.resolved);
     const hasWarn = items.some(r => r.status === 'warn' && !r.resolved);
+    const isAllDone = items.every(r => r.status === 'ok' || r.resolved);
     const store = items[0]?.store || '';
-    const cardBorder = hasError ? 'border-color:rgba(248,81,73,0.4)' : hasWarn ? 'border-color:rgba(227,179,65,0.3)' : '';
 
-    // SKU pills v headerju
+    // Border glede na status
+    const cardBorder = isAllDone
+      ? 'border-color:rgba(64,193,80,0.3);opacity:0.7'
+      : hasError ? 'border-color:rgba(248,81,73,0.4)'
+      : hasWarn ? 'border-color:rgba(227,179,65,0.3)' : '';
+
+    // Skupna razlika — seštej razlikaNum za vse postavke ki imajo popravek
+    const totalRazlika = items.reduce((s, r) => {
+      if (r.razlikaNum !== null && !isNaN(r.razlikaNum)) return s + r.razlikaNum;
+      return s;
+    }, 0);
+    const razlikaItems = items.filter(r => r.razlikaNum !== null && !isNaN(r.razlikaNum));
+    const razlikaBadge = razlikaItems.length > 0
+      ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;flex-shrink:0;${totalRazlika > 0 ? 'color:var(--red);background:rgba(248,81,73,0.12);border:1px solid rgba(248,81,73,0.25)' : totalRazlika < 0 ? 'color:var(--green);background:rgba(64,193,80,0.12);border:1px solid rgba(64,193,80,0.25)' : 'color:var(--muted);background:rgba(255,255,255,0.05);border:1px solid var(--border)'}">${totalRazlika > 0 ? '+' : ''}${totalRazlika.toFixed(2)}</span>`
+      : '';
+
+    // SKU pills
     const skuPills = items.map(r => {
-      const cls = r.status === 'error' && !r.resolved ? 'group-sku-error' : r.status === 'warn' && !r.resolved ? 'group-sku-warn' : 'group-sku-ok';
-      return `<span class="group-sku-pill ${cls}">${r.sku}</span>`;
+      const cls = r.resolved || r.status === 'ok' ? 'group-sku-ok' : r.status === 'warn' ? 'group-sku-warn' : 'group-sku-error';
+      return `<span class="group-sku-pill ${cls}">${r.resolved ? '✓ ' : ''}${r.sku}</span>`;
     }).join('');
 
-    // Rows v tabeli
+    // Rows v tabeli — s checkbox-om za označevanje
     const rowsHtml = items.map(r => {
       const statusBadge = r.status === 'ok' || r.resolved
         ? '<span class="badge badge-ok">✓ OK</span>'
@@ -793,10 +812,16 @@ function renderMultiView(rows) {
           ? `<span class="price-old">${r.priceRaw}</span> → <span class="price-new">${formatSuggested(r.suggested, r.currency)}</span>`
           : `<span style="color:var(--red)">${r.priceRaw}</span>`;
       const reasons = r.issues.map(i => `<span style="font-size:10px;color:var(--muted)">${i}</span>`).join(' · ');
-      return `<tr>
+      const canResolve = r.status !== 'ok';
+      const checkHtml = canResolve
+        ? `<input type="checkbox" ${r.resolved ? 'checked' : ''} onchange="multiToggleResolved('${r.id}','${r.sku}',this.checked)" style="cursor:pointer;width:14px;height:14px" title="Označi kot urejeno">`
+        : '<span style="color:var(--green);font-size:12px">✓</span>';
+      return `<tr style="${r.resolved ? 'opacity:0.5' : ''}">
+        <td style="text-align:center;width:30px">${checkHtml}</td>
         <td style="font-weight:600;color:var(--text)">${r.sku}</td>
         <td>${priceDisplay}</td>
         <td style="font-size:11px;color:var(--muted)">${r.nc}</td>
+        <td style="font-size:11px;color:var(--muted)">${r.razlika || '—'}</td>
         <td style="font-size:11px;color:var(--muted)">${r.marza}</td>
         <td style="color:var(--muted);font-size:11px">${r.currency}</td>
         <td style="color:var(--muted);font-size:11px">${r.store}</td>
@@ -805,18 +830,24 @@ function renderMultiView(rows) {
       </tr>`;
     }).join('');
 
+    const doneBadge = isAllDone
+      ? '<span style="font-size:11px;color:var(--green);background:rgba(64,193,80,0.12);border:1px solid rgba(64,193,80,0.25);border-radius:4px;padding:2px 8px;flex-shrink:0">✓ Urejeno</span>'
+      : '';
+
     return `<div class="group-card" style="${cardBorder}">
       <div class="group-header" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.group-toggle').textContent=this.nextElementSibling.classList.contains('open')?'▲':'▼'">
         <a href="https://www.siluxar.si/narocilnice/${id}" target="_blank" class="group-id-badge" onclick="event.stopPropagation()">${id} ↗</a>
-        <span class="group-count-badge">${items.length} postavke</span>
+        <span class="group-count-badge">${items.length} post.</span>
+        ${razlikaBadge}
         <div class="group-skus">${skuPills}</div>
         ${store ? `<span style="font-size:11px;color:var(--muted);flex-shrink:0">${store}</span>` : ''}
+        ${doneBadge}
         <span class="group-toggle">▼</span>
       </div>
       <div class="group-rows">
         <table>
           <thead><tr style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">
-            <th style="padding:6px 16px">SKU</th><th>Cena</th><th>NC</th><th>Marža</th><th>Val.</th><th>Trgovina</th><th>Status</th><th>Razlog</th>
+            <th style="padding:6px 16px;width:30px">✓</th><th>SKU</th><th>Cena</th><th>NC</th><th>Razlika</th><th>Marža</th><th>Val.</th><th>Trgovina</th><th>Status</th><th>Razlog</th>
           </tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
@@ -853,11 +884,9 @@ function copyIssues() {
 }
 
 function toggleResolved(id, sku, checked) {
-  // Najdi vrstico in označi kot resolved
   const row = allRows.find(r => r.id === id && r.sku === sku);
   if (row) {
     row.resolved = checked;
-    // Shrani v localStorage da se ohrani po reload-u
     try {
       const key = 'price_checker_resolved';
       const stored = JSON.parse(localStorage.getItem(key) || '{}');
@@ -870,6 +899,56 @@ function toggleResolved(id, sku, checked) {
     renderTable(allRows);
     updateStats(allRows);
   }
+}
+
+function multiToggleResolved(id, sku, checked) {
+  const row = allRows.find(r => r.id === id && r.sku === sku);
+  if (row) {
+    row.resolved = checked;
+    try {
+      const key = 'price_checker_resolved';
+      const stored = JSON.parse(localStorage.getItem(key) || '{}');
+      const rowKey = id + '|' + sku;
+      if (checked) stored[rowKey] = true;
+      else delete stored[rowKey];
+      localStorage.setItem(key, JSON.stringify(stored));
+    } catch(e) {}
+    saveTableToStorage();
+    updateStats(allRows);
+    // Re-render multi view brez scroll reset
+    renderMultiView(allRows);
+  }
+}
+
+function multiClearResolved() {
+  // Zbriši iz allRows vse vrstice ki so resolved IN so del skupin z 2+ postavkami
+  const groups = {};
+  for (const r of allRows) {
+    if (!groups[r.id]) groups[r.id] = [];
+    groups[r.id].push(r);
+  }
+  const multiIds = new Set(
+    Object.entries(groups).filter(([, items]) => items.length > 1).map(([id]) => id)
+  );
+  // Zbriši samo tiste ki so del multi skupin in so fully resolved
+  const toDelete = new Set();
+  for (const [id, items] of Object.entries(groups)) {
+    if (!multiIds.has(id)) continue;
+    if (items.every(r => r.status === 'ok' || r.resolved)) {
+      items.forEach(r => toDelete.add(r.id + '|' + r.sku));
+    }
+  }
+  if (toDelete.size === 0) return;
+  allRows = allRows.filter(r => !toDelete.has(r.id + '|' + r.sku));
+  try {
+    const key = 'price_checker_resolved';
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    toDelete.forEach(k => delete stored[k]);
+    localStorage.setItem(key, JSON.stringify(stored));
+  } catch(e) {}
+  saveTableToStorage();
+  updateStats(allRows);
+  renderMultiView(allRows);
 }
 
 function clearTable() {
