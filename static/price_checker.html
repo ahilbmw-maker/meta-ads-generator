@@ -253,6 +253,30 @@
     .table-wrap { padding: 0 16px 40px; }
     .drop-zone { margin: 16px; padding: 40px 20px; }
   }
+
+  .f-multi { border-color: rgba(130,80,255,0.5); color: #a78bfa; }
+  .f-multi.active, .f-multi:hover { background: rgba(130,80,255,0.15); color: #c4b5fd; border-color: #a78bfa; }
+
+  .group-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 6px; }
+  .group-header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; flex-wrap: wrap; }
+  .group-header:hover { background: rgba(130,80,255,0.08); }
+  .group-id-badge { font-weight: 700; color: #a78bfa; font-size: 13px; text-decoration: none; border: 1px solid rgba(167,139,250,0.4); border-radius: 4px; padding: 2px 8px; flex-shrink: 0; }
+  .group-id-badge:hover { background: rgba(167,139,250,0.1); }
+  .group-count-badge { background: rgba(130,80,255,0.2); color: #c4b5fd; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+  .group-skus { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+  .group-sku-pill { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; flex-shrink: 0; }
+  .group-sku-ok { background: rgba(64,193,80,0.12); color: var(--green); border: 1px solid rgba(64,193,80,0.25); }
+  .group-sku-error { background: rgba(248,81,73,0.12); color: var(--red); border: 1px solid rgba(248,81,73,0.25); }
+  .group-sku-warn { background: rgba(227,179,65,0.12); color: var(--yellow); border: 1px solid rgba(227,179,65,0.25); }
+  .group-toggle { color: var(--muted); font-size: 11px; flex-shrink: 0; margin-left: auto; transition: transform 0.15s; }
+  .group-rows { display: none; }
+  .group-rows.open { display: block; }
+  .group-rows table { width: 100%; border-collapse: collapse; }
+  .group-rows td { padding: 8px 16px; border-bottom: 1px solid rgba(48,54,61,0.4); font-size: 12px; }
+  .group-rows tr:last-child td { border-bottom: none; }
+  .group-rows tr:hover td { background: rgba(255,255,255,0.02); }
+  #multiView { display: none; padding: 8px 24px 24px; }
+  .multi-stats { padding: 8px 24px; font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -307,6 +331,8 @@
   <button class="filter-btn" onclick="setFilter('RSD', this)">RSD</button>
   <input type="text" class="search-input" placeholder="Išči SKU ali ID..." oninput="setSearch(this.value)" id="searchInput">
   <button class="filter-btn" onclick="setFilter('resolved', this)">✓ UREJENI</button>
+  <span style="color:var(--muted);font-size:11px;margin-left:8px">|</span>
+  <button class="filter-btn f-multi" id="filterMulti" onclick="setFilter('multi', this)" title="Naročila z več postavkami (upsell/xsell)">🔗 ZDRUŽENA</button>
   <button class="btn secondary" onclick="copyIssues()" style="margin-left:auto;font-size:11px">📋 Kopiraj ID-je z napakami</button>
   <button class="btn secondary" onclick="clearTable()" style="font-size:11px;background:var(--red-dim);color:var(--red);border-color:var(--red)">🗑 Zbriši seznam</button>
 </div>
@@ -338,6 +364,8 @@
     <tbody id="tableBody"></tbody>
   </table>
 </div>
+
+<div id="multiView"></div>
 
 <script>
 let allRows = [];
@@ -689,7 +717,112 @@ function setFilter(f, btn) {
   currentFilter = f;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  renderTable(allRows);
+
+  const tableWrap = document.getElementById('tableWrap');
+  const multiView = document.getElementById('multiView');
+
+  if (f === 'multi') {
+    tableWrap.style.display = 'none';
+    multiView.style.display = 'block';
+    renderMultiView(allRows);
+  } else {
+    tableWrap.style.display = 'block';
+    multiView.style.display = 'none';
+    renderTable(allRows);
+  }
+}
+
+function renderMultiView(rows) {
+  const multiView = document.getElementById('multiView');
+
+  // Grupiraj po ID naročila
+  const groups = {};
+  for (const r of rows) {
+    if (!groups[r.id]) groups[r.id] = [];
+    groups[r.id].push(r);
+  }
+
+  // Samo ID-ji z več postavkami
+  const multiIds = Object.entries(groups)
+    .filter(([id, items]) => items.length > 1)
+    .sort((a, b) => b[1].length - a[1].length); // Največ postavk najprej
+
+  if (multiIds.length === 0) {
+    multiView.innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted)">Ni naročil z več postavkami.</div>';
+    return;
+  }
+
+  const totalOrders = multiIds.length;
+  const totalItems = multiIds.reduce((s, [, items]) => s + items.length, 0);
+  const withErrors = multiIds.filter(([, items]) => items.some(r => r.status === 'error' && !r.resolved)).length;
+
+  multiView.innerHTML = `
+    <div class="multi-stats">
+      🔗 <strong style="color:#c4b5fd">${totalOrders}</strong> združenih naročil · 
+      <strong>${totalItems}</strong> skupaj postavk · 
+      povprečno <strong>${(totalItems / totalOrders).toFixed(1)}</strong> postavke/naročilo
+      ${withErrors > 0 ? ` · <span style="color:var(--red)">⛔ ${withErrors} z napakami</span>` : ''}
+    </div>
+    <div id="groupsList"></div>
+  `;
+
+  const list = document.getElementById('groupsList');
+
+  list.innerHTML = multiIds.map(([id, items]) => {
+    const hasError = items.some(r => r.status === 'error' && !r.resolved);
+    const hasWarn = items.some(r => r.status === 'warn' && !r.resolved);
+    const store = items[0]?.store || '';
+    const cardBorder = hasError ? 'border-color:rgba(248,81,73,0.4)' : hasWarn ? 'border-color:rgba(227,179,65,0.3)' : '';
+
+    // SKU pills v headerju
+    const skuPills = items.map(r => {
+      const cls = r.status === 'error' && !r.resolved ? 'group-sku-error' : r.status === 'warn' && !r.resolved ? 'group-sku-warn' : 'group-sku-ok';
+      return `<span class="group-sku-pill ${cls}">${r.sku}</span>`;
+    }).join('');
+
+    // Rows v tabeli
+    const rowsHtml = items.map(r => {
+      const statusBadge = r.status === 'ok' || r.resolved
+        ? '<span class="badge badge-ok">✓ OK</span>'
+        : r.status === 'warn'
+        ? '<span class="badge badge-warn">⚠</span>'
+        : '<span class="badge badge-error">⛔</span>';
+      const priceDisplay = r.isOk
+        ? `<span class="price-ok">${r.priceRaw}</span>`
+        : r.suggested
+          ? `<span class="price-old">${r.priceRaw}</span> → <span class="price-new">${formatSuggested(r.suggested, r.currency)}</span>`
+          : `<span style="color:var(--red)">${r.priceRaw}</span>`;
+      const reasons = r.issues.map(i => `<span style="font-size:10px;color:var(--muted)">${i}</span>`).join(' · ');
+      return `<tr>
+        <td style="font-weight:600;color:var(--text)">${r.sku}</td>
+        <td>${priceDisplay}</td>
+        <td style="font-size:11px;color:var(--muted)">${r.nc}</td>
+        <td style="font-size:11px;color:var(--muted)">${r.marza}</td>
+        <td style="color:var(--muted);font-size:11px">${r.currency}</td>
+        <td style="color:var(--muted);font-size:11px">${r.store}</td>
+        <td>${statusBadge}</td>
+        <td>${reasons}</td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="group-card" style="${cardBorder}">
+      <div class="group-header" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.group-toggle').textContent=this.nextElementSibling.classList.contains('open')?'▲':'▼'">
+        <a href="https://www.siluxar.si/narocilnice/${id}" target="_blank" class="group-id-badge" onclick="event.stopPropagation()">${id} ↗</a>
+        <span class="group-count-badge">${items.length} postavke</span>
+        <div class="group-skus">${skuPills}</div>
+        ${store ? `<span style="font-size:11px;color:var(--muted);flex-shrink:0">${store}</span>` : ''}
+        <span class="group-toggle">▼</span>
+      </div>
+      <div class="group-rows">
+        <table>
+          <thead><tr style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">
+            <th style="padding:6px 16px">SKU</th><th>Cena</th><th>NC</th><th>Marža</th><th>Val.</th><th>Trgovina</th><th>Status</th><th>Razlog</th>
+          </tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function setSearch(v) {
