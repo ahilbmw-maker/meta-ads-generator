@@ -758,48 +758,90 @@ function renderMultiView(rows) {
   const allResolved = multiIds.filter(([, items]) => items.every(r => r.status === 'ok' || r.resolved)).length;
 
   multiView.innerHTML = `
-    <div class="multi-stats" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <span>🔗 <strong style="color:#c4b5fd">${totalOrders}</strong> združenih naročil · 
-      <strong>${totalItems}</strong> postavk · 
-      povprečno <strong>${(totalItems / totalOrders).toFixed(1)}</strong>/naročilo
-      ${withErrors > 0 ? ` · <span style="color:var(--red)">⛔ ${withErrors} z napakami</span>` : ''}
+    <div class="multi-stats" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex-shrink:0" title="Označi/počisti vsa naročila">
+        <input type="checkbox" id="multiSelectAll" onchange="multiToggleAll(this.checked)" style="cursor:pointer;width:15px;height:15px">
+        <span style="font-size:11px;color:var(--muted)">Vse</span>
+      </label>
+      <button id="multiBulkDelete" onclick="multiDeleteSelected()" style="display:none;padding:3px 10px;background:rgba(248,81,73,0.1);color:var(--red);border:1px solid rgba(248,81,73,0.4);border-radius:4px;font-size:11px;cursor:pointer">🗑 Zbriši označene (<span id="multiSelCount">0</span>)</button>
+      <span style="color:var(--border)">|</span>
+      <span style="font-size:11px;color:var(--muted)">🔗 <strong style="color:#c4b5fd">${totalOrders}</strong> naročil · <strong>${totalItems}</strong> postavk · ø <strong>${(totalItems / totalOrders).toFixed(1)}</strong>
+      ${withErrors > 0 ? ` · <span style="color:var(--red)">⛔ ${withErrors}</span>` : ''}
       ${allResolved > 0 ? ` · <span style="color:var(--green)">✓ ${allResolved} urejenih</span>` : ''}</span>
-      ${allResolved > 0 ? `<button class="btn secondary" onclick="multiClearResolved()" style="font-size:11px;background:rgba(248,81,73,0.1);color:var(--red);border-color:rgba(248,81,73,0.4)">🗑 Zbriši pregledana (${allResolved})</button>` : ''}
+      <div style="flex:1;min-width:200px">
+        <input type="text" id="multiSearch" placeholder="🔍 Filtriraj po ID, SKU, razliki, trgovini..." oninput="multiFilterRender()" style="width:100%;padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;font-size:12px;color:var(--text);font-family:var(--font)">
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="filter-btn active" id="mf-all" onclick="setMultiFilter('all',this)" style="padding:3px 8px;font-size:11px">VSE</button>
+        <button class="filter-btn f-red" id="mf-error" onclick="setMultiFilter('error',this)" style="padding:3px 8px;font-size:11px">⛔ NAPAKE</button>
+        <button class="filter-btn f-yellow" id="mf-warn" onclick="setMultiFilter('warn',this)" style="padding:3px 8px;font-size:11px">⚠ MEJNE</button>
+        <button class="filter-btn" id="mf-ok" onclick="setMultiFilter('ok',this)" style="padding:3px 8px;font-size:11px">✓ OK</button>
+        <button class="filter-btn" id="mf-big" onclick="setMultiFilter('big',this)" style="padding:3px 8px;font-size:11px;border-color:rgba(64,193,80,0.4);color:var(--green)">≥10€</button>
+      </div>
+      ${allResolved > 0 ? `<button class="btn secondary" onclick="multiClearResolved()" style="font-size:11px;background:rgba(248,81,73,0.1);color:var(--red);border-color:rgba(248,81,73,0.4);flex-shrink:0">🗑 Zbriši pregledana (${allResolved})</button>` : ''}
     </div>
     <div id="groupsList"></div>
   `;
 
+  window._multiSelected = window._multiSelected || new Set();
+  window._multiFilter = window._multiFilter || 'all';
+  window._multiSearch = window._multiSearch || '';
+  window._multiAllIds = multiIds.map(([id]) => id);
+
   const list = document.getElementById('groupsList');
 
-  list.innerHTML = multiIds.map(([id, items]) => {
+  // Apliciraj filter in search
+  let visibleIds = multiIds;
+  const mf = window._multiFilter || 'all';
+  const ms = (window._multiSearch || '').toLowerCase();
+
+  if (mf === 'error') visibleIds = visibleIds.filter(([, items]) => items.some(r => r.status === 'error' && !r.resolved));
+  else if (mf === 'warn') visibleIds = visibleIds.filter(([, items]) => items.some(r => r.status === 'warn' && !r.resolved));
+  else if (mf === 'ok') visibleIds = visibleIds.filter(([, items]) => items.every(r => r.status === 'ok' || r.resolved));
+  else if (mf === 'big') visibleIds = visibleIds.filter(([, items]) => {
+    const tot = items.reduce((s, r) => s + (r.razlikaNum || 0), 0);
+    return tot >= 10;
+  });
+
+  if (ms) {
+    visibleIds = visibleIds.filter(([id, items]) => {
+      const tot = items.reduce((s, r) => s + (r.razlikaNum || 0), 0);
+      const store = items[0]?.store || '';
+      const skus = items.map(r => r.sku).join(' ');
+      return id.includes(ms) || skus.toLowerCase().includes(ms) || store.toLowerCase().includes(ms) || tot.toFixed(2).includes(ms);
+    });
+  }
+
+  list.innerHTML = visibleIds.map(([id, items]) => {
     const hasError = items.some(r => r.status === 'error' && !r.resolved);
     const hasWarn = items.some(r => r.status === 'warn' && !r.resolved);
     const isAllDone = items.every(r => r.status === 'ok' || r.resolved);
     const store = items[0]?.store || '';
+    const isSelected = (window._multiSelected || new Set()).has(id);
 
-    // Border glede na status
     const cardBorder = isAllDone
       ? 'border-color:rgba(64,193,80,0.3);opacity:0.7'
       : hasError ? 'border-color:rgba(248,81,73,0.4)'
       : hasWarn ? 'border-color:rgba(227,179,65,0.3)' : '';
 
-    // Skupna razlika — seštej razlikaNum za vse postavke ki imajo popravek
-    const totalRazlika = items.reduce((s, r) => {
-      if (r.razlikaNum !== null && !isNaN(r.razlikaNum)) return s + r.razlikaNum;
-      return s;
-    }, 0);
+    // Skupna razlika
+    const totalRazlika = items.reduce((s, r) => s + (r.razlikaNum || 0), 0);
     const razlikaItems = items.filter(r => r.razlikaNum !== null && !isNaN(r.razlikaNum));
-    const razlikaBadge = razlikaItems.length > 0
-      ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;flex-shrink:0;${totalRazlika > 0 ? 'color:var(--red);background:rgba(248,81,73,0.12);border:1px solid rgba(248,81,73,0.25)' : totalRazlika < 0 ? 'color:var(--green);background:rgba(64,193,80,0.12);border:1px solid rgba(64,193,80,0.25)' : 'color:var(--muted);background:rgba(255,255,255,0.05);border:1px solid var(--border)'}">${totalRazlika > 0 ? '+' : ''}${totalRazlika.toFixed(2)}</span>`
-      : '';
+    // Obrjena logika: >=10€ = zelen, <10€ = rdeč
+    let razlikaBadge = '';
+    if (razlikaItems.length > 0) {
+      const isGood = totalRazlika >= 10;
+      const style = isGood
+        ? 'color:var(--green);background:rgba(64,193,80,0.12);border:1px solid rgba(64,193,80,0.25)'
+        : 'color:var(--red);background:rgba(248,81,73,0.12);border:1px solid rgba(248,81,73,0.25)';
+      razlikaBadge = `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;flex-shrink:0;${style}">${totalRazlika > 0 ? '+' : ''}${totalRazlika.toFixed(2)}</span>`;
+    }
 
-    // SKU pills
     const skuPills = items.map(r => {
       const cls = r.resolved || r.status === 'ok' ? 'group-sku-ok' : r.status === 'warn' ? 'group-sku-warn' : 'group-sku-error';
       return `<span class="group-sku-pill ${cls}">${r.resolved ? '✓ ' : ''}${r.sku}</span>`;
     }).join('');
 
-    // Rows v tabeli — s checkbox-om za označevanje
     const rowsHtml = items.map(r => {
       const statusBadge = r.status === 'ok' || r.resolved
         ? '<span class="badge badge-ok">✓ OK</span>'
@@ -814,7 +856,7 @@ function renderMultiView(rows) {
       const reasons = r.issues.map(i => `<span style="font-size:10px;color:var(--muted)">${i}</span>`).join(' · ');
       const canResolve = r.status !== 'ok';
       const checkHtml = canResolve
-        ? `<input type="checkbox" ${r.resolved ? 'checked' : ''} onchange="multiToggleResolved('${r.id}','${r.sku}',this.checked)" style="cursor:pointer;width:14px;height:14px" title="Označi kot urejeno">`
+        ? `<input type="checkbox" ${r.resolved ? 'checked' : ''} onchange="multiToggleResolved('${r.id}','${r.sku}',this.checked)" style="cursor:pointer;width:14px;height:14px">`
         : '<span style="color:var(--green);font-size:12px">✓</span>';
       return `<tr style="${r.resolved ? 'opacity:0.5' : ''}">
         <td style="text-align:center;width:30px">${checkHtml}</td>
@@ -834,8 +876,9 @@ function renderMultiView(rows) {
       ? '<span style="font-size:11px;color:var(--green);background:rgba(64,193,80,0.12);border:1px solid rgba(64,193,80,0.25);border-radius:4px;padding:2px 8px;flex-shrink:0">✓ Urejeno</span>'
       : '';
 
-    return `<div class="group-card" style="${cardBorder}">
+    return `<div class="group-card" style="${cardBorder}${isSelected ? ';outline:2px solid rgba(167,139,250,0.5)' : ''}">
       <div class="group-header" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.group-toggle').textContent=this.nextElementSibling.classList.contains('open')?'▲':'▼'">
+        <input type="checkbox" ${isSelected ? 'checked' : ''} data-gid="${id}" onchange="multiSelectCard('${id}',this.checked);event.stopPropagation()" onclick="event.stopPropagation()" style="cursor:pointer;width:14px;height:14px;flex-shrink:0">
         <a href="https://www.siluxar.si/narocilnice/${id}" target="_blank" class="group-id-badge" onclick="event.stopPropagation()">${id} ↗</a>
         <span class="group-count-badge">${items.length} post.</span>
         ${razlikaBadge}
@@ -881,6 +924,65 @@ function copyIssues() {
   const ids = [...new Set(issues.map(r => r.id))].join('\n');
   navigator.clipboard.writeText(ids);
   alert(`Kopirano ${[...new Set(issues.map(r => r.id))].length} ID-jev!`);
+}
+
+function multiSelectCard(id, checked) {
+  if (!window._multiSelected) window._multiSelected = new Set();
+  if (checked) window._multiSelected.add(id);
+  else window._multiSelected.delete(id);
+  const cnt = window._multiSelected.size;
+  const btn = document.getElementById('multiBulkDelete');
+  const cntEl = document.getElementById('multiSelCount');
+  if (btn) btn.style.display = cnt > 0 ? 'inline-block' : 'none';
+  if (cntEl) cntEl.textContent = cnt;
+  // Posodobi selectAll checkbox
+  const all = document.getElementById('multiSelectAll');
+  if (all && window._multiAllIds) {
+    all.indeterminate = cnt > 0 && cnt < window._multiAllIds.length;
+    all.checked = cnt === window._multiAllIds.length;
+  }
+}
+
+function multiToggleAll(checked) {
+  if (!window._multiSelected) window._multiSelected = new Set();
+  if (checked) window._multiAllIds.forEach(id => window._multiSelected.add(id));
+  else window._multiSelected.clear();
+  // Posodobi vse card checkbox-e
+  document.querySelectorAll('[data-gid]').forEach(cb => {
+    cb.checked = checked;
+    cb.closest('.group-card').style.outline = checked ? '2px solid rgba(167,139,250,0.5)' : '';
+  });
+  const cnt = window._multiSelected.size;
+  const btn = document.getElementById('multiBulkDelete');
+  const cntEl = document.getElementById('multiSelCount');
+  if (btn) btn.style.display = cnt > 0 ? 'inline-block' : 'none';
+  if (cntEl) cntEl.textContent = cnt;
+}
+
+function multiDeleteSelected() {
+  if (!window._multiSelected || window._multiSelected.size === 0) return;
+  const toDelete = new Set(window._multiSelected);
+  allRows = allRows.filter(r => !toDelete.has(r.id));
+  window._multiSelected.clear();
+  saveTableToStorage();
+  updateStats(allRows);
+  renderMultiView(allRows);
+}
+
+function setMultiFilter(f, btn) {
+  window._multiFilter = f;
+  document.querySelectorAll('#groupsList').length; // just to ensure DOM exists
+  ['all','error','warn','ok','big'].forEach(k => {
+    const el = document.getElementById('mf-' + k);
+    if (el) el.classList.remove('active');
+  });
+  if (btn) btn.classList.add('active');
+  renderMultiView(allRows);
+}
+
+function multiFilterRender() {
+  window._multiSearch = document.getElementById('multiSearch')?.value || '';
+  renderMultiView(allRows);
 }
 
 function toggleResolved(id, sku, checked) {
