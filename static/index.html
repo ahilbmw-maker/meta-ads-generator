@@ -2676,10 +2676,10 @@ async function ttCreativeSearch() {
       const dotTitle = isAds ? 'Uporabljen v Ads' : 'Samo v Library';
       const cpa = v.conversions > 0 ? (v.cost / v.conversions).toFixed(2) + ' €' : '—';
       const spend = v.cost > 0 ? v.cost.toFixed(0) + ' €' : '—';
-      const isValidTTName = /^[a-zA-Z0-9_]+\.mp4$/i.test(v.video);
-    const ttBadge = isValidTTName
-      ? '' 
-      : `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:#fee2e2;color:#dc2626;font-weight:600;flex-shrink:0" title="Ime videa vsebuje presledke ali posebne znake — TikTok import bo morda zavrnjen">⚠ TT</span>`;
+      const hasTTIssue = v.video.length > 30;
+    const ttBadge = hasTTIssue
+      ? `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:#fee2e2;color:#dc2626;font-weight:600;flex-shrink:0" title="Predolgo ime (${v.video.length} znakov) — TikTok XLS import zavrne nad ~30 znakov">⚠ TT</span>`
+      : '';
     return `<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.1s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
         <input type="checkbox" data-idx="${i}" onchange="ttCreativeToggle(${i},this.checked)" style="cursor:pointer;width:14px;height:14px;accent-color:var(--accent);flex-shrink:0">
         <span style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0" title="${dotTitle}"></span>
