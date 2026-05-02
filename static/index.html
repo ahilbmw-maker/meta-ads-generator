@@ -1705,6 +1705,7 @@ function switchPage(page) {
   }
   closeMenu();
   if (page === 'zaloga') zalogaLoad();
+  try { localStorage.setItem('slx_active_page', page); } catch(e) {}
 }
 
 // ── META COUNTERS ──
@@ -6119,6 +6120,18 @@ document.addEventListener('DOMContentLoaded', () => {
     anLoadStock();
     anLoadMetaFromServer();
   }, 100));
+
+  // Obnovi zadnji aktivni tab
+  try {
+    const lastPage = localStorage.getItem('slx_active_page');
+    if (lastPage && PAGES.includes(lastPage)) {
+      switchPage(lastPage);
+    } else {
+      switchPage('meta');
+    }
+  } catch(e) {
+    switchPage('meta');
+  }
 });
 
 // ═══════════════════════════════════════════════════════
