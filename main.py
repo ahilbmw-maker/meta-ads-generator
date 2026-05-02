@@ -3568,14 +3568,25 @@ async def analiza_ttkreative_search(sku: str = ""):
                     ads_videos[v]['cost'] += float(r.get('cost', 0) or 0)
                     ads_videos[v]['conversions'] += float(r.get('conversions', 0) or 0)
 
-    # 2. Creative Library — resolucije
+    # 2. Creative Library — resolucije + vsi videoti za ta SKU
     cl_map = {}  # video_name → {w, h, video_id}
+    cl_sku_videos = []  # videoti iz CL ki so vezani na ta SKU (po imenu)
+    search_root = smart_root(sku).upper()
     if TIKTOK_CL_FILE.exists():
         text = TIKTOK_CL_FILE.read_text(encoding='utf-8-sig', errors='replace')
         for r in _csv4.DictReader(_io4.StringIO(text)):
-            cl_map[r.get('video', '').strip()] = r
+            v = r.get('video', '').strip()
+            if v:
+                cl_map[v] = r
+                # Preveri ali video ime vsebuje SKU (npr. ABPULLER19.mp4 → ABPULLER)
+                import re as _re5
+                v_clean = _re5.sub(r'\.mp4$', '', v, flags=_re5.I)
+                v_root = _re5.sub(r'\d+$', '', v_clean).upper().strip('_- ')
+                if v_root == search_root or v_clean.upper().startswith(search_root):
+                    if v not in ads_videos:
+                        cl_sku_videos.append(v)
 
-    # 3. Spoji
+    # 3. Spoji — Ads videoti + CL-only videoti
     results = []
     for v, data in ads_videos.items():
         cl = cl_map.get(v, {})
@@ -3592,6 +3603,25 @@ async def analiza_ttkreative_search(sku: str = ""):
             'cost': round(data['cost'], 2),
             'conversions': int(data['conversions']),
             'status': data['status'],
+            'source': 'ads',
+            'res_status': _res_status(w, h),
+        })
+
+    # Dodaj CL-only videote (brez spend, samo v Creative Library)
+    for v in cl_sku_videos:
+        cl = cl_map.get(v, {})
+        try: w = int(cl.get('w')) if cl.get('w') else None
+        except: w = None
+        try: h = int(cl.get('h')) if cl.get('h') else None
+        except: h = None
+        results.append({
+            'video': v,
+            'video_id': cl.get('video_id', ''),
+            'w': w, 'h': h,
+            'cost': 0,
+            'conversions': 0,
+            'status': '',
+            'source': 'library',
             'res_status': _res_status(w, h),
         })
 
