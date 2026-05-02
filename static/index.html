@@ -2574,12 +2574,24 @@ let _ttAllSkus = []; // cache SKU seznam
 async function ttLoadSkus() {
   if (_ttAllSkus.length) return;
   try {
-    const res = await fetch('/analiza-ttkreative-data');
-    const data = await res.json();
-    if (data.items?.length) {
-      const skuSet = new Set(data.items.map(i => (i.sku||'').toUpperCase()).filter(Boolean));
-      _ttAllSkus = [...skuSet].sort();
-    }
+    const [krRes, clRes] = await Promise.all([
+      fetch('/analiza-ttkreative-data').then(r=>r.json()).catch(()=>({items:[]})),
+      fetch('/analiza-ttcreative-library-data').then(r=>r.json()).catch(()=>({items:[]})),
+    ]);
+    const skuSet = new Set();
+
+    // SKU-ji iz Ads data
+    (krRes.items||[]).forEach(i => { if(i.sku) skuSet.add(i.sku.toUpperCase()); });
+
+    // SKU-ji iz Creative Library — izvleci iz video imena
+    // npr. PILARAFIT (5).mp4 → PILARAFIT, ABPULLER4.mp4 → ABPULLER
+    (clRes.items||[]).forEach(i => {
+      const v = (i.video||'').replace(/\.mp4$/i,'').replace(/\s*\(\d+\)$/,'').trim();
+      const root = v.replace(/\d+$/, '').replace(/[_\-\s].*/, '').toUpperCase();
+      if (root && root.length >= 3) skuSet.add(root);
+    });
+
+    _ttAllSkus = [...skuSet].sort();
   } catch(e) {}
 }
 
@@ -2678,7 +2690,7 @@ async function ttCreativeSearch() {
       const spend = v.cost > 0 ? v.cost.toFixed(0) + ' €' : '—';
       const hasTTIssue = v.video.length > 30;
     const ttBadge = hasTTIssue
-      ? `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:#fee2e2;color:#dc2626;font-weight:600;flex-shrink:0" title="Predolgo ime (${v.video.length} znakov) — TikTok XLS import zavrne nad ~30 znakov">⚠ TT</span>`
+      ? `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:#fee2e2;color:#dc2626;font-weight:600;flex-shrink:0" title="Predolgo (${v.video.length}/30 znakov) — preimenuj video">⚠ ${v.video.length}z</span>`
       : '';
     return `<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.1s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
         <input type="checkbox" data-idx="${i}" onchange="ttCreativeToggle(${i},this.checked)" style="cursor:pointer;width:14px;height:14px;accent-color:var(--accent);flex-shrink:0">
