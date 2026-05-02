@@ -827,9 +827,12 @@ input[type="text"].error { border-color: var(--red) !important; }
               <span style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px">🎬 Videoti po SKU</span>
               <span style="font-size:10px;color:var(--text-tertiary)">iz Analiza → TikTok Kreative</span>
             </div>
-            <div style="display:flex;gap:6px;margin-bottom:6px">
-              <input type="text" id="ttCreativeSkuInput" placeholder="Vpiši SKU..." style="flex:1;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:DM Sans,sans-serif;outline:none" onkeydown="if(event.key==='Enter')ttCreativeSearch()">
-              <button onclick="ttCreativeSearch()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:DM Sans,sans-serif">Išči</button>
+            <div style="display:flex;gap:6px;margin-bottom:6px;position:relative">
+              <div style="flex:1;position:relative">
+                <input type="text" id="ttCreativeSkuInput" placeholder="Vpiši SKU..." autocomplete="off" style="width:100%;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:DM Sans,sans-serif;outline:none;box-sizing:border-box" onkeydown="ttCreativeSkuKeydown(event)" oninput="ttCreativeSkuSuggest(this.value)">
+                <div id="ttCreativeSuggest" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);z-index:50;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1)"></div>
+              </div>
+              <button onclick="ttCreativeSearch()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:DM Sans,sans-serif;white-space:nowrap">Išči</button>
             </div>
             <!-- Rezultati -->
             <div id="ttCreativeResults" style="display:none;margin-top:6px;max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)">
@@ -2049,7 +2052,7 @@ function switchPage(page) {
     }
   }
   closeMenu();
-  if (page === 'zaloga') zalogaLoad();
+  if (page === 'tiktok') { ttLoadSkus(); }
   try { localStorage.setItem('slx_active_page', page); } catch(e) {}
 }
 
@@ -2565,7 +2568,74 @@ function ttShowVideos(filenames, formatted) {
   preview.style.display = 'block';
 }
 
-// ── TIKTOK CREATIVE LIBRARY ──────────────────────────────────────────────────
+// ── TIKTOK SKU AUTOCOMPLETE ───────────────────────────────────────────────────
+let _ttAllSkus = []; // cache SKU seznam
+
+async function ttLoadSkus() {
+  if (_ttAllSkus.length) return;
+  try {
+    const res = await fetch('/analiza-ttkreative-data');
+    const data = await res.json();
+    if (data.items?.length) {
+      const skuSet = new Set(data.items.map(i => (i.sku||'').toUpperCase()).filter(Boolean));
+      _ttAllSkus = [...skuSet].sort();
+    }
+  } catch(e) {}
+}
+
+function ttCreativeSkuSuggest(val) {
+  const box = document.getElementById('ttCreativeSuggest');
+  if (!box) return;
+  const q = val.trim().toUpperCase();
+  if (!q) { box.style.display = 'none'; return; }
+
+  // Naloži SKU-je ob prvem klicu
+  if (!_ttAllSkus.length) { ttLoadSkus(); }
+
+  const matches = _ttAllSkus.filter(s => s.includes(q)).slice(0, 10);
+  if (!matches.length) { box.style.display = 'none'; return; }
+
+  box.style.display = 'block';
+  box.innerHTML = matches.map(s => {
+    // Poudarjen del ki se ujema
+    const idx = s.indexOf(q);
+    const highlighted = s.slice(0, idx) +
+      `<strong style="color:var(--accent)">${s.slice(idx, idx+q.length)}</strong>` +
+      s.slice(idx + q.length);
+    return `<div onclick="ttCreativeSkuSelect('${s}')" style="padding:6px 12px;cursor:pointer;font-size:12px;font-family:DM Sans,sans-serif;color:var(--text);border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">${highlighted}</div>`;
+  }).join('');
+}
+
+function ttCreativeSkuSelect(sku) {
+  const input = document.getElementById('ttCreativeSkuInput');
+  const box = document.getElementById('ttCreativeSuggest');
+  if (input) input.value = sku;
+  if (box) box.style.display = 'none';
+  ttCreativeSearch();
+}
+
+function ttCreativeSkuKeydown(e) {
+  const box = document.getElementById('ttCreativeSuggest');
+  if (e.key === 'Enter') {
+    if (box) box.style.display = 'none';
+    ttCreativeSearch();
+  } else if (e.key === 'Escape') {
+    if (box) box.style.display = 'none';
+  } else if (e.key === 'ArrowDown') {
+    const items = box?.querySelectorAll('div');
+    if (items?.length) { e.preventDefault(); items[0].focus(); }
+  }
+}
+
+// Zapri suggest ob kliku izven
+document.addEventListener('click', e => {
+  const box = document.getElementById('ttCreativeSuggest');
+  const input = document.getElementById('ttCreativeSkuInput');
+  if (box && !box.contains(e.target) && e.target !== input) box.style.display = 'none';
+});
+
+// Prednapolni SKU-je ob nalaganju TikTok taba
+
 let ttCreativeSelected = new Set();
 let ttCreativeItems = []; // zadnji rezultati iskanja
 
