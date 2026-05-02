@@ -821,21 +821,30 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div style="font-size:11px;color:var(--text-tertiary);padding:6px 8px;background:var(--surface2);border-radius:6px;font-family:DM Mono,monospace;word-break:break-all" id="ttVideoFormatted"></div>
           </div>
 
-          <!-- Creative Library Iskalnik -->
-          <div id="ttCreativeSearch" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px">
+          <!-- SKU Video Iskalnik -->
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-              <span style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px">🎬 Creative Library</span>
-              <span id="ttCreativeInfoBadge" style="font-size:10px;color:var(--text-tertiary)">Ni naloženo</span>
-              <button onclick="document.getElementById('ttCreativeCsvInput').click()" style="margin-left:auto;padding:3px 8px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:10px;cursor:pointer;color:var(--text-secondary);font-family:DM Sans,sans-serif">📂 Naloži CSV</button>
-              <input type="file" id="ttCreativeCsvInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="ttCreativeUpload(this.files[0])">
+              <span style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px">🎬 Videoti po SKU</span>
+              <span style="font-size:10px;color:var(--text-tertiary)">iz Analiza → TikTok Kreative</span>
             </div>
-            <div style="display:flex;gap:6px">
-              <input type="text" id="ttCreativeSkuInput" placeholder="Vpiši SKU..." oninput="ttCreativeSearch()" style="flex:1;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:DM Sans,sans-serif;outline:none">
+            <div style="display:flex;gap:6px;margin-bottom:6px">
+              <input type="text" id="ttCreativeSkuInput" placeholder="Vpiši SKU..." style="flex:1;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:DM Sans,sans-serif;outline:none" onkeydown="if(event.key==='Enter')ttCreativeSearch()">
               <button onclick="ttCreativeSearch()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:DM Sans,sans-serif">Išči</button>
             </div>
-            <div id="ttCreativeResults" style="display:none;margin-top:8px;max-height:220px;overflow-y:auto;display:none"></div>
-            <div id="ttCreativeSelected" style="display:none;margin-top:6px;padding:6px 8px;background:var(--surface);border:1px solid var(--green);border-radius:4px;font-size:11px;color:var(--green);font-family:DM Mono,monospace;word-break:break-all"></div>
-            <button id="ttCreativeAddBtn" onclick="ttCreativeAddToField()" style="display:none;margin-top:6px;width:100%;padding:6px;background:var(--green);color:#fff;border:none;border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600">✓ Dodaj izbrane v polje</button>
+            <!-- Rezultati -->
+            <div id="ttCreativeResults" style="display:none;margin-top:6px;max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface2)">
+                <span id="ttCreativeCount" style="font-size:11px;color:var(--text-secondary)"></span>
+                <div style="display:flex;gap:6px">
+                  <button onclick="ttCreativeSelectAll()" style="padding:3px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;font-size:10px;cursor:pointer;color:var(--text-secondary);font-family:DM Sans,sans-serif">Označi vse</button>
+                  <button onclick="ttCreativeClearAll()" style="padding:3px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;font-size:10px;cursor:pointer;color:var(--text-secondary);font-family:DM Sans,sans-serif">Počisti</button>
+                </div>
+              </div>
+              <div id="ttCreativeList" style="display:flex;flex-direction:column"></div>
+            </div>
+            <!-- Auto-fill output -->
+            <div id="ttCreativeOutput" style="display:none;margin-top:6px;padding:6px 8px;background:var(--surface);border:1px solid var(--green);border-radius:4px;font-size:11px;color:var(--green);font-family:DM Mono,monospace;word-break:break-all"></div>
+            <button id="ttCreativeAddBtn" onclick="ttCreativeInsert()" style="display:none;margin-top:6px;width:100%;padding:6px;background:var(--green);color:#fff;border:none;border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:DM Sans,sans-serif;font-weight:600">✓ Vstavi v VIDEO NAMES polje</button>
           </div>
 
           <!-- Manual fallback -->
@@ -2558,157 +2567,110 @@ function ttShowVideos(filenames, formatted) {
 
 // ── TIKTOK CREATIVE LIBRARY ──────────────────────────────────────────────────
 let ttCreativeSelected = new Set();
-
-async function ttCreativeUpload(file) {
-  if (!file) return;
-  const badge = document.getElementById('ttCreativeInfoBadge');
-  if (badge) { badge.style.color = 'var(--text-tertiary)'; badge.textContent = '⏳ Nalagam...'; }
-  const fd = new FormData();
-  fd.append('file', file);
-  try {
-    const res = await fetch('/tiktok-creative-upload', { method: 'POST', body: fd });
-    const data = await res.json();
-    document.getElementById('ttCreativeCsvInput').value = '';
-    if (data.error) { if (badge) { badge.style.color = 'var(--red)'; badge.textContent = '⚠ ' + data.error; } return; }
-    if (badge) { badge.style.color = 'var(--green)'; badge.textContent = `✓ ${data.skus} SKU-jev · ${data.videos} videov`; }
-  } catch(e) { if (badge) { badge.style.color = 'var(--red)'; badge.textContent = '⚠ ' + e.message; } }
-}
-
-async function ttCreativeLoadInfo() {
-  try {
-    const res = await fetch('/tiktok-creative-info');
-    const data = await res.json();
-    const badge = document.getElementById('ttCreativeInfoBadge');
-    if (!badge) return;
-    if (data.loaded) {
-      const dt = data.uploaded_at ? new Date(data.uploaded_at).toLocaleString('sl-SI', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
-      badge.style.color = 'var(--green)';
-      badge.textContent = `✓ ${data.skus} SKU-jev${dt ? ' · ' + dt : ''}`;
-    } else {
-      badge.textContent = 'Naloži Ad level XLSX';
-    }
-  } catch(e) {}
-}
+let ttCreativeItems = []; // zadnji rezultati iskanja
 
 async function ttCreativeSearch() {
-  const sku = (document.getElementById('ttCreativeSkuInput')?.value || '').trim();
+  const sku = (document.getElementById('ttCreativeSkuInput')?.value || '').trim().toUpperCase();
   const resultsEl = document.getElementById('ttCreativeResults');
-  if (!sku || !resultsEl) return;
+  const listEl = document.getElementById('ttCreativeList');
+  const countEl = document.getElementById('ttCreativeCount');
+  if (!sku) return;
 
-  resultsEl.style.display = 'block';
-  resultsEl.innerHTML = '<div style="font-size:11px;color:var(--text-tertiary);padding:4px">⏳ Iščem...</div>';
+  if (resultsEl) resultsEl.style.display = 'block';
+  if (listEl) listEl.innerHTML = '<div style="font-size:11px;color:var(--text-tertiary);padding:8px 10px">⏳ Iščem...</div>';
 
   try {
-    const res = await fetch('/tiktok-creative-search?sku=' + encodeURIComponent(sku));
+    const res = await fetch('/analiza-ttkreative-search?sku=' + encodeURIComponent(sku));
     const data = await res.json();
 
-    if (data.error) { resultsEl.innerHTML = `<div style="font-size:11px;color:var(--red);padding:4px">⚠ ${data.error}</div>`; return; }
-
-    // Fuzzy — pokaži SKU predloge
-    if (data.fuzzy) {
-      if (!data.skus.length) { resultsEl.innerHTML = '<div style="font-size:11px;color:var(--text-tertiary);padding:4px">Ni zadetkov.</div>'; return; }
-      resultsEl.innerHTML = '<div style="font-size:10px;color:var(--text-tertiary);padding:4px 2px;margin-bottom:4px">Podobni SKU-ji:</div>' +
-        data.skus.map(s => `<div onclick="document.getElementById('ttCreativeSkuInput').value='${s}';ttCreativeSearch()" style="padding:5px 8px;cursor:pointer;font-size:12px;border-radius:4px;hover:background:var(--surface2)">${s}</div>`).join('');
+    if (data.error) {
+      if (listEl) listEl.innerHTML = `<div style="font-size:11px;color:var(--red);padding:8px 10px">⚠ ${data.error}</div>`;
       return;
     }
 
-    if (!data.videos?.length) { resultsEl.innerHTML = '<div style="font-size:11px;color:var(--text-tertiary);padding:4px">Ni videov za ta SKU.</div>'; return; }
+    ttCreativeItems = data.items || [];
+    ttCreativeSelected.clear();
+    ttCreativeUpdateOutput();
 
-    ttCreativeSelected = new Set();
-    ttCreativeUpdateSelected();
+    if (!ttCreativeItems.length) {
+      if (listEl) listEl.innerHTML = '<div style="font-size:11px;color:var(--text-tertiary);padding:8px 10px">Ni videov za ta SKU. Preveri ali si naložil Ad level XLSX v Analiza → TikTok Kreative.</div>';
+      if (countEl) countEl.textContent = '0 videov';
+      return;
+    }
 
-    resultsEl.innerHTML = `<div style="font-size:10px;color:var(--text-tertiary);padding:2px 2px 6px;display:flex;justify-content:space-between">
-      <span>${data.videos.length} videov za <strong>${data.sku}</strong></span>
-      <button onclick="ttCreativeSelectAll()" style="background:none;border:none;font-size:10px;color:var(--accent);cursor:pointer;font-family:DM Sans,sans-serif">Vse</button>
-    </div>` +
-    data.videos.map((v, i) => {
-      const name = v.video;
+    if (countEl) countEl.textContent = `${ttCreativeItems.length} videov za ${data.sku}`;
+
+    if (listEl) listEl.innerHTML = ttCreativeItems.map((v, i) => {
+      const isAds = v.source !== 'library';
+      const dotColor = isAds ? '#22c55e' : 'var(--text-tertiary)';
+      const dotTitle = isAds ? 'Uporabljen v Ads' : 'Samo v Library';
       const cpa = v.conversions > 0 ? (v.cost / v.conversions).toFixed(2) + ' €' : '—';
-      const statusDot = v.status === 'active' ? '🟢' : '⚫';
-      const isSelected = ttCreativeSelected.has(name);
-      return `<div id="ttcv-${i}" onclick="ttCreativeToggle('${name.replace(/'/g,"\\'")}', ${i})" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;cursor:pointer;background:${isSelected ? 'rgba(34,197,94,0.08)' : 'transparent'};border:1px solid ${isSelected ? 'var(--green)' : 'transparent'};margin-bottom:2px;transition:all 0.1s">
-        <span style="font-size:13px">${isSelected ? '☑' : '☐'}</span>
-        <span style="font-size:10px">${statusDot}</span>
-        <span style="font-size:11px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(name)}">${esc(name)}</span>
-        <span style="font-size:10px;color:var(--text-tertiary);flex-shrink:0">${v.cost.toFixed(0)} € · ${v.conversions} konv · CPA ${cpa}</span>
-      </div>`;
+      const spend = v.cost > 0 ? v.cost.toFixed(0) + ' €' : '—';
+      return `<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.1s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+        <input type="checkbox" data-idx="${i}" onchange="ttCreativeToggle(${i},this.checked)" style="cursor:pointer;width:14px;height:14px;accent-color:var(--accent);flex-shrink:0">
+        <span style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0" title="${dotTitle}"></span>
+        <span style="font-size:11px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)" title="${esc(v.video)}">${esc(v.video)}</span>
+        <span style="font-size:10px;color:var(--text-tertiary);flex-shrink:0;white-space:nowrap">${spend}${v.conversions > 0 ? ' · ' + v.conversions + ' konv · ' + cpa : ''}</span>
+      </label>`;
     }).join('');
 
-  } catch(e) { resultsEl.innerHTML = `<div style="font-size:11px;color:var(--red);padding:4px">⚠ ${e.message}</div>`; }
+  } catch(e) {
+    if (listEl) listEl.innerHTML = `<div style="font-size:11px;color:var(--red);padding:8px 10px">⚠ ${e.message}</div>`;
+  }
 }
 
-function ttCreativeToggle(name, idx) {
-  if (ttCreativeSelected.has(name)) ttCreativeSelected.delete(name);
-  else ttCreativeSelected.add(name);
-  // Posodobi vizual
-  const el = document.getElementById('ttcv-' + idx);
-  if (el) {
-    const isNow = ttCreativeSelected.has(name);
-    el.style.background = isNow ? 'rgba(34,197,94,0.08)' : 'transparent';
-    el.style.border = isNow ? '1px solid var(--green)' : '1px solid transparent';
-    el.querySelector('span:first-child').textContent = isNow ? '☑' : '☐';
-  }
-  ttCreativeUpdateSelected();
+function ttCreativeToggle(idx, checked) {
+  const v = ttCreativeItems[idx];
+  if (!v) return;
+  if (checked) ttCreativeSelected.add(v.video);
+  else ttCreativeSelected.delete(v.video);
+  ttCreativeUpdateOutput();
 }
 
 function ttCreativeSelectAll() {
-  const items = document.querySelectorAll('#ttCreativeResults [id^="ttcv-"]');
-  items.forEach(el => {
-    const nameEl = el.querySelector('span:nth-child(3)');
-    const name = nameEl?.title || nameEl?.textContent;
-    if (name) ttCreativeSelected.add(name);
-    el.style.background = 'rgba(34,197,94,0.08)';
-    el.style.border = '1px solid var(--green)';
-    el.querySelector('span:first-child').textContent = '☑';
-  });
-  ttCreativeUpdateSelected();
+  ttCreativeItems.forEach(v => ttCreativeSelected.add(v.video));
+  document.querySelectorAll('#ttCreativeList input[type=checkbox]').forEach(cb => cb.checked = true);
+  ttCreativeUpdateOutput();
 }
 
-function ttCreativeUpdateSelected() {
-  const sel = document.getElementById('ttCreativeSelected');
+function ttCreativeClearAll() {
+  ttCreativeSelected.clear();
+  document.querySelectorAll('#ttCreativeList input[type=checkbox]').forEach(cb => cb.checked = false);
+  ttCreativeUpdateOutput();
+}
+
+function ttCreativeUpdateOutput() {
+  const out = document.getElementById('ttCreativeOutput');
   const btn = document.getElementById('ttCreativeAddBtn');
   const n = ttCreativeSelected.size;
   if (n === 0) {
-    if (sel) sel.style.display = 'none';
+    if (out) out.style.display = 'none';
     if (btn) btn.style.display = 'none';
   } else {
-    const formatted = '[' + [...ttCreativeSelected].join('][') + ']';
-    if (sel) { sel.style.display = 'block'; sel.textContent = formatted; }
-    if (btn) { btn.style.display = 'block'; btn.textContent = `✓ Dodaj ${n} video${n > 1 ? 'v' : ''} v polje`; }
+    const formatted = [...ttCreativeSelected].map((v, i) => `[VIDEO (${i+1}).mp4]`).join('');
+    if (out) { out.style.display = 'block'; out.textContent = formatted; out.dataset.videos = [...ttCreativeSelected].join('|||'); }
+    if (btn) { btn.style.display = 'block'; btn.textContent = `✓ Vstavi ${n} video${n > 1 ? 'v' : ''} v polje`; }
   }
 }
 
-function ttCreativeAddToField() {
+function ttCreativeInsert() {
   if (!ttCreativeSelected.size) return;
-  const formatted = '[' + [...ttCreativeSelected].join('][') + ']';
+  const videos = [...ttCreativeSelected];
+  const formatted = videos.map((v, i) => `[VIDEO (${i+1}).mp4]`).join('');
   const field = document.getElementById('ttVideos');
   if (field) {
     field.value = formatted;
     field.dispatchEvent(new Event('input'));
+    field.style.borderColor = 'var(--green)';
+    setTimeout(() => field.style.borderColor = '', 1500);
   }
-  // Zapri results
-  const res = document.getElementById('ttCreativeResults');
-  if (res) res.style.display = 'none';
-  const sel = document.getElementById('ttCreativeSelected');
-  if (sel) sel.style.display = 'none';
-  const btn = document.getElementById('ttCreativeAddBtn');
-  if (btn) btn.style.display = 'none';
-  ttCreativeSelected.clear();
-  // Flash field
-  if (field) { field.style.borderColor = 'var(--green)'; setTimeout(() => field.style.borderColor = '', 1500); }
 }
 
-function ttCreativeLoadInfo() {
-  fetch('/tiktok-creative-info').then(r => r.json()).then(data => {
-    const badge = document.getElementById('ttCreativeInfoBadge');
-    if (!badge) return;
-    if (data.loaded) {
-      const dt = data.uploaded_at ? new Date(data.uploaded_at).toLocaleString('sl-SI', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
-      badge.style.color = 'var(--green)';
-      badge.textContent = `✓ ${data.skus} SKU-jev${dt ? ' · ' + dt : ''}`;
-    }
-  }).catch(() => {});
-}
+// Legacy aliases za združljivost
+function ttCreativeAddToField() { ttCreativeInsert(); }
+function ttCreativeLoadInfo() {}
+function ttCreativeUpload() {}
+
 
 function ttClearVideos() {
   document.getElementById('ttVideoPreview').style.display = 'none';
