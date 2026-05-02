@@ -1759,8 +1759,13 @@ input[type="text"].error { border-color: var(--red) !important; }
 
           <div class="card" style="margin-top:12px">
             <span class="slabel">OBRAT 14 DNI</span>
-            <p style="font-size:11px;color:var(--text-secondary);margin:8px 0 10px;line-height:1.4">Skupen z FB — isti TXT/TSV upload.</p>
-            <div id="tt14ObratInfo" style="padding:8px;background:var(--bg-secondary);border-radius:var(--radius);font-size:11px;color:var(--text-secondary)">Nalagam status...</div>
+            <p style="font-size:11px;color:var(--text-secondary);margin:8px 0 10px;line-height:1.4">Skupen z FB — naloži tukaj ali v zavihku "Obrat 14 dni (FB)".</p>
+            <div id="tt14ObratInfo" style="padding:8px;background:var(--bg-secondary);border-radius:var(--radius);font-size:11px;color:var(--text-secondary);margin-bottom:8px">Nalagam status...</div>
+            <div class="k-dropzone" style="margin-top:4px;padding:14px;cursor:pointer" onclick="document.getElementById('tt14ObratInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();tt14UploadObrat(event.dataTransfer.files[0])">
+              <span style="font-size:11px">📊 Klikni ali povleci TXT/TSV</span>
+            </div>
+            <input type="file" id="tt14ObratInput" accept=".txt,.tsv,.csv" style="display:none" onchange="tt14UploadObrat(this.files[0])">
+            <div id="tt14ObratStatus" style="margin-top:8px;font-size:11px;color:var(--text-secondary);text-align:center;display:none"></div>
           </div>
 
           <div class="card" style="margin-top:12px">
@@ -5278,32 +5283,58 @@ async function tt14Upload(file) {
   } catch(e) { status.style.color = 'var(--red)'; status.textContent = '⚠ ' + e.message; }
 }
 
+// Upload obrata 14 dni iz TikTok taba — kliče isti endpoint kot FB tab
+async function tt14UploadObrat(file) {
+  if (!file) return;
+  const status = document.getElementById('tt14ObratStatus');
+  if (status) { status.style.display = 'block'; status.style.color = 'var(--text-secondary)'; status.textContent = '⏳ Nalagam...'; }
+  try {
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    const res = await fetch('/analiza-obrat14-upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    if (status) { status.style.color = 'var(--green)'; status.textContent = `✓ ${data.rows} vrstic`; }
+    document.getElementById('tt14ObratInput').value = '';
+    // Posodobi oba taba
+    o14LoadData();
+    tt14UpdateObratInfo();
+  } catch(e) {
+    if (status) { status.style.color = 'var(--red)'; status.textContent = '✗ ' + e.message; }
+  }
+}
+
+async function tt14UpdateObratInfo() {
+  const info = document.getElementById('tt14ObratInfo');
+  if (!info) return;
+  try {
+    const res = await fetch('/analiza-obrat14-data');
+    const data = await res.json();
+    if (data.loaded && data.uploaded_at) {
+      const dt = new Date(data.uploaded_at).toLocaleString('sl-SI', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Ljubljana'});
+      info.innerHTML = `<strong style="color:var(--green)">✓ ${data.items?.length || 0} izdelkov</strong><br>posodobljeno: ${dt}`;
+    } else {
+      info.innerHTML = '<span style="color:var(--text-tertiary)">⚠ Naloži obrat 14 dni spodaj</span>';
+    }
+  } catch(e) {}
+}
+
 async function tt14LoadData() {
   try {
-    // TikTok kampanje
     const ttRes = await fetch('/analiza-tiktok-data');
     const ttData = await ttRes.json();
     if (!ttData.error) tt14Data = ttData.items || [];
 
-    // Info
     const info = document.getElementById('tt14Info');
     if (tt14Data.length > 0 && info) {
       info.style.display = 'block';
       info.textContent = `✓ ${tt14Data.length} kampanj naloženih`;
     }
 
-    // Obrat 14 dni status (skupen z FB)
-    const o14Info = document.getElementById('tt14ObratInfo');
-    try {
-      const o14Res = await fetch('/o14-data');
-      const o14 = await o14Res.json();
-      if (o14Info) {
-        o14Info.textContent = o14.items?.length
-          ? `✓ ${o14.items.length} SKU-jev · skupen z FB Obrat 14 dni`
-          : 'Naloži obrat 14 dni v zavihku "Obrat 14 dni (FB)".';
-      }
-    } catch(e) {}
+    // Naloži skupni obrat 14 dni če še ni naložen
+    if (!window._o14Items?.length) await o14LoadData();
 
+    tt14UpdateObratInfo();
     tt14RenderTable();
   } catch(e) { console.warn('tt14LoadData', e); }
 }
@@ -5323,16 +5354,36 @@ function tt14RenderTable() {
   const emptyEl = document.getElementById('tt14Empty');
   const search = (document.getElementById('tt14Search')?.value || '').toLowerCase();
 
-  if (!tt14Data.length) {
+  if (!tt14Data.length && !window._o14Items?.length) {
     emptyEl.style.display = 'block';
     emptyEl.textContent = 'Naloži TikTok XLSX poročilo za začetek.';
+    tableEl.innerHTML = '';
     return;
   }
 
-  // Združi po SKU — isti SKU ima lahko več kampanj
+  // Začni z o14Items (obrat 14 dni) kot baza — enako kot pri FB tabu
   const skuMap = {};
+
+  // 1. Dodaj vse SKU-je iz obrata 14 dni
+  if (window._o14Items?.length) {
+    for (const o14 of window._o14Items) {
+      const sku = (o14.sku || '').toUpperCase();
+      if (!sku) continue;
+      if (!skuMap[sku]) {
+        skuMap[sku] = {
+          sku, title: o14.naziv || '',
+          spend: 0, conversions: 0,
+          status: 'none', campaigns: 0, active_campaigns: 0,
+          stock: o14.stock || 0, stock30: o14.stock30 || 0,
+          obrat14: o14.qty || 0,
+        };
+      }
+    }
+  }
+
+  // 2. Dodaj/enrichaj s TikTok kampanjami
   for (const row of tt14Data) {
-    const sku = row.sku || '';
+    const sku = (row.sku || '').toUpperCase();
     if (!sku) continue;
     if (!skuMap[sku]) {
       skuMap[sku] = {
@@ -5346,25 +5397,22 @@ function tt14RenderTable() {
     skuMap[sku].spend += row.spend || 0;
     skuMap[sku].conversions += row.conversions || 0;
     skuMap[sku].campaigns++;
-    if (row.status === 'active') { skuMap[sku].active_campaigns++; skuMap[sku].status = 'active'; }
-  }
-
-  // Združi z obrat 14 dni (skupen z FB) — iz window._o14Items
-  if (window._o14Items?.length) {
-    for (const o14 of window._o14Items) {
-      const sku = (o14.sku || '').toUpperCase();
-      if (skuMap[sku]) {
-        skuMap[sku].obrat14 = o14.qty || 0;
-        if (!skuMap[sku].title) skuMap[sku].title = o14.naziv || '';
-      }
+    if (row.status === 'active') {
+      skuMap[sku].active_campaigns++;
+      skuMap[sku].status = 'active';
+    } else if (skuMap[sku].status === 'none' || skuMap[sku].status === 'inactive') {
+      skuMap[sku].status = 'inactive';
     }
+    // Posodobi stock/title iz TikTok če manjka
+    if (!skuMap[sku].title && row.title) skuMap[sku].title = row.title;
+    if (!skuMap[sku].stock && row.stock) skuMap[sku].stock = row.stock;
   }
 
   let items = Object.values(skuMap);
 
   // Filter
   if (tt14Filter === 'with_ads') items = items.filter(i => i.status === 'active');
-  else if (tt14Filter === 'paused') items = items.filter(i => i.status !== 'active' && i.campaigns > 0);
+  else if (tt14Filter === 'paused') items = items.filter(i => i.status === 'inactive' && i.campaigns > 0);
   else if (tt14Filter === 'without_ads') items = items.filter(i => i.campaigns === 0 && i.obrat14 > 0);
 
   if (search) items = items.filter(i => (i.sku + ' ' + i.title).toLowerCase().includes(search));
@@ -5585,6 +5633,7 @@ async function o14Upload(file) {
     status.style.color = 'var(--green)';
     document.getElementById('o14Input').value = '';
     o14LoadData();
+    tt14UpdateObratInfo(); // Posodobi tudi TikTok tab
   } catch(e) {
     status.textContent = '✗ ' + e.message;
     status.style.color = 'var(--red)';
@@ -5620,6 +5669,7 @@ async function o14LoadData() {
       return;
     }
     o14Items = data.items || [];
+    window._o14Items = o14Items; // deli z TikTok tabom
     o14TargetAccounts = data.target_accounts || [];
 
     const info = document.getElementById('o14Info');
