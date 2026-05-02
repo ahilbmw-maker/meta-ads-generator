@@ -3643,6 +3643,7 @@ def _res_status(w, h):
     return "ok"
 
 
+@app.post("/analiza-ttkreative-upload")
 async def analiza_ttkreative_upload(file: UploadFile = File(...)):
     """Naloži TikTok Ad level XLSX z Video + Campaign name stolpci."""
     try:
