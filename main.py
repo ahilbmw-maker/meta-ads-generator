@@ -3459,19 +3459,17 @@ async def analiza_ttcreative_library_upload(file: UploadFile = File(...)):
             return None
 
         def extract_dims_from_str(s):
-            """Izvleče resolucijo iz stolpca ali video imena."""
-            m = _re.search(r'(\d{3,5})\s*[xX×]\s*(\d{3,5})', str(s or ''))
+            # Podpira: 576 * 1024, 720 X 1280, 720x1280
+            m = _re.search(r'(\d{3,5})\s*[*×xX]\s*(\d{3,5})', str(s or ''))
             if m:
                 w, h = int(m.group(1)), int(m.group(2))
-                # Ignoriraj očitno napačne vrednosti
-                if w > 100 and h > 100 and w < 10000 and h < 10000:
+                if 100 < w < 10000 and 100 < h < 10000:
                     return w, h
             return None, None
 
         def clean_video_name(v):
             v = str(v or '').strip()
             if not v or v == '-': return ''
-            # Odstrani leading hash
             parts = v.split(' ')
             if len(parts) > 1 and _re.match(r'^[a-f0-9]{32}$', parts[0]):
                 return ' '.join(parts[1:])
@@ -3479,16 +3477,16 @@ async def analiza_ttcreative_library_upload(file: UploadFile = File(...)):
 
         parsed = {}
         for row in data_rows:
-            # Poizkusi različne stolpce
-            video_raw = fcol(row, 'Video', 'Video name', 'Creative name', 'Ad name', 'video', 'Name')
+            # Podpira oba formata: 'Video'/'Creative Name'
+            video_raw = fcol(row, 'Creative Name', 'Video', 'video', 'Name', 'Ad name', 'Creative name')
             video_id = str(fcol(row, 'Video ID', 'Video material ID', 'video_id', 'ID') or '').strip()
-            res_col = fcol(row, 'Resolution', 'Video resolution', 'Dimension', 'Size', 'resolution')
+            res_col = fcol(row, 'Resolution', 'Video resolution', 'Dimension', 'Size')
 
             if not video_raw or str(video_raw).strip() in ('-', '', 'None'): continue
             video = clean_video_name(video_raw)
             if not video: continue
 
-            # Resolucija: najprej iz stolpca, potem iz video imena
+            # Resolucija: iz stolpca (npr. "576 * 1024") ali iz video imena
             w, h = extract_dims_from_str(res_col) if res_col else (None, None)
             if not w:
                 w, h = extract_dims_from_str(video_raw)
@@ -3582,11 +3580,12 @@ async def analiza_ttkreative_search(sku: str = ""):
             v = r.get('video', '').strip()
             if v:
                 cl_map[v] = r
-                # Preveri ali video ime vsebuje SKU (npr. ABPULLER19.mp4 → ABPULLER)
+                # Preveri ali video ime vsebuje SKU (npr. ABPULLER19.mp4, PILARAFIT (5).mp4)
                 import re as _re5
                 v_clean = _re5.sub(r'\.mp4$', '', v, flags=_re5.I)
+                v_clean = _re5.sub(r'\s*\(\d+\)$', '', v_clean).strip()  # odstrani (5), (1)
                 v_root = _re5.sub(r'\d+$', '', v_clean).upper().strip('_- ')
-                if v_root == search_root or v_clean.upper().startswith(search_root):
+                if v_root == search_root or v_clean.upper() == search_root or v_clean.upper().startswith(search_root):
                     if v not in ads_videos:
                         cl_sku_videos.append(v)
 
