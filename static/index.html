@@ -5561,17 +5561,24 @@ async function ttClUpload(file) {
 }
 
 async function ttKrLoadData() {
-  // Samo preveri status uploadov
-  const krSt = document.getElementById('ttKrStatus');
-  const clSt = document.getElementById('ttClStatus');
   try {
     const [kr, cl] = await Promise.all([
-      fetch('/analiza-ttkreative-data').then(r=>r.json()),
-      fetch('/analiza-ttcreative-library-data').then(r=>r.json()),
+      fetch('/analiza-ttkreative-data').then(r=>r.json()).catch(()=>({total:0})),
+      fetch('/analiza-ttcreative-library-data').then(r=>r.json()).catch(()=>({total:0})),
     ]);
-    if (kr.total > 0 && krSt) { krSt.style.display='block'; krSt.style.color='var(--green)'; krSt.textContent=`✓ ${kr.total} videov naloženih`; }
-    if (cl.total > 0 && clSt) { clSt.style.display='block'; clSt.style.color='var(--green)'; clSt.textContent=`✓ ${cl.total} videov iz Creative Library`; }
-  } catch(e) {}
+    const krSt = document.getElementById('ttKrStatus');
+    const clSt = document.getElementById('ttClStatus');
+    if (krSt && kr.total > 0) {
+      krSt.style.display='block';
+      krSt.style.color='var(--green)';
+      krSt.textContent=`✓ ${kr.total} videov naloženih (shranjeno)`;
+    }
+    if (clSt && cl.total > 0) {
+      clSt.style.display='block';
+      clSt.style.color='var(--green)';
+      clSt.textContent=`✓ ${cl.total} videov iz Creative Library (shranjeno)`;
+    }
+  } catch(e) { console.warn('ttKrLoadData', e); }
 }
 
 async function ttKrSearch() {
