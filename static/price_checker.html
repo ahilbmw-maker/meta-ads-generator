@@ -319,10 +319,30 @@
   <button class="filter-btn" onclick="taskFilter('resolved',null);this.classList.add('active')" style="color:var(--green)">✓ Urejeni</button>
 </div>
 
-<div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
-  <h3>📋 Povleci datoteko sem</h3>
-  <p>Ali klikni za izbiro .txt datoteke z naročili<br><br>
-  Podprti formati: tab-ločeni izvoz iz sistema (ID naročila, SKU, Izdelek, Zaloga, Cena, NC, Razlika, Marža, Trgovina)</p>
+<div id="dropZone" style="margin:24px 24px;display:flex;flex-direction:column;gap:12px">
+  <!-- PASTE AREA — primarna -->
+  <div style="background:#fff;border:1.5px solid var(--border2);border-radius:12px;padding:16px 20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:12px;font-weight:600;color:var(--text)">📋 Prilepi vrstice iz sistema</span>
+      <button onclick="pasteAreaProcess()" style="background:var(--accent);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)">Analiziraj ↗</button>
+    </div>
+    <textarea id="pasteArea"
+      placeholder="Prilepi (Ctrl+V) vrstice naročil sem — enaka struktura kot .txt izvoz iz sistema&#10;&#10;Primer:&#10;2694793	GREASRA	Adapter za mast LubeSharp	116	1.399,00 RSD - 2x	1,39	8,49	611,03	Maaarket.RS"
+      oninput="pasteAreaAutoProcess(this)"
+      style="width:100%;min-height:120px;padding:10px 12px;background:#f8fafd;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:var(--font);color:var(--text);resize:vertical;outline:none;line-height:1.5;box-sizing:border-box"
+      onpaste="setTimeout(()=>pasteAreaAutoProcess(this),50)"
+    ></textarea>
+    <div id="pasteStatus" style="font-size:11px;color:var(--muted);margin-top:6px;display:none"></div>
+  </div>
+  <!-- ALI file upload -->
+  <div style="display:flex;align-items:center;gap:12px;padding:0 4px">
+    <div style="flex:1;height:1px;background:var(--border)"></div>
+    <span style="font-size:11px;color:var(--muted)">ali naloži datoteko</span>
+    <div style="flex:1;height:1px;background:var(--border)"></div>
+  </div>
+  <div onclick="document.getElementById('fileInput').click()" style="background:#f8fafd;border:1.5px dashed var(--border2);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)'">
+    <span style="font-size:13px;color:var(--muted)">📂 Klikni za izbiro .txt datoteke</span>
+  </div>
 </div>
 
 <div class="table-wrap" id="tableWrap" style="display:none">
@@ -362,7 +382,46 @@ let currentCurrency = 'all';
 let currentSearch = '';
 let sortCol = null;
 let sortDir = 1;
-let selectedKeys = new Set(); // 'id|sku' za vsako označeno vrstico
+let selectedKeys = new Set();
+
+function pasteAreaProcess() {
+  const ta = document.getElementById('pasteArea');
+  const text = ta?.value?.trim();
+  if (!text) return;
+  const rows = parseFile(text);
+  if (!rows.length) {
+    const st = document.getElementById('pasteStatus');
+    if (st) { st.style.display='block'; st.style.color='var(--red)'; st.textContent='⚠ Ni veljavnih vrstic — preveri format.'; }
+    return;
+  }
+  // Merge z obstoječimi
+  const existing = new Map(allRows.map(r => [r.id+'|'+r.sku, r]));
+  let added = 0;
+  rows.forEach(r => {
+    const key = r.id+'|'+r.sku;
+    if (!existing.has(key)) { existing.set(key, r); added++; }
+  });
+  allRows = Array.from(existing.values());
+  // Ohrani resolved stanje
+  try {
+    const stored = JSON.parse(localStorage.getItem('price_checker_resolved')||'{}');
+    allRows.forEach(r => { if (stored[r.id+'|'+r.sku]) r.resolved = true; });
+  } catch(e) {}
+  saveTableToStorage();
+  updateStats(allRows);
+  renderTable(allRows);
+  document.getElementById('dropZone').style.display = 'none';
+  const st = document.getElementById('pasteStatus');
+  if (st) { st.style.display='block'; st.style.color='var(--green)'; st.textContent=`✓ ${rows.length} vrstic naloženih${added < rows.length ? ', '+( rows.length-added)+' podvojenih preskočenih' : ''}`; }
+}
+
+function pasteAreaAutoProcess(ta) {
+  const lines = (ta.value||'').split('\n').filter(l => l.trim() && /\d{7}/.test(l));
+  const st = document.getElementById('pasteStatus');
+  if (lines.length > 0) {
+    if (st) { st.style.display='block'; st.style.color='var(--muted)'; st.textContent=`${lines.length} vrstic zaznanih — pritisni Analiziraj ali Enter`; }
+  }
+} // 'id|sku' za vsako označeno vrstico
 
 // ============ PRICE RULES ============
 
@@ -811,8 +870,7 @@ function updateStats(rows) {
   document.getElementById('taskBar').style.display = 'flex';
   document.getElementById('filtersBar').style.display = 'flex';
   document.getElementById('tableWrap').style.display = 'block';
-  document.getElementById('dropZone').style.display = 'none';
-}
+  document.getElementById('dropZone').style.display = 'none';}
 
 function taskFilter(f, card) {
   // Posodobi aktivno kartico
@@ -1253,17 +1311,25 @@ function multiClearResolved() {
 function clearTable() {
   if (!confirm('Zbriši cel seznam? Vseh urejenih oznak bo izgubljeno.')) return;
   allRows = [];
+  selectedKeys.clear();
   try {
     localStorage.removeItem('price_checker_resolved');
     localStorage.removeItem('price_checker_table');
   } catch(e) {}
   document.getElementById('tableBody').innerHTML = '';
-  document.getElementById('statsBar').style.display = 'none';
+  document.getElementById('taskBar').style.display = 'none';
   document.getElementById('filtersBar').style.display = 'none';
   document.getElementById('tableWrap').style.display = 'none';
+  document.getElementById('multiView').style.display = 'none';
   document.getElementById('dropZone').style.display = 'flex';
+  document.getElementById('dropZone').style.flexDirection = 'column';
+  const pa = document.getElementById('pasteArea');
+  if (pa) pa.value = '';
+  const ps = document.getElementById('pasteStatus');
+  if (ps) ps.style.display = 'none';
   document.getElementById('searchInput').value = '';
   currentFilter = 'all';
+  currentCurrency = 'all';
   currentSearch = '';
 }
 
