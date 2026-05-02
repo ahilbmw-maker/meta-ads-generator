@@ -3244,6 +3244,7 @@ async def tiktok_creative_info():
         return {"loaded": False}
 
 
+TIKTOK_ADS_FILE = DATA_DIR / "tiktok_ads_report.csv"
 TIKTOK_ADS_META = DATA_DIR / "tiktok_ads_meta.json"
 
 @app.post("/analiza-tiktok-upload")
