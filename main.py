@@ -11,11 +11,14 @@ from urllib.parse import urlparse
 from pathlib import Path
 
 import httpx
-import openpyxl
+try:
+    import openpyxl
+except ImportError:
+    openpyxl = None
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from pydantic import BaseModel
 import anthropic
 
