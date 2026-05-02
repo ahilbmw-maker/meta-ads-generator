@@ -3138,6 +3138,168 @@ async def orodja_stock_data():
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+# ─── ANALIZA: TikTok Ads upload ──────────────────────────────────────────────
+
+TIKTOK_ADS_FILE = DATA_DIR / "tiktok_ads_report.csv"
+TIKTOK_ADS_META = DATA_DIR / "tiktok_ads_meta.json"
+
+@app.post("/analiza-tiktok-upload")
+async def analiza_tiktok_upload(file: UploadFile = File(...)):
+    """Naloži TikTok XLSX/CSV Campaign Report."""
+    try:
+        content = await file.read()
+        fname = file.filename or ""
+
+        # Preberi XLSX ali CSV
+        import io
+        if fname.endswith('.xlsx') or fname.endswith('.xls'):
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+            ws = wb.active
+            rows_raw = list(ws.iter_rows(values_only=True))
+            if not rows_raw: return JSONResponse({"error": "Prazna datoteka."}, status_code=400)
+            headers = [str(h).strip() if h else '' for h in rows_raw[0]]
+            data_rows = [dict(zip(headers, row)) for row in rows_raw[1:] if any(r is not None for r in row)]
+        else:
+            import csv as _csv
+            text = content.decode('utf-8-sig', errors='replace')
+            sep = ';' if text.split('\n')[0].count(';') > text.split('\n')[0].count(',') else ','
+            reader = _csv.DictReader(io.StringIO(text), delimiter=sep)
+            data_rows = list(reader)
+
+        # Kolone za TikTok
+        def fcol(row, *candidates):
+            for c in candidates:
+                for k in row.keys():
+                    if k.strip().lower() == c.lower():
+                        return row[k]
+            return None
+
+        parsed = []
+        for row in data_rows:
+            campaign = str(fcol(row, 'Campaign name', 'campaign_name') or '').strip()
+            if not campaign: continue
+            status = str(fcol(row, 'Primary status', 'Status', 'status') or '').strip().lower()
+            spend_raw = fcol(row, 'Cost', 'Spend', 'cost', 'spend')
+            conv_raw = fcol(row, 'Conversions', 'conversions', 'Cost per conversion')
+            cpc_raw = fcol(row, 'CPC (destination)', 'CPC')
+
+            try: spend = float(str(spend_raw).replace(',', '.')) if spend_raw else 0
+            except: spend = 0
+            try: conversions = float(str(conv_raw).replace(',', '.')) if conv_raw else 0
+            except: conversions = 0
+
+            # Izvleci SKU iz campaign name — vzorec: [Maaarket] Smart+ SKU ...
+            import re
+            sku = ''
+            m = re.search(r'Smart\+\s+([A-Z0-9_]+)', campaign, re.IGNORECASE)
+            if m: sku = smart_root(m.group(1).strip())
+            else:
+                # Splošno: vzemi zadnji ALL-CAPS blok
+                words = campaign.split()
+                for w in words:
+                    cleaned = re.sub(r'[^A-Z0-9_]', '', w.upper())
+                    if len(cleaned) >= 3 and cleaned not in {'ALL','SMART','ADS','TT','TIKTOK','NEW','OLD'}:
+                        sku = smart_root(cleaned)
+                        break
+
+            parsed.append({
+                'campaign': campaign, 'sku': sku.upper(),
+                'status': 'active' if 'active' in status else 'inactive',
+                'spend': spend, 'conversions': conversions,
+                'currency': str(fcol(row, 'Currency', 'currency') or 'EUR').strip(),
+            })
+
+        if not parsed:
+            return JSONResponse({"error": "Ni veljavnih kampanj v datoteki."}, status_code=400)
+
+        # Shrani — accumulate (merge po campaign imenu)
+        import csv as _csv2
+        existing = {}
+        if TIKTOK_ADS_FILE.exists():
+            t = TIKTOK_ADS_FILE.read_text(encoding='utf-8-sig', errors='replace')
+            for row in _csv2.DictReader(io.StringIO(t)):
+                existing[row['campaign']] = row
+
+        for row in parsed:
+            existing[row['campaign']] = row
+
+        out = io.StringIO()
+        fieldnames = ['campaign', 'sku', 'status', 'spend', 'conversions', 'currency']
+        writer = _csv2.DictWriter(out, fieldnames=fieldnames, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(existing.values())
+        TIKTOK_ADS_FILE.write_text(out.getvalue(), encoding='utf-8')
+
+        # Meta
+        meta = {}
+        if TIKTOK_ADS_META.exists():
+            try: meta = json.loads(TIKTOK_ADS_META.read_text(encoding='utf-8'))
+            except: pass
+        uploads = meta.get('uploads', [])
+        uploads.append({'filename': fname, 'rows': len(parsed), 'uploaded_at': __import__('datetime').datetime.now().isoformat()})
+        TIKTOK_ADS_META.write_text(json.dumps({'uploads': uploads}, ensure_ascii=False), encoding='utf-8')
+
+        return {"ok": True, "rows": len(existing), "new": len(parsed)}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/analiza-tiktok-data")
+async def analiza_tiktok_data():
+    """Vrne TikTok kampanje z zalogo."""
+    if not TIKTOK_ADS_FILE.exists():
+        return JSONResponse({"error": "Naloži TikTok poročilo."}, status_code=400)
+    try:
+        import csv as _csv3, io as _io3
+        text = TIKTOK_ADS_FILE.read_text(encoding='utf-8-sig', errors='replace')
+        rows = list(_csv3.DictReader(_io3.StringIO(text)))
+
+        # Dodaj zalogo iz stock CSV
+        stock_map = {}
+        if STOCK_CSV_FILE.exists():
+            st = STOCK_CSV_FILE.read_text(encoding='utf-8-sig', errors='replace')
+            sep = ';' if st.split('\n')[0].count(';') > st.split('\n')[0].count(',') else ','
+            for r in _csv3.DictReader(_io3.StringIO(st), delimiter=sep):
+                sku = (r.get('product_sku') or r.get('sku') or '').strip().upper()
+                if sku:
+                    stock_map[sku] = {
+                        'stock': int(float(r.get('stock', 0) or 0)),
+                        'stock30': int(float(r.get('stock30', 0) or 0)),
+                        'title': r.get('title', ''),
+                    }
+
+        items = []
+        for r in rows:
+            sku = (r.get('sku') or '').strip().upper()
+            root = smart_root(sku).upper() if sku else ''
+            st_data = stock_map.get(sku) or stock_map.get(root) or {}
+            items.append({
+                'campaign': r.get('campaign', ''),
+                'sku': sku,
+                'title': st_data.get('title', ''),
+                'status': r.get('status', 'inactive'),
+                'spend': float(r.get('spend', 0) or 0),
+                'conversions': float(r.get('conversions', 0) or 0),
+                'currency': r.get('currency', 'EUR'),
+                'stock': st_data.get('stock', 0),
+                'stock30': st_data.get('stock30', 0),
+            })
+
+        meta = {}
+        if TIKTOK_ADS_META.exists():
+            try: meta = json.loads(TIKTOK_ADS_META.read_text(encoding='utf-8'))
+            except: pass
+
+        return {"items": items, "total": len(items), **meta}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/analiza-tiktok-clear")
+async def analiza_tiktok_clear():
+    if TIKTOK_ADS_FILE.exists(): TIKTOK_ADS_FILE.unlink()
+    if TIKTOK_ADS_META.exists(): TIKTOK_ADS_META.unlink()
+    return {"ok": True}
+
 # ─── ANALIZA: Meta Ads CSV upload ──────────────────────────────────────────────
 
 META_ADS_FILE = DATA_DIR / "meta_ads_report.csv"
