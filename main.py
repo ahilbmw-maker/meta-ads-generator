@@ -3687,9 +3687,6 @@ async def analiza_ttkreative_upload(file: UploadFile = File(...)):
             video_raw = fcol(row, 'Video', 'video')
             if not video_raw or str(video_raw).strip() in ('-', '', 'None'): continue
 
-            video = clean_video_name(video_raw)
-            if not video: continue
-
             # SKU iz campaign name
             m = _re.search(r'Smart\+\s+([A-Z0-9_]+)', campaign, _re.I)
             if m: sku = smart_root(m.group(1)).upper()
@@ -3704,13 +3701,22 @@ async def analiza_ttkreative_upload(file: UploadFile = File(...)):
             try: conversions = float(str(fcol(row, 'Conversions') or 0).replace(',', '.'))
             except: conversions = 0
 
-            w, h = extract_dims(video_raw)
-            parsed.append({
-                'sku': sku, 'video': video,
-                'w': w or '', 'h': h or '',
-                'cost': cost, 'conversions': conversions,
-                'status': status, 'campaign': campaign,
-            })
+            # Razdeli po vejici — en oglas ima lahko več videov
+            raw_str = str(video_raw).strip()
+            video_parts = [v.strip() for v in raw_str.split(',') if v.strip() and v.strip() != '-']
+
+            for vp in video_parts:
+                video = clean_video_name(vp)
+                if not video: continue
+                w, h = extract_dims(vp)
+                # Cost/conversions delimo enakomerno med videote
+                n = len(video_parts)
+                parsed.append({
+                    'sku': sku, 'video': video,
+                    'w': w or '', 'h': h or '',
+                    'cost': round(cost / n, 4), 'conversions': round(conversions / n, 4),
+                    'status': status, 'campaign': campaign,
+                })
 
         if not parsed:
             return JSONResponse({"error": "Ni veljavnih videov v datoteki."}, status_code=400)
