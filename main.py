@@ -1128,6 +1128,30 @@ async def generate_kreative(data: dict):
     if not gemini_key:
         return {"error": "GEMINI_API_KEY ni nastavljen v Render environment variables."}
 
+    # ── GEMINI FILE URI CACHE ──────────────────────────────────────────────────
+    # Gemini Files API vrne URI ki velja 48h — cachiramo na disk da ne uploadamo vsakič
+    import hashlib, json as _json, time as _time
+    GEMINI_CACHE_FILE = DATA_DIR / "gemini_file_cache.json"
+
+    def _load_cache():
+        try:
+            if GEMINI_CACHE_FILE.exists():
+                return _json.loads(GEMINI_CACHE_FILE.read_text(encoding="utf-8"))
+        except: pass
+        return {}
+
+    def _save_cache(cache):
+        try: GEMINI_CACHE_FILE.write_text(_json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+        except: pass
+
+    def _img_hash(b64_data):
+        # Hash samo prvih 2000 znakov (dovolj za unikatnost, hitro)
+        return hashlib.md5(b64_data[:2000].encode()).hexdigest()
+
+    gemini_cache = _load_cache()
+    now_ts = _time.time()
+    cache_updated = False
+
     # Build combinations
     combos = []
     for a in a_options:
@@ -1146,11 +1170,11 @@ async def generate_kreative(data: dict):
             })
 
     # Prepare reference image parts for Gemini
-    # Upload referenčne slike enkrat na Gemini Files API (ne pošiljamo base64 v vsak klic)
+    # Upload referenčne slike enkrat na Gemini Files API — z 48h cache
     file_uris = []
     if ref_images:
         async with httpx.AsyncClient(timeout=60.0) as hc:
-            for img_data in ref_images[:4]:  # max 4 referenčne slike
+            for img_data in ref_images:  # vse referenčne slike, cache poskrbi za optimizacijo
                 try:
                     if "," in img_data:
                         header, b64 = img_data.split(",", 1)
@@ -1158,6 +1182,16 @@ async def generate_kreative(data: dict):
                     else:
                         b64 = img_data
                         mime = "image/jpeg"
+
+                    # Preveri cache — če URI še velja (< 46h star), preskoči upload
+                    img_key = _img_hash(b64)
+                    cached = gemini_cache.get(img_key)
+                    if cached and (now_ts - cached.get("ts", 0)) < 46 * 3600:
+                        # Cache hit — ne uploadamo znova
+                        file_uris.append({"fileData": {"mimeType": cached["mime"], "fileUri": cached["uri"]}})
+                        continue
+
+                    # Cache miss — uploadaj
                     img_bytes = __import__("base64").b64decode(b64)
                     upload_url = f"https://generativelanguage.googleapis.com/upload/v1beta/files?key={gemini_key}"
                     resp = await hc.post(
@@ -1170,8 +1204,14 @@ async def generate_kreative(data: dict):
                         uri = resp.json().get("file", {}).get("uri", "")
                         if uri:
                             file_uris.append({"fileData": {"mimeType": mime, "fileUri": uri}})
+                            # Shrani v cache
+                            gemini_cache[img_key] = {"uri": uri, "mime": mime, "ts": now_ts}
+                            cache_updated = True
                 except Exception:
                     continue
+
+        if cache_updated:
+            _save_cache(gemini_cache)
 
     # Fallback: če Files API ne dela, uporabi inline za prvo sliko
     if file_uris:
