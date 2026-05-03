@@ -7,3 +7,4 @@ openpyxl
 pdfplumber
 imageio[ffmpeg]
 static-ffmpeg
+reportlab
