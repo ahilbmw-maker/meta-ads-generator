@@ -1940,7 +1940,7 @@ input[type="text"].error { border-color: var(--red) !important; }
 
         <!-- Sticky header tabele -->
         <div id="zalogaHeaderWrap" style="background:var(--bg);padding-top:4px;display:none">
-          <div style="display:grid;grid-template-columns:70px 120px 2fr 80px 70px 80px 110px 1fr;gap:8px;padding:9px 14px;background:var(--bg-secondary);border-radius:var(--radius);font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid var(--border);cursor:pointer;user-select:none">
+          <div style="display:grid;grid-template-columns:70px 160px 1.2fr 80px 70px 80px 110px 1fr;gap:8px;padding:9px 14px;background:var(--bg-secondary);border-radius:var(--radius);font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid var(--border);cursor:pointer;user-select:none">
             <span onclick="zalogaSortBy('product_id')">ID <span id="zSort-product_id">↕</span></span>
             <span onclick="zalogaSortBy('product_sku')">SKU <span id="zSort-product_sku">↕</span></span>
             <span onclick="zalogaSortBy('title')">Naziv <span id="zSort-title">↕</span></span>
@@ -7401,7 +7401,7 @@ function zalogaRender() {
   if (headerWrap) headerWrap.style.display = 'block';
   empty.style.display = 'none';
 
-  const GRID = '70px 120px 2fr 80px 70px 80px 110px 1fr';
+  const GRID = '70px 160px 1.2fr 80px 70px 80px 110px 1fr';
 
   tableEl.innerHTML = items.map(it => {
     const stock = parseInt(it.stock) || 0;
