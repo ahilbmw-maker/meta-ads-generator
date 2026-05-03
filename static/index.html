@@ -5981,10 +5981,10 @@ function tt14RenderTable() {
 
   tableEl.innerHTML = header + items.map(it => {
     const statusBadge = it.status === 'active'
-      ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#22c55e;color:#fff;font-size:10px;padding:3px 8px;border-radius:5px;font-weight:700">▶ ${it.active_campaigns}/${it.campaigns}</span>`
+      ? `<span style="display:inline-flex;align-items:center;justify-content:center;gap:3px;background:#639922;color:#fff;font-size:11px;padding:4px 10px;border-radius:5px;font-weight:700;min-width:52px">✓ <span style="font-size:10px;opacity:0.9">(${it.active_campaigns}/${it.campaigns})</span></span>`
       : it.campaigns > 0
-      ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#f59e0b;color:#fff;font-size:10px;padding:3px 8px;border-radius:5px;font-weight:700">⏸ ${it.campaigns}</span>`
-      : `<span style="display:inline-flex;align-items:center;background:var(--surface2);color:var(--text-tertiary);font-size:10px;padding:3px 8px;border-radius:5px">—</span>`;
+      ? `<span style="display:inline-flex;align-items:center;justify-content:center;gap:3px;background:#EF9F27;color:#fff;font-size:13px;padding:4px 10px;border-radius:5px;font-weight:700;min-width:52px">⏸ <span style="font-size:10px;opacity:0.9">(${it.campaigns})</span></span>`
+      : `<span style="display:inline-flex;align-items:center;justify-content:center;background:var(--surface2);color:var(--text-tertiary);font-size:12px;padding:4px 10px;border-radius:5px;border:1px solid var(--border);min-width:52px">—</span>`;
     const obratColor = it.obrat14 > 10 ? 'var(--green)' : it.obrat14 > 3 ? '#d97706' : it.obrat14 > 0 ? 'var(--red)' : 'var(--text-tertiary)';
     const stockColor = it.stock > 50 ? 'var(--green)' : it.stock > 10 ? '#d97706' : it.stock > 0 ? 'var(--red)' : 'var(--text-tertiary)';
 
