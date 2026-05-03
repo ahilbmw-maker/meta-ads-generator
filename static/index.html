@@ -452,19 +452,25 @@ input[type="text"].error { border-color: var(--red) !important; }
     border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px;
   }
   .home-section-label:before { content:''; flex:1; }
-  .home-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:24px; }
+  .home-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:28px; }
   .home-tile {
-    background:var(--surface); border:1px solid var(--border); border-radius:10px;
-    padding:14px 16px; cursor:pointer; transition:all 0.15s;
-    display:flex; flex-direction:column; gap:4px; border-left:3px solid transparent;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:18px 18px 14px; cursor:pointer; transition:all 0.15s;
+    display:flex; flex-direction:column; gap:3px; border-left:4px solid transparent;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04);
   }
-  .home-tile:hover { border-color:var(--border); background:var(--surface2); transform:translateY(-1px); }
-  .home-tile .ht-icon { font-size:18px; margin-bottom:4px; }
-  .home-tile .ht-name { font-size:13px; font-weight:600; color:var(--text); }
-  .home-tile .ht-desc { font-size:11px; color:var(--text-secondary); }
-  .home-tile .ht-pills { display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; }
-  .home-pill { font-size:9px; padding:2px 7px; border-radius:10px; font-weight:600; transition:all 0.12s; }
-  .home-pill:hover { background:var(--accent) !important; color:#fff !important; }
+  .home-tile:hover { border-color:var(--border); background:var(--surface2); transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+  .home-tile .ht-icon { font-size:22px; margin-bottom:6px; }
+  .home-tile .ht-name { font-size:14px; font-weight:700; color:var(--text); }
+  .home-tile .ht-desc { font-size:11px; color:var(--text-secondary); margin-bottom:2px; }
+  .home-tile .ht-pills { display:flex; gap:5px; flex-wrap:wrap; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+  .home-pill {
+    font-size:10px; padding:4px 10px; border-radius:6px; font-weight:600;
+    transition:all 0.12s; border:1px solid var(--border);
+    background:var(--surface2); color:var(--text-secondary);
+    cursor:pointer; white-space:nowrap;
+  }
+  .home-pill:hover { background:var(--accent) !important; color:#fff !important; border-color:var(--accent) !important; }
 </style>
 </head>
 <body>
@@ -543,6 +549,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('meta')">Meta Ads</div>
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('obrat14')">Obrat 14 dni (FB)</div>
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('obrat14tt')">Obrat 14 dni (TikTok)</div>
+    <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('ttkreative')">TikTok Kreative</div>
   </div>
 
   <div class="nav-item nav-forecast" id="nav-forecast" onclick="switchPage('forecast')">
@@ -565,6 +572,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div class="nav-sub-item" onclick="switchPage('orodja');switchOrodjaTab('hsuvoz')">HS+ naročanje</div>
     <div class="nav-sub-item" onclick="switchPage('orodja');switchOrodjaTab('pricecheck')">Kontrola cen</div>
     <div class="nav-sub-item" onclick="switchPage('orodja');switchOrodjaTab('zdrnarocila')">Zdru. naročila</div>
+    <div class="nav-sub-item" onclick="switchPage('orodja');switchOrodjaTab('inventura')">📦 Inventura</div>
   </div>
 
   <div class="nav-item nav-zaloga" id="nav-zaloga" onclick="switchPage('zaloga')">
@@ -634,8 +642,8 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div class="ht-name">Urejevalnik cen</div>
             <div class="ht-desc">Cene po državah</div>
             <div class="ht-pills">
-              <span class="home-pill" style="background:var(--surface2);color:var(--text-secondary);cursor:pointer" onclick="event.stopPropagation();switchPage('calc');switchCalcTab('pricecheck')">↗ Price Checker</span>
-              <span class="home-pill" style="background:var(--surface2);color:var(--text-secondary);cursor:pointer" onclick="event.stopPropagation();switchPage('calc');switchCalcTab('calc')">↗ Kalkulator</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('calc');switchCalcTab('pricecheck')">↗ Price Checker</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('calc');switchCalcTab('calc')">↗ Kalkulator</span>
             </div>
           </div>
           <div class="home-tile" style="border-left-color:#f59e0b" onclick="switchPage('analiza')">
@@ -643,9 +651,10 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div class="ht-name">Analiza</div>
             <div class="ht-desc">Meta Ads podatki</div>
             <div class="ht-pills">
-              <span class="home-pill" style="background:var(--surface2);color:var(--text-secondary);cursor:pointer" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('meta')">↗ Meta Ads</span>
-              <span class="home-pill" style="background:var(--surface2);color:var(--text-secondary);cursor:pointer" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14')">↗ Obrat 14d (FB)</span>
-              <span class="home-pill" style="background:var(--surface2);color:var(--text-secondary);cursor:pointer" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14tt')">↗ Obrat 14d (TT)</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('meta')">↗ Meta Ads</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14')">↗ Obrat 14d (FB)</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14tt')">↗ Obrat 14d (TT)</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('ttkreative')">↗ TikTok Kreative</span>
             </div>
           </div>
           <div class="home-tile" style="border-left-color:#f97316" onclick="switchPage('forecast')">
@@ -664,10 +673,11 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div class="ht-name">Orodja</div>
             <div class="ht-desc">Uvoz, HS+, naročila</div>
             <div class="ht-pills">
-              <span class="home-pill" style="background:var(--surface2);color:var(--text-secondary);cursor:pointer" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('hsuvoz')">↗ HS+ naročanje</span>
-              <span class="home-pill" style="background:var(--surface2);color:var(--text-secondary);cursor:pointer" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('zdrnarocila')">↗ Zdru. naročila</span>
-              <span class="home-pill" style="background:var(--surface2);color:var(--text-secondary);cursor:pointer" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('csv')">↗ Ikonka uvoz</span>
-              <span class="home-pill" style="background:var(--surface2);color:var(--text-secondary);cursor:pointer" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('hs')">↗ Uvoz HS+</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('hsuvoz')">↗ HS+ naročanje</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('zdrnarocila')">↗ Zdru. naročila</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('csv')">↗ Ikonka uvoz</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('hs')">↗ Uvoz HS+</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('inventura')">↗ Inventura</span>
             </div>
           </div>
           <div class="home-tile" style="border-left-color:#64748b" onclick="switchPage('zaloga')">
@@ -680,8 +690,8 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div class="ht-name">Naročilnice</div>
             <div class="ht-desc">Upravljanje naročilnic</div>
             <div class="ht-pills">
-              <span class="home-pill" style="background:var(--surface2);color:var(--text-secondary);cursor:pointer" onclick="event.stopPropagation();switchPage('narocilnice');narcSwitchTab('razlike')">↗ Negativne razlike</span>
-              <span class="home-pill" style="background:var(--surface2);color:var(--text-secondary);cursor:pointer" onclick="event.stopPropagation();switchPage('narocilnice');narcSwitchTab('karantena')">↗ Karantena</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('narocilnice');narcSwitchTab('razlike')">↗ Negativne razlike</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('narocilnice');narcSwitchTab('karantena')">↗ Karantena</span>
             </div>
           </div>
         </div>
