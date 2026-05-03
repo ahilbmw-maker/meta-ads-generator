@@ -4810,6 +4810,17 @@ DEJAVU_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 DEJAVU_BOLD    = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
 
+def inventura_cleanup():
+    """Zbriše PDF-je starejše od 30 dni."""
+    try:
+        cutoff = datetime.now().timestamp() - (30 * 86400)
+        for f in INVENTURA_DIR.glob("*.pdf"):
+            if f.stat().st_mtime < cutoff:
+                f.unlink()
+    except Exception as e:
+        print(f"[inventura] cleanup err: {e}")
+
+
 @app.post("/inventura-upload")
 async def inventura_upload(file: UploadFile = File(...)):
     """Sprejme CSV izvoz, združi po SKU, vrne seznam."""
@@ -4831,7 +4842,6 @@ async def inventura_upload(file: UploadFile = File(...)):
 
         sku_col = fc("sku", "SKU")
         naz_col = fc("naziv", "name", "Naziv")
-        qty_col = fc("količina", "kolicina", "qty", "Količina")
         pos_col = fc("pozicija", "position", "Pozicija")
 
         if not sku_col:
@@ -4857,11 +4867,12 @@ async def inventura_upload(file: UploadFile = File(...)):
 
 @app.post("/inventura-pdf")
 async def inventura_pdf(data: dict):
-    """Generira PDF inventurni list z DejaVu fontom (unicode podpora)."""
+    """Generira PDF inventurni list z DejaVu fontom, shrani v zgodovino."""
     try:
         items = data.get("items", [])
         title_text = data.get("title", "Inventurni list")
         datum = data.get("datum", datetime.now().strftime("%d. %m. %Y"))
+        filename_hint = data.get("filename", f"inventura_{datetime.now().strftime('%Y-%m-%d_%H-%M')}")
         if not items:
             return JSONResponse({"error": "Ni postavk."}, status_code=400)
 
@@ -4869,19 +4880,16 @@ async def inventura_pdf(data: dict):
         from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.styles import ParagraphStyle
         from reportlab.lib.units import cm
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
 
-        # Registriraj DejaVu font za unicode podporo
         pdfmetrics.registerFont(TTFont("DejaVu", DEJAVU_REGULAR))
         pdfmetrics.registerFont(TTFont("DejaVu-Bold", DEJAVU_BOLD))
 
         def trunc(s, max_chars):
-            """Skrajšaj naziv — samo prva poved, max znakov."""
             if not s: return ""
-            # Vzemi samo do prve vejice ali oklepaja
             for sep in [",", "(", " -"]:
                 idx = s.find(sep)
                 if 0 < idx < max_chars:
@@ -4908,24 +4916,17 @@ async def inventura_pdf(data: dict):
             Paragraph(f"Datum: {datum}  |  Skupaj SKU-jev: {len(items)}", s_sub),
         ]
 
-        # Stolpci: # | SKU | Naziv (skrajšan) | Pozicija | Komentar | Fizično ✓
         col_widths = [0.6*cm, 3.6*cm, 6.5*cm, 2.0*cm, 3.8*cm, 1.9*cm]
         table_data = [[
-            Paragraph("#", s_hdr),
-            Paragraph("SKU", s_hdr),
-            Paragraph("Naziv", s_hdr),
-            Paragraph("Pozicija", s_hdr),
-            Paragraph("Komentar", s_hdr),
-            Paragraph("Fizično ✓", s_hdr),
+            Paragraph("#", s_hdr), Paragraph("SKU", s_hdr), Paragraph("Naziv", s_hdr),
+            Paragraph("Pozicija", s_hdr), Paragraph("Komentar", s_hdr), Paragraph("Fizično ✓", s_hdr),
         ]]
-
         for i, it in enumerate(items, 1):
-            naziv_short = trunc(str(it.get("naziv") or ""), 55)
             komentar = str(it.get("komentar") or "").strip()
             table_data.append([
                 Paragraph(str(i), s_cell),
                 Paragraph(str(it.get("sku") or ""), s_sku),
-                Paragraph(naziv_short, s_cell),
+                Paragraph(trunc(str(it.get("naziv") or ""), 55), s_cell),
                 Paragraph(str(it.get("pozicija") or "—"), s_cell),
                 Paragraph(komentar, s_kom) if komentar else Paragraph("", s_cell),
                 Paragraph("", s_cell),
@@ -4958,12 +4959,49 @@ async def inventura_pdf(data: dict):
             ParagraphStyle("f", fontSize=7, fontName="DejaVu",
                            textColor=colors.HexColor("#94a3b8"))
         ))
-
         doc.build(story)
+
+        # Shrani v zgodovino
+        inventura_cleanup()
+        ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        save_name = f"{filename_hint}_{ts}.pdf" if not filename_hint.endswith(".pdf") else f"{filename_hint[:-4]}_{ts}.pdf"
+        pdf_path = INVENTURA_DIR / save_name
         buf.seek(0)
-        ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        pdf_path.write_bytes(buf.read())
+
+        buf.seek(0)
         return StreamingResponse(buf, media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename=inventura_{ts}.pdf"})
+            headers={"Content-Disposition": f"attachment; filename={save_name}"})
     except Exception as e:
         import traceback; traceback.print_exc()
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/inventura-history")
+async def inventura_history():
+    """Vrne seznam shranjenih inventur (30 dni)."""
+    inventura_cleanup()
+    items = []
+    try:
+        for f in sorted(INVENTURA_DIR.glob("*.pdf"), key=lambda x: x.stat().st_mtime, reverse=True):
+            stat = f.stat()
+            items.append({
+                "filename": f.name,
+                "size": stat.st_size,
+                "skus": 0,  # ne shranjujemo SKU count osobej
+                "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+            })
+    except Exception as e:
+        print(f"[inventura] history err: {e}")
+    return {"items": items[:50]}
+
+
+@app.get("/inventura-history-download/{filename}")
+async def inventura_history_download(filename: str):
+    """Prenesi PDF iz zgodovine."""
+    if "/" in filename or "\\" in filename or ".." in filename:
+        return JSONResponse({"error": "Neveljavno ime."}, status_code=400)
+    f = INVENTURA_DIR / filename
+    if not f.exists():
+        return JSONResponse({"error": "Datoteka ne obstaja."}, status_code=404)
+    return FileResponse(str(f), filename=filename, media_type="application/pdf")
