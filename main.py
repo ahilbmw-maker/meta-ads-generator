@@ -4921,12 +4921,12 @@ async def inventura_pdf(data: dict):
         s_title = ParagraphStyle("t", fontSize=14, fontName="DejaVu-Bold", spaceAfter=4)
         s_sub   = ParagraphStyle("s", fontSize=9,  fontName="DejaVu",
                                  textColor=colors.HexColor("#64748b"), spaceAfter=12)
-        s_num   = ParagraphStyle("n", fontSize=8,  fontName="DejaVu",   leading=10, alignment=1)
-        s_cell  = ParagraphStyle("c", fontSize=8,  fontName="DejaVu",   leading=10)
-        s_sku   = ParagraphStyle("k", fontSize=8,  fontName="DejaVu-Bold", leading=10)
-        s_kom   = ParagraphStyle("m", fontSize=8,  fontName="DejaVu",
+        s_num   = ParagraphStyle("n", fontSize=7.5, fontName="DejaVu",   leading=10, alignment=1)
+        s_cell  = ParagraphStyle("c", fontSize=7.5, fontName="DejaVu",   leading=10)
+        s_sku   = ParagraphStyle("k", fontSize=7.5, fontName="DejaVu-Bold", leading=10)
+        s_kom   = ParagraphStyle("m", fontSize=7.5, fontName="DejaVu",
                                  textColor=colors.HexColor("#7c3aed"), leading=10)
-        s_hdr   = ParagraphStyle("h", fontSize=8,  fontName="DejaVu-Bold",
+        s_hdr   = ParagraphStyle("h", fontSize=7.5, fontName="DejaVu-Bold",
                                  textColor=colors.white, leading=10, alignment=1)
 
         story = [
@@ -4936,10 +4936,10 @@ async def inventura_pdf(data: dict):
 
         # Širine: # | SKU | Naziv | Pozicija | Komentar | Fizično ✓
         # Skupaj = 18.0 cm (A4 - 3cm robov)
-        col_widths = [0.9*cm, 3.5*cm, 6.2*cm, 2.0*cm, 3.5*cm, 1.9*cm]
+        col_widths = [0.7*cm, 4.2*cm, 5.8*cm, 2.0*cm, 3.5*cm, 1.8*cm]
 
-        # Max širina za naziv v točkah (6.2cm - 2*padding 5pt)
-        naziv_max_pt = 6.2 * 28.35 - 10
+        # Max širina za naziv v točkah (5.8cm - 2*padding 5pt)
+        naziv_max_pt = 5.8 * 28.35 - 10
 
         table_data = [[
             Paragraph("#", s_hdr), Paragraph("SKU", s_hdr), Paragraph("Naziv", s_hdr),
@@ -4948,10 +4948,10 @@ async def inventura_pdf(data: dict):
         for i, it in enumerate(items, 1):
             komentar_raw = str(it.get("komentar") or "").strip()
             naziv_raw = str(it.get("naziv") or "")
-            naziv_short = trunc_ellipsis(naziv_raw, "DejaVu", 8, naziv_max_pt)
+            naziv_short = trunc_ellipsis(naziv_raw, "DejaVu", 7.5, naziv_max_pt)
             # Komentar tudi skrajšaj če predolg
             kom_max_pt = 3.5 * 28.35 - 10
-            komentar_short = trunc_ellipsis(komentar_raw, "DejaVu", 8, kom_max_pt) if komentar_raw else ""
+            komentar_short = trunc_ellipsis(komentar_raw, "DejaVu", 7.5, kom_max_pt) if komentar_raw else ""
             table_data.append([
                 Paragraph(str(i), s_num),
                 Paragraph(str(it.get("sku") or ""), s_sku),
