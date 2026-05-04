@@ -2126,12 +2126,22 @@ input[type="text"].error { border-color: var(--red) !important; }
             <button onclick="odpReset()" style="padding:6px;background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🗑 Ponastavi</button>
           </div>
         </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span class="slabel" style="margin:0">ZGODOVINA (90 dni)</span>
+            <button onclick="odpLoadHistory()" style="background:none;border:none;color:var(--text-secondary);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">↻</button>
+          </div>
+          <div id="odp-history-list" style="display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:11px;color:var(--text-tertiary);text-align:center;padding:8px">Nalagam...</div>
+          </div>
+        </div>
       </div>
 
       <!-- DESNO -->
       <div>
         <div id="odp-empty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:3rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
-          Naloži Expedico CSV za validacijo BG naslovov z Geoapify.
+          Naloži Expedico CSV za AI pregled naslovov.
         </div>
 
         <div id="odp-table-wrap" style="display:none">
@@ -2261,6 +2271,7 @@ function switchPage(page) {
   closeMenu();
   if (page === 'tiktok') { ttLoadSkus(); }
   if (page === 'zaloga') { zalogaLoad(); }
+  if (page === 'odprema') { odpLoadHistory(); }
   try { localStorage.setItem('slx_active_page', page); } catch(e) {}
 }
 
@@ -5759,7 +5770,7 @@ async function odpStartValidation() {
     const pct = Math.round((i / toValidate.length) * 100);
     document.getElementById('odp-progress-fill').style.width = pct + '%';
     document.getElementById('odp-progress-text').textContent =
-      `Geoapify: ${i+1}–${Math.min(i+batchSize, toValidate.length)} / ${toValidate.length}`;
+      `AI normalizacija: ${i+1}–${Math.min(i+batchSize, toValidate.length)} / ${toValidate.length}`;
 
     try {
       const payload = batch.map(r => ({
@@ -5793,6 +5804,89 @@ async function odpStartValidation() {
   btn.textContent = '✓ Validacija končana';
   document.getElementById('odp-export-btn').style.display = 'block';
   odpUpdateStats(); odpRenderTable();
+
+  // Auto-save na disk
+  odpSave();
+  odpLoadHistory();
+}
+
+async function odpSave() {
+  try {
+    // Pretvori odpValidation (order→obj) v plain objekt za shranjevanje
+    const validationObj = {};
+    Object.entries(odpValidation).forEach(([k, v]) => { validationObj[k] = v; });
+    await fetch('/odprema-save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: odpRows[0] ? (odpRows[0].carrierPickupDate || new Date().toISOString().slice(0,10)) : '',
+        total: odpRows.length,
+        rows: odpRows,
+        validation: validationObj,
+      })
+    });
+  } catch(e) { console.warn('[odprema] save error:', e); }
+}
+
+async function odpLoadHistory() {
+  const list = document.getElementById('odp-history-list');
+  if (!list) return;
+  try {
+    const data = await fetch('/odprema-history').then(r => r.json());
+    if (!data.items || !data.items.length) {
+      list.innerHTML = '<div style="font-size:11px;color:var(--text-tertiary);text-align:center;padding:8px">Ni zgodovine</div>';
+      return;
+    }
+    list.innerHTML = data.items.map(it => {
+      const dt = new Date(it.saved_at);
+      const dateStr = dt.toLocaleString('sl-SI', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      const sizeKb = (it.size / 1024).toFixed(0);
+      return `<div style="background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;gap:6px;cursor:pointer" onclick="odpHistoryLoad('${it.filename}')">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:11px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.original_file || it.filename.replace('.json','')}</div>
+            <div style="font-size:10px;color:var(--text-tertiary);margin-top:1px">${dateStr} · ${it.total} pošiljk · ${sizeKb}KB</div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0">
+            <button onclick="event.stopPropagation();odpHistoryLoad('${it.filename}')" style="padding:3px 8px;background:var(--surface);border:1px solid var(--border);color:var(--text-secondary);border-radius:var(--radius);font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif">👁</button>
+            <button onclick="event.stopPropagation();odpHistoryDelete('${it.filename}')" style="padding:3px 8px;background:transparent;border:1px solid rgba(239,68,68,0.3);color:var(--red);border-radius:var(--radius);font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif">✕</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="font-size:11px;color:var(--red);padding:8px">Napaka</div>';
+  }
+}
+
+async function odpHistoryLoad(filename) {
+  try {
+    document.getElementById('odp-loading').style.display = 'block';
+    document.getElementById('odp-empty').style.display = 'none';
+    document.getElementById('odp-table-wrap').style.display = 'none';
+    const data = await fetch(`/odprema-history-load/${encodeURIComponent(filename)}`).then(r => r.json());
+    document.getElementById('odp-loading').style.display = 'none';
+    if (data.error) { alert('Napaka: ' + data.error); return; }
+    odpRows = data.rows || [];
+    odpValidation = data.validation || {};
+    odpFieldnames = odpRows.length ? Object.keys(odpRows[0]).filter(k => !k.startsWith('_')) : [];
+    document.getElementById('odp-stat-total').textContent = odpRows.length;
+    document.getElementById('odp-stats-card').style.display = 'block';
+    document.getElementById('odp-actions-card').style.display = 'block';
+    document.getElementById('odp-table-wrap').style.display = 'block';
+    document.getElementById('odp-export-btn').style.display = 'block';
+    const si = document.getElementById('inv-search'); if (si) si.value = '';
+    odpUpdateStats(); odpRenderTable();
+  } catch(e) {
+    document.getElementById('odp-loading').style.display = 'none';
+    alert('Napaka: ' + e.message);
+  }
+}
+
+async function odpHistoryDelete(filename) {
+  if (!confirm('Zbrisati ta zapis?')) return;
+  await fetch(`/odprema-history-delete/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+  odpLoadHistory();
 }
 
 function odpUpdateStats() {
