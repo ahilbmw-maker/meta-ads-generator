@@ -4806,19 +4806,56 @@ async def hsuvoz_current_clear():
 INVENTURA_DIR = DATA_DIR / "inventura"
 INVENTURA_DIR.mkdir(exist_ok=True, parents=True)
 
+INVENTURA_CURRENT = INVENTURA_DIR / "_current.json"
+
 DEJAVU_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 DEJAVU_BOLD    = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
 
 def inventura_cleanup():
-    """Zbriše PDF-je in JSON-e starejše od 30 dni."""
+    """Zbriše PDF-je in JSON-e starejše od 30 dni (ne _current.json)."""
     try:
         cutoff = datetime.now().timestamp() - (30 * 86400)
         for f in list(INVENTURA_DIR.glob("*.pdf")) + list(INVENTURA_DIR.glob("*.json")):
+            if f.name == "_current.json":
+                continue
             if f.stat().st_mtime < cutoff:
                 f.unlink()
     except Exception as e:
         print(f"[inventura] cleanup err: {e}")
+
+
+@app.get("/inventura-current")
+async def inventura_get_current():
+    """Vrne trenutno aktivno inventuro z diska."""
+    if not INVENTURA_CURRENT.exists():
+        return {"ok": False, "items": []}
+    try:
+        data = json.loads(INVENTURA_CURRENT.read_text(encoding="utf-8"))
+        return {"ok": True, **data}
+    except Exception:
+        return {"ok": False, "items": []}
+
+
+@app.post("/inventura-save-current")
+async def inventura_save_current(data: dict):
+    """Shrani trenutno stanje inventure na disk."""
+    try:
+        INVENTURA_CURRENT.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/inventura-clear-current")
+async def inventura_clear_current():
+    """Pobriše trenutno aktivno inventuro z diska."""
+    try:
+        if INVENTURA_CURRENT.exists():
+            INVENTURA_CURRENT.unlink()
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @app.post("/inventura-upload")
@@ -4854,7 +4891,7 @@ async def inventura_upload(file: UploadFile = File(...)):
             naziv    = (row.get(naz_col) or "").strip() if naz_col else ""
             pozicija = (row.get(pos_col) or "").strip() if pos_col else ""
             if sku not in sku_map:
-                sku_map[sku] = {"sku": sku, "naziv": naziv, "pozicija": pozicija, "komentar": ""}
+                sku_map[sku] = {"sku": sku, "naziv": naziv, "pozicija": pozicija, "komentar": "", "kolicina_dejansko": None}
             if not sku_map[sku]["pozicija"] and pozicija: sku_map[sku]["pozicija"] = pozicija
             if not sku_map[sku]["naziv"] and naziv: sku_map[sku]["naziv"] = naziv
 
@@ -4867,7 +4904,7 @@ async def inventura_upload(file: UploadFile = File(...)):
 
 @app.post("/inventura-pdf")
 async def inventura_pdf(data: dict):
-    """Generira PDF inventurni list z DejaVu fontom (unicode) in skrajšanimi nazivi."""
+    """Generira PDF inventurni list z DejaVu fontom."""
     try:
         items = data.get("items", [])
         title_text = data.get("title", "Inventurni list")
@@ -4884,62 +4921,46 @@ async def inventura_pdf(data: dict):
         from reportlab.lib.units import cm
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
+        from reportlab.pdfbase.pdfmetrics import stringWidth
 
-        # Registriraj DejaVu — podpira cirilico, grščino, madžarščino itd.
         pdfmetrics.registerFont(TTFont("DejaVu", DEJAVU_REGULAR))
         pdfmetrics.registerFont(TTFont("DejaVu-Bold", DEJAVU_BOLD))
 
-        from reportlab.pdfbase.pdfmetrics import stringWidth
-
         def trunc_ellipsis(s, font, font_size, max_width_pt):
-            """Skrajšaj niz na max_width_pt točk, doda ... če je presezan."""
             if not s: return ""
-            # Najprej reži pri vejici/oklepaju
             for sep in [",", "(", " -"]:
                 idx = s.find(sep)
                 if 0 < idx < len(s):
                     candidate = s[:idx].strip()
                     if stringWidth(candidate, font, font_size) <= max_width_pt:
-                        s = candidate
-                        break
-            # Če je še vedno predolg, reži znak po znak + dodaj ...
-            ellipsis = "..."
-            ellipsis_w = stringWidth(ellipsis, font, font_size)
-            if stringWidth(s, font, font_size) <= max_width_pt:
-                return s
-            while s and stringWidth(s + ellipsis, font, font_size) > max_width_pt:
-                s = s[:-1]
-            return s.strip() + ellipsis
+                        s = candidate; break
+            if stringWidth(s, font, font_size) <= max_width_pt: return s
+            while s and stringWidth(s + "...", font, font_size) > max_width_pt: s = s[:-1]
+            return s.strip() + "..."
 
-        ROW_H = 0.65 * cm   # fiksna višina vseh podatkovnih vrstic
-        HDR_H = 0.7  * cm   # višina header vrstice
+        ROW_H = 0.65 * cm
+        HDR_H = 0.7  * cm
 
         buf = io.BytesIO()
         doc = SimpleDocTemplate(buf, pagesize=A4,
             leftMargin=1.5*cm, rightMargin=1.5*cm, topMargin=2*cm, bottomMargin=2*cm)
 
         s_title = ParagraphStyle("t", fontSize=14, fontName="DejaVu-Bold", spaceAfter=4)
-        s_sub   = ParagraphStyle("s", fontSize=9,  fontName="DejaVu",
-                                 textColor=colors.HexColor("#64748b"), spaceAfter=12)
-        s_num   = ParagraphStyle("n", fontSize=7.5, fontName="DejaVu",   leading=10, alignment=1)
-        s_cell  = ParagraphStyle("c", fontSize=7.5, fontName="DejaVu",   leading=10)
+        s_sub   = ParagraphStyle("s", fontSize=9,  fontName="DejaVu", textColor=colors.HexColor("#64748b"), spaceAfter=12)
+        s_num   = ParagraphStyle("n", fontSize=7.5, fontName="DejaVu", leading=10, alignment=1)
+        s_cell  = ParagraphStyle("c", fontSize=7.5, fontName="DejaVu", leading=10)
         s_sku   = ParagraphStyle("k", fontSize=7.5, fontName="DejaVu-Bold", leading=10)
-        s_kom   = ParagraphStyle("m", fontSize=7.5, fontName="DejaVu",
-                                 textColor=colors.HexColor("#7c3aed"), leading=10)
-        s_hdr   = ParagraphStyle("h", fontSize=7.5, fontName="DejaVu-Bold",
-                                 textColor=colors.white, leading=10, alignment=1)
+        s_kom   = ParagraphStyle("m", fontSize=7.5, fontName="DejaVu", textColor=colors.HexColor("#7c3aed"), leading=10)
+        s_hdr   = ParagraphStyle("h", fontSize=7.5, fontName="DejaVu-Bold", textColor=colors.white, leading=10, alignment=1)
 
         story = [
             Paragraph(title_text, s_title),
             Paragraph(f"Datum: {datum}  |  Skupaj SKU-jev: {len(items)}", s_sub),
         ]
 
-        # Širine: # | SKU | Naziv | Pozicija | Komentar | Fizično ✓
-        # Skupaj = 18.0 cm (A4 - 3cm robov)
         col_widths = [0.7*cm, 4.2*cm, 5.8*cm, 2.0*cm, 3.5*cm, 1.8*cm]
-
-        # Max širina za naziv v točkah (5.8cm - 2*padding 5pt)
         naziv_max_pt = 5.8 * 28.35 - 10
+        kom_max_pt   = 3.5 * 28.35 - 10
 
         table_data = [[
             Paragraph("#", s_hdr), Paragraph("SKU", s_hdr), Paragraph("Naziv", s_hdr),
@@ -4947,10 +4968,7 @@ async def inventura_pdf(data: dict):
         ]]
         for i, it in enumerate(items, 1):
             komentar_raw = str(it.get("komentar") or "").strip()
-            naziv_raw = str(it.get("naziv") or "")
-            naziv_short = trunc_ellipsis(naziv_raw, "DejaVu", 7.5, naziv_max_pt)
-            # Komentar tudi skrajšaj če predolg
-            kom_max_pt = 3.5 * 28.35 - 10
+            naziv_short  = trunc_ellipsis(str(it.get("naziv") or ""), "DejaVu", 7.5, naziv_max_pt)
             komentar_short = trunc_ellipsis(komentar_raw, "DejaVu", 7.5, kom_max_pt) if komentar_raw else ""
             table_data.append([
                 Paragraph(str(i), s_num),
@@ -4961,9 +4979,7 @@ async def inventura_pdf(data: dict):
                 Paragraph("", s_cell),
             ])
 
-        # Fiksne višine vrstic: header + vse podatkovne enako
         row_heights = [HDR_H] + [ROW_H] * (len(table_data) - 1)
-
         tbl = Table(table_data, colWidths=col_widths, rowHeights=row_heights, repeatRows=1)
         row_styles = [
             ("BACKGROUND",    (0,0), (-1,0), colors.HexColor("#1e293b")),
@@ -4976,7 +4992,6 @@ async def inventura_pdf(data: dict):
             ("RIGHTPADDING",  (0,0), (-1,-1), 5),
             ("ALIGN",         (0,0), (0,-1), "CENTER"),
             ("ALIGN",         (3,1), (3,-1), "CENTER"),
-            ("NOSPLIT",       (0,0), (-1,-1)),
             ("BOX",           (5,1), (5,-1), 0.8, colors.HexColor("#94a3b8")),
             ("BACKGROUND",    (5,1), (5,-1), colors.HexColor("#f0fdf4")),
         ]
@@ -4989,27 +5004,20 @@ async def inventura_pdf(data: dict):
         story.append(Paragraph(
             "Navodilo: V stolpec 'Fizično ✓' vpišite dejansko stanje zaloge. "
             "Prazno = ni pregledano.  ✓ = potrjeno.  0 = ni na zalogi.",
-            ParagraphStyle("f", fontSize=7, fontName="DejaVu",
-                           textColor=colors.HexColor("#94a3b8"))
+            ParagraphStyle("f", fontSize=7, fontName="DejaVu", textColor=colors.HexColor("#94a3b8"))
         ))
         doc.build(story)
 
-        # Shrani v zgodovino + cleanup
         inventura_cleanup()
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         base = filename_hint.replace(".pdf", "")
         save_name = f"{base}_{ts}.pdf"
-        pdf_path = INVENTURA_DIR / save_name
         buf.seek(0)
-        pdf_path.write_bytes(buf.read())
-
-        # Shrani JSON za ponovni ogled
-        json_path = INVENTURA_DIR / save_name.replace(".pdf", ".json")
-        json_path.write_text(json.dumps({
-            "filename": save_name,
-            "datum": datum,
-            "items": items,
-        }, ensure_ascii=False, indent=2), encoding="utf-8")
+        (INVENTURA_DIR / save_name).write_bytes(buf.read())
+        (INVENTURA_DIR / save_name.replace(".pdf", ".json")).write_text(
+            json.dumps({"filename": save_name, "datum": datum, "items": items}, ensure_ascii=False),
+            encoding="utf-8"
+        )
 
         buf.seek(0)
         return StreamingResponse(buf, media_type="application/pdf",
@@ -5021,7 +5029,7 @@ async def inventura_pdf(data: dict):
 
 @app.get("/inventura-history")
 async def inventura_history():
-    """Vrne seznam shranjenih inventurnih PDF-jev (30 dni)."""
+    """Vrne seznam shranjenih inventurnih PDF-jev."""
     inventura_cleanup()
     items = []
     try:
@@ -5039,7 +5047,6 @@ async def inventura_history():
 
 @app.get("/inventura-history-download/{filename}")
 async def inventura_history_download(filename: str):
-    """Prenesi PDF iz zgodovine."""
     if "/" in filename or "\\" in filename or ".." in filename:
         return JSONResponse({"error": "Neveljavno ime."}, status_code=400)
     f = INVENTURA_DIR / filename
@@ -5050,13 +5057,10 @@ async def inventura_history_download(filename: str):
 
 @app.get("/inventura-history-load/{filename}")
 async def inventura_history_load(filename: str):
-    """Naloži JSON podatke shranjene ob generiranju PDF-ja."""
     if "/" in filename or "\\" in filename or ".." in filename:
         return JSONResponse({"error": "Neveljavno ime."}, status_code=400)
-    # JSON je shranjen z enakim imenom kot PDF, le .json končnica
     json_name = filename.replace(".pdf", ".json")
     f = INVENTURA_DIR / json_name
     if not f.exists():
         return JSONResponse({"error": "Podatki niso na voljo (star zapis)."}, status_code=404)
-    data = json.loads(f.read_text(encoding="utf-8"))
-    return data
+    return json.loads(f.read_text(encoding="utf-8"))
