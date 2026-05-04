@@ -5085,3 +5085,313 @@ async def inventura_history_load(filename: str):
     if not f.exists():
         return JSONResponse({"error": "Podatki niso na voljo (star zapis)."}, status_code=404)
     return json.loads(f.read_text(encoding="utf-8"))
+
+
+# ─── ODPREMA / GEOAPIFY ADDRESS VALIDATION ───────────────────────────────────
+
+GEOAPIFY_KEY = os.environ.get("GEOAPIFY_API_KEY", "")
+
+
+@app.post("/odprema-validate")
+async def odprema_validate(data: dict):
+    """
+    Validira seznam BG naslovov z Geoapify API.
+    Input: { "addresses": [ { "order": "...", "zip": "...", "city": "...", "street": "...", "streetNr": "..." }, ... ] }
+    Output: { "results": [ { "order": "...", "status": "CONFIRMED|PARTIALLY_CONFIRMED|NOT_CONFIRMED", ... } ] }
+    """
+    if not GEOAPIFY_KEY:
+        return JSONResponse({"error": "GEOAPIFY_API_KEY ni nastavljen v environment spremenljivkah."}, status_code=500)
+
+    addresses = data.get("addresses", [])
+    if not addresses:
+        return JSONResponse({"error": "Ni naslovov za validacijo."}, status_code=400)
+
+    results = []
+
+    async with httpx.AsyncClient(timeout=15.0) as hc:
+        for addr in addresses:
+            order = addr.get("order", "")
+            zip_code = (addr.get("zip") or "").strip()
+            city = (addr.get("city") or "").strip()
+            street = (addr.get("street") or "").strip()
+            street_nr = (addr.get("streetNr") or "").strip()
+
+            # Sestavi query string — Geoapify sprejme free-text ali strukturiran naslov
+            # Za BG naslove pošljemo: street + city + postcode + country
+            street_full = street
+            if street_nr and street_nr.lower() not in ("nn", "n/a", "-", ""):
+                street_full = f"{street} {street_nr}"
+
+            # Geoapify structured geocoding
+            params = {
+                "housenumber": street_nr if street_nr.lower() not in ("nn", "n/a", "-", "") else "",
+                "street": street,
+                "city": city,
+                "postcode": zip_code,
+                "country": "Bulgaria",
+                "format": "json",
+                "limit": 1,
+                "apiKey": GEOAPIFY_KEY,
+            }
+            # Odstrani prazne parametre
+            params = {k: v for k, v in params.items() if v}
+
+            try:
+                resp = await hc.get(
+                    "https://api.geoapify.com/v1/geocode/structured",
+                    params=params
+                )
+                resp.raise_for_status()
+                geo = resp.json()
+
+                results_list = geo.get("results", [])
+
+                if not results_list:
+                    # Poskusi še z free-text geocoding
+                    query = f"{street_full}, {city}, {zip_code}, Bulgaria"
+                    resp2 = await hc.get(
+                        "https://api.geoapify.com/v1/geocode/search",
+                        params={"text": query, "country": "bg", "limit": 1, "apiKey": GEOAPIFY_KEY, "format": "json"}
+                    )
+                    resp2.raise_for_status()
+                    geo2 = resp2.json()
+                    results_list = geo2.get("results", [])
+
+                if results_list:
+                    best = results_list[0]
+                    rank = best.get("rank", {})
+                    confidence = rank.get("confidence", 0)
+                    match_type = best.get("result_type", "unknown")
+
+                    # Geoapify confidence: 1.0 = točen, 0.7+ = dober, <0.5 = slab
+                    if confidence >= 0.8:
+                        status = "CONFIRMED"
+                    elif confidence >= 0.5:
+                        status = "PARTIALLY_CONFIRMED"
+                    else:
+                        status = "NOT_CONFIRMED"
+
+                    # Popravljeni podatki
+                    fix_street = best.get("street", "")
+                    fix_nr = best.get("housenumber", "")
+                    fix_city = best.get("city", "") or best.get("town", "") or best.get("village", "")
+                    fix_zip = best.get("postcode", "")
+                    formatted = best.get("formatted", "")
+                    lat = best.get("lat")
+                    lon = best.get("lon")
+
+                    results.append({
+                        "order": order,
+                        "status": status,
+                        "confidence": round(confidence, 2),
+                        "match_type": match_type,
+                        "formatted": formatted,
+                        "fix_street": fix_street,
+                        "fix_nr": fix_nr,
+                        "fix_city": fix_city,
+                        "fix_zip": fix_zip,
+                        "lat": lat,
+                        "lon": lon,
+                        "original": {"zip": zip_code, "city": city, "street": street, "streetNr": street_nr},
+                    })
+                else:
+                    results.append({
+                        "order": order,
+                        "status": "NOT_CONFIRMED",
+                        "confidence": 0,
+                        "match_type": "no_result",
+                        "formatted": "",
+                        "fix_street": street,
+                        "fix_nr": street_nr,
+                        "fix_city": city,
+                        "fix_zip": zip_code,
+                        "original": {"zip": zip_code, "city": city, "street": street, "streetNr": street_nr},
+                    })
+
+            except Exception as e:
+                print(f"[odprema] Geoapify error for {order}: {e}")
+                results.append({
+                    "order": order,
+                    "status": "ERROR",
+                    "confidence": 0,
+                    "match_type": "error",
+                    "formatted": "",
+                    "fix_street": street,
+                    "fix_nr": street_nr,
+                    "fix_city": city,
+                    "fix_zip": zip_code,
+                    "error": str(e),
+                    "original": {"zip": zip_code, "city": city, "street": street, "streetNr": street_nr},
+                })
+
+            # Majhen delay da ne preobremenimo API
+            await asyncio.sleep(0.1)
+
+    return {"results": results, "total": len(results)}
+
+
+# ─── ECONT OFFICES CACHE ──────────────────────────────────────────────────────
+
+ECONT_OFFICES_CACHE: list = []
+ECONT_OFFICES_LAST_FETCH: float = 0
+ECONT_OFFICES_TTL = 86400  # 24h cache
+
+ECONT_API_URL = "https://ee.econt.com/services"
+ECONT_DEMO_URL = "https://demo.econt.com/ee/services"
+ECONT_USER = os.environ.get("ECONT_USER", "iasp-dev")
+ECONT_PASS = os.environ.get("ECONT_PASS", "1Asp-dev")
+
+
+async def econt_fetch_offices() -> list:
+    """Pobere vse BG Econt office-e z API-ja, cachira 24h."""
+    global ECONT_OFFICES_CACHE, ECONT_OFFICES_LAST_FETCH
+    import time
+
+    now = time.time()
+    if ECONT_OFFICES_CACHE and (now - ECONT_OFFICES_LAST_FETCH) < ECONT_OFFICES_TTL:
+        return ECONT_OFFICES_CACHE
+
+    # Poskusi produkcijo, potem demo
+    for base_url in [ECONT_API_URL, ECONT_DEMO_URL]:
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as hc:
+                resp = await hc.post(
+                    f"{base_url}/Nomenclatures/NomenclaturesService.getOffices.json",
+                    json={"countryCode": "BG"},
+                    auth=(ECONT_USER, ECONT_PASS)
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    offices = data.get("offices", [])
+                    if offices:
+                        ECONT_OFFICES_CACHE = offices
+                        ECONT_OFFICES_LAST_FETCH = now
+                        print(f"[econt] Naloženih {len(offices)} BG officeov iz {base_url}")
+                        return offices
+        except Exception as e:
+            print(f"[econt] Napaka pri {base_url}: {e}")
+
+    return ECONT_OFFICES_CACHE  # Vrni star cache če API ne dela
+
+
+def econt_find_nearest_office(offices: list, zip_code: str, city_name: str) -> dict | None:
+    """Poišče najbližji Econt office glede na ZIP kodo ali ime mesta."""
+    if not offices:
+        return None
+
+    zip_clean = (zip_code or "").strip()
+    city_lower = (city_name or "").lower().strip()
+
+    # 1. Točno ujemanje ZIP
+    for o in offices:
+        addr = o.get("address") or {}
+        city = addr.get("city") or {}
+        office_zip = str(city.get("postCode") or "").strip()
+        if office_zip and office_zip == zip_clean:
+            return o
+
+    # 2. Ujemanje mesta (case-insensitive)
+    if city_lower:
+        for o in offices:
+            addr = o.get("address") or {}
+            city = addr.get("city") or {}
+            office_city = (city.get("name") or "").lower().strip()
+            office_city_en = (city.get("nameEn") or "").lower().strip()
+            if city_lower in office_city or city_lower in office_city_en:
+                return o
+
+    # 3. ZIP prefix match (prvih 2 cifri = regija)
+    if len(zip_clean) >= 2:
+        prefix = zip_clean[:2]
+        for o in offices:
+            addr = o.get("address") or {}
+            city = addr.get("city") or {}
+            office_zip = str(city.get("postCode") or "").strip()
+            if office_zip.startswith(prefix):
+                return o
+
+    return None
+
+
+def econt_office_to_address(office: dict) -> dict:
+    """Pretvori Econt office objekt v naslovne polje."""
+    addr = office.get("address") or {}
+    city = addr.get("city") or {}
+    return {
+        "name": office.get("name") or office.get("nameEn") or "",
+        "street": addr.get("street") or addr.get("fullAddress") or "",
+        "num": addr.get("num") or "",
+        "city": city.get("name") or city.get("nameEn") or "",
+        "zip": str(city.get("postCode") or ""),
+        "full": f"{office.get('name','')} — {addr.get('fullAddress') or addr.get('street','')} {addr.get('num','')}, {city.get('name','')}".strip(),
+    }
+
+
+@app.get("/econt-offices")
+async def get_econt_offices():
+    """Vrne seznam vseh BG Econt officeov (cachiran 24h)."""
+    offices = await econt_fetch_offices()
+    return {"ok": True, "total": len(offices), "offices": offices}
+
+
+@app.post("/econt-nearest-office")
+async def get_nearest_office(data: dict):
+    """Za dani ZIP/mesto vrne najbližji Econt office z naslovom."""
+    zip_code = data.get("zip", "")
+    city = data.get("city", "")
+
+    offices = await econt_fetch_offices()
+    if not offices:
+        return JSONResponse({"error": "Econt API ni dosegljiv, ni officeov v cacheju."}, status_code=503)
+
+    office = econt_find_nearest_office(offices, zip_code, city)
+    if not office:
+        return {"ok": False, "office": None, "message": "Ni najden office za ta ZIP/mesto"}
+
+    return {"ok": True, "office": econt_office_to_address(office), "raw": office}
+
+
+@app.post("/odprema-resolve-suspended")
+async def odprema_resolve_suspended(data: dict):
+    """
+    Za seznam suspended naslovov poišče najbližji Econt office.
+    Input: [{"order": "...", "zip": "...", "city": "..."}, ...]
+    """
+    addresses = data.get("addresses", [])
+    if not addresses:
+        return JSONResponse({"error": "Ni naslovov."}, status_code=400)
+
+    offices = await econt_fetch_offices()
+
+    results = []
+    for addr in addresses:
+        order = addr.get("order", "")
+        zip_code = addr.get("zip", "")
+        city = addr.get("city", "")
+
+        office = econt_find_nearest_office(offices, zip_code, city)
+        if office:
+            office_addr = econt_office_to_address(office)
+            results.append({
+                "order": order,
+                "found": True,
+                "office_name": office_addr["name"],
+                "office_street": office_addr["street"],
+                "office_num": office_addr["num"],
+                "office_city": office_addr["city"],
+                "office_zip": office_addr["zip"],
+                "office_full": office_addr["full"],
+            })
+        else:
+            results.append({
+                "order": order,
+                "found": False,
+                "office_name": "",
+                "office_street": "",
+                "office_num": "",
+                "office_city": "",
+                "office_zip": zip_code,
+                "office_full": "Ni najden — preveri ročno",
+            })
+
+    return {"ok": True, "results": results, "offices_available": len(offices)}
