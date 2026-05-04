@@ -5452,3 +5452,112 @@ async def odprema_resolve_suspended(data: dict):
             })
 
     return {"ok": True, "results": results, "offices_available": len(offices)}
+
+
+# ─── EMAIL OBVESTILA ──────────────────────────────────────────────────────────
+
+SMTP_HOST = os.environ.get("SMTP_HOST", "")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "")
+SMTP_FROM = os.environ.get("SMTP_FROM", "")
+
+
+@app.post("/odprema-send-emails")
+async def odprema_send_emails(data: dict):
+    """
+    Pošlje email obvestila strankam s suspended ZIP naslovi.
+    Input: { "shipments": [{ "order": "...", "name": "...", "email": "...", "office": "...", "orig_city": "..." }, ...] }
+    """
+    if not all([SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM]):
+        return JSONResponse({"error": "SMTP ni konfiguriran."}, status_code=500)
+
+    shipments = data.get("shipments", [])
+    if not shipments:
+        return JSONResponse({"error": "Ni pošiljk za obveščanje."}, status_code=400)
+
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    sent = []
+    failed = []
+
+    for s in shipments:
+        email = (s.get("email") or "").strip()
+        if not email or "@" not in email:
+            failed.append({"order": s.get("order"), "reason": "Ni e-mail naslova"})
+            continue
+
+        name = s.get("name", "")
+        order = s.get("order", "")
+        office = s.get("office", "najbližji Econt office")
+        orig_city = s.get("orig_city", "")
+
+        # Email v bolgarščini + angleščini
+        subject = f"Вашата пратка {order} - промяна на адрес за доставка / Your parcel {order} - delivery address change"
+
+        html = f"""
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+  <img src="https://maaarket.si/wp-content/uploads/2023/03/logo.png" style="height:40px;margin-bottom:20px" alt="Maaarket">
+  
+  <h2 style="color:#1a1a2e">Уважаеми {name},</h2>
+  
+  <p>Вашата пратка с номер <strong>{order}</strong> не може да бъде доставена до посочения адрес 
+  (<strong>{orig_city}</strong>), тъй като куриерската фирма <strong>Econt Express</strong> временно е 
+  преустановила доставките до вашия район.</p>
+  
+  <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:16px;margin:20px 0">
+    <strong>📦 Вашата пратка ще ви чака на:</strong><br><br>
+    <span style="font-size:16px;color:#1a1a2e">{office}</span>
+  </div>
+  
+  <p>Моля, посетете горепосочения офис с <strong>личен документ</strong> за получаване на пратката.</p>
+  
+  <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
+  
+  <h3 style="color:#1a1a2e">Dear {name},</h3>
+  
+  <p>Your parcel <strong>{order}</strong> cannot be delivered to the specified address 
+  (<strong>{orig_city}</strong>) as <strong>Econt Express</strong> has temporarily suspended 
+  deliveries to your area.</p>
+  
+  <div style="background:#d1ecf1;border:1px solid #bee5eb;border-radius:8px;padding:16px;margin:20px 0">
+    <strong>📦 Your parcel will be waiting at:</strong><br><br>
+    <span style="font-size:16px;color:#1a1a2e">{office}</span>
+  </div>
+  
+  <p>Please visit the above office with a <strong>valid ID</strong> to collect your parcel.</p>
+  
+  <p style="color:#666;font-size:12px;margin-top:30px">
+    Maaarket.eu | За въпроси / For questions: <a href="mailto:parcel@maaarket.eu">parcel@maaarket.eu</a>
+  </p>
+</div>
+"""
+
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = SMTP_FROM
+            msg["To"] = email
+            msg.attach(MIMEText(html, "html", "utf-8"))
+
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+                server.starttls()
+                server.login(SMTP_USER, SMTP_PASS)
+                server.sendmail(SMTP_FROM, email, msg.as_string())
+
+            sent.append({"order": order, "email": email})
+            print(f"[email] Sent to {email} for order {order}")
+
+        except Exception as e:
+            print(f"[email] Failed {email} for {order}: {e}")
+            failed.append({"order": order, "email": email, "reason": str(e)})
+
+    return {
+        "ok": True,
+        "sent": len(sent),
+        "failed": len(failed),
+        "sent_list": sent,
+        "failed_list": failed,
+    }
