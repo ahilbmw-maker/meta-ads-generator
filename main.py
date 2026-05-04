@@ -5095,9 +5095,8 @@ GEOAPIFY_KEY = os.environ.get("GEOAPIFY_API_KEY", "")
 @app.post("/odprema-validate")
 async def odprema_validate(data: dict):
     """
-    Validira seznam BG naslovov z Geoapify API.
+    Validira seznam BG naslovov z Geoapify API — vzporedno za hitrost.
     Input: { "addresses": [ { "order": "...", "zip": "...", "city": "...", "street": "...", "streetNr": "..." }, ... ] }
-    Output: { "results": [ { "order": "...", "status": "CONFIRMED|PARTIALLY_CONFIRMED|NOT_CONFIRMED", ... } ] }
     """
     if not GEOAPIFY_KEY:
         return JSONResponse({"error": "GEOAPIFY_API_KEY ni nastavljen v environment spremenljivkah."}, status_code=500)
@@ -5106,129 +5105,100 @@ async def odprema_validate(data: dict):
     if not addresses:
         return JSONResponse({"error": "Ni naslovov za validacijo."}, status_code=400)
 
-    results = []
+    async def validate_one(hc: httpx.AsyncClient, addr: dict) -> dict:
+        order = addr.get("order", "")
+        zip_code = (addr.get("zip") or "").strip()
+        city = (addr.get("city") or "").strip()
+        street = (addr.get("street") or "").strip()
+        street_nr = (addr.get("streetNr") or "").strip()
 
-    async with httpx.AsyncClient(timeout=15.0) as hc:
-        for addr in addresses:
-            order = addr.get("order", "")
-            zip_code = (addr.get("zip") or "").strip()
-            city = (addr.get("city") or "").strip()
-            street = (addr.get("street") or "").strip()
-            street_nr = (addr.get("streetNr") or "").strip()
+        street_full = street
+        if street_nr and street_nr.lower() not in ("nn", "n/a", "-", ""):
+            street_full = f"{street} {street_nr}"
 
-            # Sestavi query string — Geoapify sprejme free-text ali strukturiran naslov
-            # Za BG naslove pošljemo: street + city + postcode + country
-            street_full = street
-            if street_nr and street_nr.lower() not in ("nn", "n/a", "-", ""):
-                street_full = f"{street} {street_nr}"
+        params = {
+            "housenumber": street_nr if street_nr.lower() not in ("nn", "n/a", "-", "") else "",
+            "street": street,
+            "city": city,
+            "postcode": zip_code,
+            "country": "Bulgaria",
+            "format": "json",
+            "limit": 1,
+            "apiKey": GEOAPIFY_KEY,
+        }
+        params = {k: v for k, v in params.items() if v}
 
-            # Geoapify structured geocoding
-            params = {
-                "housenumber": street_nr if street_nr.lower() not in ("nn", "n/a", "-", "") else "",
-                "street": street,
-                "city": city,
-                "postcode": zip_code,
-                "country": "Bulgaria",
-                "format": "json",
-                "limit": 1,
-                "apiKey": GEOAPIFY_KEY,
-            }
-            # Odstrani prazne parametre
-            params = {k: v for k, v in params.items() if v}
+        try:
+            resp = await hc.get("https://api.geoapify.com/v1/geocode/structured", params=params)
+            resp.raise_for_status()
+            geo = resp.json()
+            results_list = geo.get("results", [])
 
-            try:
-                resp = await hc.get(
-                    "https://api.geoapify.com/v1/geocode/structured",
-                    params=params
+            if not results_list:
+                # Fallback: free-text
+                query = f"{street_full}, {city}, {zip_code}, Bulgaria"
+                resp2 = await hc.get(
+                    "https://api.geoapify.com/v1/geocode/search",
+                    params={"text": query, "country": "bg", "limit": 1, "apiKey": GEOAPIFY_KEY, "format": "json"}
                 )
-                resp.raise_for_status()
-                geo = resp.json()
+                resp2.raise_for_status()
+                results_list = resp2.json().get("results", [])
 
-                results_list = geo.get("results", [])
+            if results_list:
+                best = results_list[0]
+                rank = best.get("rank", {})
+                confidence = rank.get("confidence", 0)
 
-                if not results_list:
-                    # Poskusi še z free-text geocoding
-                    query = f"{street_full}, {city}, {zip_code}, Bulgaria"
-                    resp2 = await hc.get(
-                        "https://api.geoapify.com/v1/geocode/search",
-                        params={"text": query, "country": "bg", "limit": 1, "apiKey": GEOAPIFY_KEY, "format": "json"}
-                    )
-                    resp2.raise_for_status()
-                    geo2 = resp2.json()
-                    results_list = geo2.get("results", [])
-
-                if results_list:
-                    best = results_list[0]
-                    rank = best.get("rank", {})
-                    confidence = rank.get("confidence", 0)
-                    match_type = best.get("result_type", "unknown")
-
-                    # Geoapify confidence: 1.0 = točen, 0.7+ = dober, <0.5 = slab
-                    if confidence >= 0.8:
-                        status = "CONFIRMED"
-                    elif confidence >= 0.5:
-                        status = "PARTIALLY_CONFIRMED"
-                    else:
-                        status = "NOT_CONFIRMED"
-
-                    # Popravljeni podatki
-                    fix_street = best.get("street", "")
-                    fix_nr = best.get("housenumber", "")
-                    fix_city = best.get("city", "") or best.get("town", "") or best.get("village", "")
-                    fix_zip = best.get("postcode", "")
-                    formatted = best.get("formatted", "")
-                    lat = best.get("lat")
-                    lon = best.get("lon")
-
-                    results.append({
-                        "order": order,
-                        "status": status,
-                        "confidence": round(confidence, 2),
-                        "match_type": match_type,
-                        "formatted": formatted,
-                        "fix_street": fix_street,
-                        "fix_nr": fix_nr,
-                        "fix_city": fix_city,
-                        "fix_zip": fix_zip,
-                        "lat": lat,
-                        "lon": lon,
-                        "original": {"zip": zip_code, "city": city, "street": street, "streetNr": street_nr},
-                    })
+                if confidence >= 0.8:
+                    status = "CONFIRMED"
+                elif confidence >= 0.5:
+                    status = "PARTIALLY_CONFIRMED"
                 else:
-                    results.append({
-                        "order": order,
-                        "status": "NOT_CONFIRMED",
-                        "confidence": 0,
-                        "match_type": "no_result",
-                        "formatted": "",
-                        "fix_street": street,
-                        "fix_nr": street_nr,
-                        "fix_city": city,
-                        "fix_zip": zip_code,
-                        "original": {"zip": zip_code, "city": city, "street": street, "streetNr": street_nr},
-                    })
+                    status = "NOT_CONFIRMED"
 
-            except Exception as e:
-                print(f"[odprema] Geoapify error for {order}: {e}")
-                results.append({
+                return {
                     "order": order,
-                    "status": "ERROR",
-                    "confidence": 0,
-                    "match_type": "error",
-                    "formatted": "",
-                    "fix_street": street,
-                    "fix_nr": street_nr,
-                    "fix_city": city,
-                    "fix_zip": zip_code,
-                    "error": str(e),
+                    "status": status,
+                    "confidence": round(confidence, 2),
+                    "match_type": best.get("result_type", "unknown"),
+                    "formatted": best.get("formatted", ""),
+                    "fix_street": best.get("street", ""),
+                    "fix_nr": best.get("housenumber", ""),
+                    "fix_city": best.get("city", "") or best.get("town", "") or best.get("village", ""),
+                    "fix_zip": best.get("postcode", ""),
+                    "lat": best.get("lat"),
+                    "lon": best.get("lon"),
                     "original": {"zip": zip_code, "city": city, "street": street, "streetNr": street_nr},
-                })
+                }
+            else:
+                return {
+                    "order": order, "status": "NOT_CONFIRMED", "confidence": 0,
+                    "match_type": "no_result", "formatted": "",
+                    "fix_street": street, "fix_nr": street_nr, "fix_city": city, "fix_zip": zip_code,
+                    "original": {"zip": zip_code, "city": city, "street": street, "streetNr": street_nr},
+                }
 
-            # Majhen delay da ne preobremenimo API
-            await asyncio.sleep(0.1)
+        except Exception as e:
+            print(f"[odprema] Geoapify error for {order}: {e}")
+            return {
+                "order": order, "status": "ERROR", "confidence": 0,
+                "match_type": "error", "formatted": "",
+                "fix_street": street, "fix_nr": street_nr, "fix_city": city, "fix_zip": zip_code,
+                "error": str(e),
+                "original": {"zip": zip_code, "city": city, "street": street, "streetNr": street_nr},
+            }
 
-    return {"results": results, "total": len(results)}
+    # Vzporedno — max 10 hkrati da ne preseže rate limit
+    async with httpx.AsyncClient(timeout=15.0) as hc:
+        semaphore = asyncio.Semaphore(10)
 
+        async def limited(addr):
+            async with semaphore:
+                return await validate_one(hc, addr)
+
+        results = await asyncio.gather(*[limited(addr) for addr in addresses])
+
+    return {"results": list(results), "total": len(results)}
 
 # ─── ECONT OFFICES CACHE ──────────────────────────────────────────────────────
 
