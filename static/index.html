@@ -5673,14 +5673,49 @@ async function odpStartValidation() {
   document.getElementById('odp-progress-wrap').style.display = 'block';
   document.getElementById('odp-error').style.display = 'none';
 
-  // Samo naslovi ki niso suspended
+  // 1. Resolve suspended ZIPs → pravi Econt office naslov
+  const suspended = odpRows.filter(r => {
+    const zipInt = parseInt((r.recipientZip || '').replace(/\D/g, '')) || 0;
+    return ODP_SUSPENDED.has(zipInt);
+  });
+
+  if (suspended.length > 0) {
+    document.getElementById('odp-progress-text').textContent = `Iščem Econt office-e za ${suspended.length} suspended naslovov...`;
+    try {
+      const res = await fetch('/odprema-resolve-suspended', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ addresses: suspended.map(r => ({
+          order: r.orderNumber, zip: r.recipientZip, city: r.recipientCity
+        }))})
+      });
+      const data = await res.json();
+      if (data.results) {
+        data.results.forEach(r => {
+          odpValidation[r.order] = {
+            status: 'ECONT_DEPO',
+            confidence: 1,
+            fix_zip: r.office_zip || odpValidation[r.order]?.fix_zip,
+            fix_city: r.office_city,
+            fix_street: r.office_street,
+            fix_nr: r.office_num,
+            note: r.found ? `📦 ${r.office_full}` : `📦 Ni najden — preveri ročno`,
+          };
+        });
+        console.log(`[odprema] Resolved ${data.results.filter(r=>r.found).length}/${suspended.length} suspended officeov`);
+      }
+    } catch(e) {
+      console.warn('[odprema] Suspended resolve napaka:', e.message);
+    }
+  }
+
+  // 2. Validiraj ostale z Geoapify
   const toValidate = odpRows.filter(r => {
     const zipInt = parseInt((r.recipientZip || '').replace(/\D/g, '')) || 0;
     return !ODP_SUSPENDED.has(zipInt);
   });
 
-  const batchSize = 20; // backend validira po 20 naenkrat
-  let done = 0;
+  const batchSize = 20;
 
   for (let i = 0; i < toValidate.length; i += batchSize) {
     const batch = toValidate.slice(i, i + batchSize);
@@ -5691,39 +5726,26 @@ async function odpStartValidation() {
 
     try {
       const payload = batch.map(r => ({
-        order: r.orderNumber,
-        zip: r.recipientZip,
-        city: r.recipientCity,
-        street: r.recipientStreet,
-        streetNr: r.recipientStreetNumber,
+        order: r.orderNumber, zip: r.recipientZip, city: r.recipientCity,
+        street: r.recipientStreet, streetNr: r.recipientStreetNumber,
       }));
-
       const res = await fetch('/odprema-validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ addresses: payload })
       });
-
       if (!res.ok) {
         const err = await res.json();
         document.getElementById('odp-error').textContent = '⚠ ' + (err.error || 'Napaka pri validaciji');
         document.getElementById('odp-error').style.display = 'block';
         break;
       }
-
       const data = await res.json();
-      (data.results || []).forEach(r => {
-        odpValidation[r.order] = r;
-        odpCreditsUsed++;
-      });
-      done += batch.length;
-
+      (data.results || []).forEach(r => { odpValidation[r.order] = r; odpCreditsUsed++; });
     } catch(e) {
       document.getElementById('odp-error').textContent = '⚠ Napaka: ' + e.message;
       document.getElementById('odp-error').style.display = 'block';
       break;
     }
-
     odpUpdateStats(); odpRenderTable();
     document.getElementById('odp-credits-used').textContent = `Geoapify krediti: ${odpCreditsUsed}`;
   }
@@ -5816,11 +5838,20 @@ function odpExportCSV() {
   const corrected = odpRows.map(r => {
     const v = odpValidation[r.orderNumber];
     const out = { ...r };
-    if (v && v.status !== 'CONFIRMED' && v.status !== 'ECONT_DEPO') {
-      if (v.fix_zip) out.recipientZip = v.fix_zip;
-      if (v.fix_city) out.recipientCity = v.fix_city;
-      if (v.fix_street) out.recipientStreet = v.fix_street;
-      if (v.fix_nr && v.fix_nr !== 'nn') out.recipientStreetNumber = v.fix_nr;
+    if (v) {
+      if (v.status === 'ECONT_DEPO') {
+        // Zamenjaj naslov z Econt office naslovom
+        if (v.fix_city) out.recipientCity = v.fix_city;
+        if (v.fix_street) out.recipientStreet = v.fix_street;
+        if (v.fix_nr) out.recipientStreetNumber = v.fix_nr;
+        if (v.fix_zip) out.recipientZip = v.fix_zip;
+      } else if (v.status === 'PARTIALLY_CONFIRMED' || v.status === 'NOT_CONFIRMED') {
+        // Popravi kar Geoapify predlaga
+        if (v.fix_zip) out.recipientZip = v.fix_zip;
+        if (v.fix_city) out.recipientCity = v.fix_city;
+        if (v.fix_street) out.recipientStreet = v.fix_street;
+        if (v.fix_nr && v.fix_nr !== 'nn') out.recipientStreetNumber = v.fix_nr;
+      }
     }
     return out;
   });
