@@ -5211,11 +5211,39 @@ function switchOrodjaTab(tab) {
   if (tab === 'csv') orodjaLoadHistory();
   if (tab === 'hsuvoz') { hsuvozLoadStock(); hsuvozLoadHistory(); hsuvozLoadCurrent(); hsuvozLoadOrderPanel(); }
   if (tab === 'zdrnarocila') znLoad();
-  if (tab === 'inventura') invLoadHistory();
+  if (tab === 'inventura') { invLoadHistory(); invLoadCurrent(); }
 }
 
 // ── INVENTURA ─────────────────────────────────────────────────
 let invItems = [];
+let invSaveTimer = null;
+
+function invAutoSave() {
+  clearTimeout(invSaveTimer);
+  invSaveTimer = setTimeout(() => {
+    if (!invItems.length) return;
+    fetch('/inventura-save-current', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ items: invItems })
+    }).catch(() => {});
+  }, 800);
+}
+
+async function invLoadCurrent() {
+  try {
+    const data = await fetch('/inventura-current').then(r => r.json());
+    if (!data.ok || !data.items || !data.items.length) return;
+    invItems = data.items;
+    document.getElementById('inv-stat-skus').textContent = invItems.length;
+    document.getElementById('inv-status').textContent = '💾 Obnovljeno — ' + invItems.length + ' SKU-jev';
+    document.getElementById('inv-status').style.display = 'block';
+    document.getElementById('inv-actions-card').style.display = 'block';
+    document.getElementById('inv-table-wrap').style.display = 'block';
+    document.getElementById('inv-empty').style.display = 'none';
+    inventuraRender();
+  } catch(e) {}
+}
 
 function inventuraHandleFile(file) {
   if (!file) return;
@@ -5235,12 +5263,13 @@ function inventuraHandleFile(file) {
         document.getElementById('inv-empty').style.display = 'block';
         return;
       }
-      invItems = (data.items || []).map(it => ({ ...it, komentar: '' }));
+      invItems = (data.items || []).map(it => ({ ...it, komentar: '', kolicina_dejansko: undefined }));
       document.getElementById('inv-stat-skus').textContent = data.total_skus;
       document.getElementById('inv-status').textContent = '✓ ' + data.filename + ' — ' + data.total_skus + ' SKU-jev';
       document.getElementById('inv-status').style.display = 'block';
       document.getElementById('inv-actions-card').style.display = 'block';
       document.getElementById('inv-table-wrap').style.display = 'block';
+      invAutoSave();
       inventuraRender();
       invLoadHistory();
     })
@@ -5274,25 +5303,25 @@ function inventuraRender() {
     const pozBadge = it.pozicija && it.pozicija !== 'Ni podatka'
       ? `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:600;font-family:monospace">${it.pozicija}</span>`
       : `<span style="color:var(--text-tertiary);font-size:11px">—</span>`;
-    const qty = it.kolicina_dejansko !== undefined ? it.kolicina_dejansko : '';
+    const qty = it.kolicina_dejansko !== undefined && it.kolicina_dejansko !== null ? it.kolicina_dejansko : '';
     return `<tr style="background:${bg};border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-size:10px;color:var(--text-tertiary)">${i + 1}</td>
       <td style="padding:7px 10px;font-size:11px;color:var(--text);">
         <div style="display:flex;align-items:center;gap:5px">
           <span style="font-weight:700;font-family:monospace;white-space:nowrap">${it.sku}</span>
-          <button onclick="event.stopPropagation();invCopySku(this,'${it.sku.replace(/'/g,"\\'")}')" style="flex-shrink:0;background:var(--surface2);border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:9px;font-weight:600;color:var(--text-secondary);padding:2px 6px;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:all 0.1s">📋</button>
+          <button onclick="event.stopPropagation();invCopySku(this,'${it.sku.replace(/'/g,"\'")}')" style="flex-shrink:0;background:var(--surface2);border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:9px;font-weight:600;color:var(--text-secondary);padding:2px 6px;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:all 0.1s">📋</button>
         </div>
       </td>
       <td style="padding:7px 10px;font-size:11px;color:var(--text-secondary);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(it.naziv||'').replace(/"/g,'&quot;')}">${it.naziv || '—'}</td>
       <td style="padding:7px 10px;text-align:center">${pozBadge}</td>
       <td style="padding:5px 7px">
         <input type="text" value="${(it.komentar||'').replace(/"/g,'&quot;')}" placeholder="komentar..."
-          oninput="invItems[${realIdx}].komentar=this.value"
+          oninput="invItems[${realIdx}].komentar=this.value;invAutoSave()"
           style="width:100%;border:1px solid var(--border);border-radius:5px;padding:4px 7px;font-size:11px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--surface2);outline:none;min-width:90px">
       </td>
       <td style="padding:5px 7px;text-align:center">
         <input type="number" min="0" value="${qty}" placeholder="—"
-          oninput="invItems[${realIdx}].kolicina_dejansko=this.value===''?undefined:Number(this.value)"
+          oninput="invItems[${realIdx}].kolicina_dejansko=this.value===''?undefined:Number(this.value);invAutoSave()"
           style="width:52px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;font-size:11px;font-family:'DM Sans',sans-serif;color:var(--text);background:${qty!==''?'#f0fdf4':'var(--surface2)'};outline:none;text-align:center"
           onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
       </td>
@@ -5313,6 +5342,7 @@ function invCopySku(btn, sku) {
 
 function inventuraDelete(idx) {
   invItems.splice(idx, 1);
+  invAutoSave();
   inventuraRender();
 }
 
@@ -5321,10 +5351,11 @@ function inventuraAddRow() {
   const naziv = (document.getElementById('inv-add-naziv')?.value || '').trim();
   const pos   = (document.getElementById('inv-add-pos')?.value || '').trim();
   if (!sku) { alert('SKU je obvezen.'); return; }
-  invItems.push({ sku, naziv, pozicija: pos, komentar: '' });
+  invItems.push({ sku, naziv, pozicija: pos, komentar: '', kolicina_dejansko: undefined });
   document.getElementById('inv-add-sku').value = '';
   document.getElementById('inv-add-naziv').value = '';
   document.getElementById('inv-add-pos').value = '';
+  invAutoSave();
   inventuraRender();
 }
 
@@ -5356,6 +5387,7 @@ function inventuraPdf() {
 
 function inventuraClear() {
   invItems = [];
+  fetch('/inventura-clear-current', { method: 'POST' }).catch(() => {});
   document.getElementById('inv-table-wrap').style.display = 'none';
   document.getElementById('inv-actions-card').style.display = 'none';
   document.getElementById('inv-empty').style.display = 'block';
@@ -5405,18 +5437,15 @@ async function invHistoryLoad(filename) {
     document.getElementById('inv-empty').style.display = 'none';
     document.getElementById('inv-table-wrap').style.display = 'none';
     document.getElementById('inv-loading').style.display = 'block';
-
     const data = await fetch(`/inventura-history-load/${encodeURIComponent(filename)}`).then(r => r.json());
     document.getElementById('inv-loading').style.display = 'none';
-
     if (data.error) {
       document.getElementById('inv-error').textContent = '⚠ ' + data.error;
       document.getElementById('inv-error').style.display = 'block';
       document.getElementById('inv-empty').style.display = 'block';
       return;
     }
-
-    invItems = (data.items || []).map(it => ({ ...it, kolicina_dejansko: it.kolicina_dejansko }));
+    invItems = (data.items || []);
     document.getElementById('inv-stat-skus').textContent = invItems.length;
     document.getElementById('inv-status').textContent = '📂 ' + filename.replace('.pdf','') + ' — ' + invItems.length + ' SKU-jev';
     document.getElementById('inv-status').style.display = 'block';
