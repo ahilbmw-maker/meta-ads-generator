@@ -1146,8 +1146,10 @@ input[type="text"].error { border-color: var(--red) !important; }
           <!-- Slot 0 -->
           <div class="card" id="hfSlot0" style="padding:12px">
             <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Produkt 01</div>
-            <input type="text" id="hfUrl0" placeholder="https://www.maaarket.si/izdelek/..." onkeypress="if(event.key==='Enter')hfFetch(0)" style="width:100%;margin-bottom:6px">
-            <button onclick="hfFetch(0)" id="hfBtn0" style="width:100%;padding:7px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Fetch →</button>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input type="text" id="hfUrl0" placeholder="https://www.maaarket.si/izdelek/..." onkeypress="if(event.key==='Enter')hfFetch(0)" style="flex:1;min-width:0">
+              <button onclick="hfFetch(0)" id="hfBtn0" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;flex-shrink:0">Fetch →</button>
+            </div>
             <div id="hfStatus0" style="display:none;margin-top:6px;font-size:11px;padding:5px 8px;border-radius:4px"></div>
             <div id="hfResult0" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
             <button id="hfClear0" onclick="hfClear(0)" style="display:none;width:100%;margin-top:6px;padding:5px;background:transparent;border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);color:var(--red);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">Počisti</button>
@@ -1156,8 +1158,10 @@ input[type="text"].error { border-color: var(--red) !important; }
           <!-- Slot 1 -->
           <div class="card" id="hfSlot1" style="padding:12px">
             <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Produkt 02</div>
-            <input type="text" id="hfUrl1" placeholder="https://www.maaarket.si/izdelek/..." onkeypress="if(event.key==='Enter')hfFetch(1)" style="width:100%;margin-bottom:6px">
-            <button onclick="hfFetch(1)" id="hfBtn1" style="width:100%;padding:7px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Fetch →</button>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input type="text" id="hfUrl1" placeholder="https://www.maaarket.si/izdelek/..." onkeypress="if(event.key==='Enter')hfFetch(1)" style="flex:1;min-width:0">
+              <button onclick="hfFetch(1)" id="hfBtn1" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;flex-shrink:0">Fetch →</button>
+            </div>
             <div id="hfStatus1" style="display:none;margin-top:6px;font-size:11px;padding:5px 8px;border-radius:4px"></div>
             <div id="hfResult1" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
             <button id="hfClear1" onclick="hfClear(1)" style="display:none;width:100%;margin-top:6px;padding:5px;background:transparent;border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);color:var(--red);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">Počisti</button>
@@ -1166,8 +1170,10 @@ input[type="text"].error { border-color: var(--red) !important; }
           <!-- Slot 2 -->
           <div class="card" id="hfSlot2" style="padding:12px">
             <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Produkt 03</div>
-            <input type="text" id="hfUrl2" placeholder="https://www.maaarket.si/izdelek/..." onkeypress="if(event.key==='Enter')hfFetch(2)" style="width:100%;margin-bottom:6px">
-            <button onclick="hfFetch(2)" id="hfBtn2" style="width:100%;padding:7px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Fetch →</button>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input type="text" id="hfUrl2" placeholder="https://www.maaarket.si/izdelek/..." onkeypress="if(event.key==='Enter')hfFetch(2)" style="flex:1;min-width:0">
+              <button onclick="hfFetch(2)" id="hfBtn2" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;flex-shrink:0">Fetch →</button>
+            </div>
             <div id="hfStatus2" style="display:none;margin-top:6px;font-size:11px;padding:5px 8px;border-radius:4px"></div>
             <div id="hfResult2" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
             <button id="hfClear2" onclick="hfClear(2)" style="display:none;width:100%;margin-top:6px;padding:5px;background:transparent;border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);color:var(--red);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">Počisti</button>
@@ -6361,6 +6367,7 @@ async function hfFetch(idx) {
     hfSlots[idx] = { brand, slug, title: data.title||slug, url, images: imgs, data };
     hfRenderResult(idx, data, brand, imgs);
     hfShowStatus(idx, 'ok', `✓ ${brand} — ${imgs.length} slik`);
+    document.getElementById('hfBtn'+idx).style.display = 'none';
     document.getElementById('hfClear'+idx).style.display = 'block';
     hfUpdateGenBtn();
   } catch(e) {
@@ -6372,20 +6379,20 @@ async function hfFetch(idx) {
 
 function hfRenderResult(idx, data, brand, imgs) {
   const el = document.getElementById('hfResult'+idx);
-  const sales = data.sales_count ? `<span style="font-size:10px;padding:2px 6px;border-radius:3px;background:#091a0c;color:#5ddd6a;border:1px solid #0f2a15;margin-right:4px">${data.sales_count.toLocaleString()}+</span>` : '';
-  const rating = data.rating?.total?.average ? `<span style="font-size:10px;padding:2px 6px;border-radius:3px;background:#181810;color:#bbbb55;border:1px solid #252510">${data.rating.total.average}★</span>` : '';
-  const thumbs = imgs.slice(0,4).map(u => `<img src="${u}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid var(--border)" onerror="this.style.display='none'">`).join('');
-  const more = imgs.length > 4 ? `<span style="width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-family:monospace;color:var(--text-tertiary);border:1px solid var(--border);border-radius:4px">+${imgs.length-4}</span>` : '';
+  const sales = data.sales_count ? `<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-secondary);margin-right:4px">${data.sales_count.toLocaleString()} prodaj</span>` : '';
+  const rating = data.rating?.total?.average ? `<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--text-secondary)">${data.rating.total.average}★</span>` : '';
+  const thumbs = imgs.slice(0,4).map(u => `<img src="${u}" style="width:34px;height:34px;object-fit:cover;border-radius:5px;border:1px solid var(--border)" onerror="this.style.display='none'">`).join('');
+  const more = imgs.length > 4 ? `<span style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-tertiary);border:1px solid var(--border);border-radius:5px;background:var(--surface2)">+${imgs.length-4}</span>` : '';
   el.innerHTML = `
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-      <img src="${imgs[0]||''}" style="width:40px;height:40px;object-fit:cover;border-radius:5px;border:1px solid var(--border);flex-shrink:0" onerror="this.style.display='none'">
-      <div>
-        <div style="font-size:10px;font-family:monospace;color:#e8ff47;opacity:0.8;margin-bottom:2px">${brand}</div>
-        <div style="font-size:12px;font-weight:500;line-height:1.3">${data.title||brand}</div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+      <img src="${imgs[0]||''}" style="width:42px;height:42px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0" onerror="this.style.display='none'">
+      <div style="min-width:0">
+        <div style="font-size:10px;font-weight:600;color:var(--accent);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em">${brand}</div>
+        <div style="font-size:12px;font-weight:500;color:var(--text);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${data.title||brand}</div>
       </div>
     </div>
-    <div style="margin-bottom:6px">${sales}${rating}</div>
-    <div style="display:flex;gap:3px;flex-wrap:wrap">${thumbs}${more}</div>`;
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">${sales}${rating}</div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap">${thumbs}${more}</div>`;
   el.style.display = 'block';
 }
 
@@ -6396,17 +6403,22 @@ function hfClear(idx) {
   document.getElementById('hfResult'+idx).innerHTML = '';
   document.getElementById('hfStatus'+idx).style.display = 'none';
   document.getElementById('hfClear'+idx).style.display = 'none';
+  document.getElementById('hfBtn'+idx).style.display = 'block';
   hfUpdateGenBtn();
 }
 
 function hfShowStatus(idx, type, msg) {
   const el = document.getElementById('hfStatus'+idx);
-  const colors = {
-    load: 'background:#0a1520;border:1px solid #0f2a40;color:#55aaff',
-    ok:   'background:#091a0c;border:1px solid #0f2a15;color:#5ddd6a',
-    err:  'background:#1a0909;border:1px solid #2a0f0f;color:#dd5555',
+  const styles = {
+    load: 'background:var(--surface2);border:1px solid var(--border);color:var(--text-secondary)',
+    ok:   'background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a',
+    err:  'background:#fef2f2;border:1px solid #fecaca;color:#dc2626',
   };
-  el.style.cssText = colors[type] || '';
+  el.style.cssText = styles[type] || '';
+  el.style.padding = '5px 8px';
+  el.style.borderRadius = '5px';
+  el.style.fontSize = '11px';
+  el.style.fontWeight = '500';
   el.textContent = msg;
   el.style.display = 'block';
 }
