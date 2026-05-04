@@ -1108,56 +1108,72 @@ input[type="text"].error { border-color: var(--red) !important; }
     </div><!-- /kr-panel-gemini -->
 
     <!-- Tab: Higgsfield -->
-    <div id="kr-panel-higgsfield" style="display:none;padding:20px">
-      <div style="max-width:860px;margin:0 auto">
-        <div style="margin-bottom:20px">
-          <p style="font-size:12px;color:var(--text-secondary);line-height:1.6">Fetch do 3 maaarket izdelke → pripravi request → kopiraj v Claude chat → Claude kliče Higgsfield MCP → 16 kreativ/produkt</p>
-        </div>
+    <div id="kr-panel-higgsfield" style="display:none;padding:14px">
+      <div style="display:grid;grid-template-columns:220px 1fr;gap:14px;align-items:start">
 
-        <!-- Products grid -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px" id="hfGrid">
-          <!-- Slot 0 -->
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px" id="hfSlot0">
-            <div style="font-size:10px;color:var(--text-tertiary);font-family:monospace;letter-spacing:0.1em;margin-bottom:8px">PRODUKT <span style="color:#e8ff47">01</span></div>
-            <input type="text" id="hfUrl0" placeholder="https://www.maaarket.si/izdelek/..." onkeypress="if(event.key==='Enter')hfFetch(0)" style="width:100%;margin-bottom:6px">
-            <button onclick="hfFetch(0)" id="hfBtn0" style="width:100%;padding:7px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer">Fetch →</button>
-            <div id="hfStatus0" style="display:none;margin-top:6px;font-size:11px;font-family:monospace;padding:5px 8px;border-radius:4px"></div>
-            <div id="hfResult0" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
-            <button id="hfClear0" onclick="hfClear(0)" style="display:none;width:100%;margin-top:6px;padding:5px;background:transparent;border:1px solid var(--border);border-radius:5px;color:var(--text-tertiary);font-size:11px;cursor:pointer">Počisti</button>
+        <!-- LEVO: nastavitve + generiraj -->
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="card">
+            <span class="slabel">NASTAVITVE</span>
+            <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+                <span style="font-size:11px;color:var(--text-secondary)">Model</span>
+                <span style="font-size:11px;font-weight:600;color:var(--text)">Nano Banana Pro</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+                <span style="font-size:11px;color:var(--text-secondary)">Format</span>
+                <span style="font-size:11px;font-weight:600;color:var(--text)">1:1 Square</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+                <span style="font-size:11px;color:var(--text-secondary)">Kreativ</span>
+                <span style="font-size:11px;font-weight:600;color:var(--text)">16 / produkt</span>
+              </div>
+            </div>
           </div>
-          <!-- Slot 1 -->
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px" id="hfSlot1">
-            <div style="font-size:10px;color:var(--text-tertiary);font-family:monospace;letter-spacing:0.1em;margin-bottom:8px">PRODUKT <span style="color:#e8ff47">02</span></div>
-            <input type="text" id="hfUrl1" placeholder="https://www.maaarket.si/izdelek/..." onkeypress="if(event.key==='Enter')hfFetch(1)" style="width:100%;margin-bottom:6px">
-            <button onclick="hfFetch(1)" id="hfBtn1" style="width:100%;padding:7px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer">Fetch →</button>
-            <div id="hfStatus1" style="display:none;margin-top:6px;font-size:11px;font-family:monospace;padding:5px 8px;border-radius:4px"></div>
-            <div id="hfResult1" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
-            <button id="hfClear1" onclick="hfClear(1)" style="display:none;width:100%;margin-top:6px;padding:5px;background:transparent;border:1px solid var(--border);border-radius:5px;color:var(--text-tertiary);font-size:11px;cursor:pointer">Počisti</button>
-          </div>
-          <!-- Slot 2 -->
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px" id="hfSlot2">
-            <div style="font-size:10px;color:var(--text-tertiary);font-family:monospace;letter-spacing:0.1em;margin-bottom:8px">PRODUKT <span style="color:#e8ff47">03</span></div>
-            <input type="text" id="hfUrl2" placeholder="https://www.maaarket.si/izdelek/..." onkeypress="if(event.key==='Enter')hfFetch(2)" style="width:100%;margin-bottom:6px">
-            <button onclick="hfFetch(2)" id="hfBtn2" style="width:100%;padding:7px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer">Fetch →</button>
-            <div id="hfStatus2" style="display:none;margin-top:6px;font-size:11px;font-family:monospace;padding:5px 8px;border-radius:4px"></div>
-            <div id="hfResult2" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
-            <button id="hfClear2" onclick="hfClear(2)" style="display:none;width:100%;margin-top:6px;padding:5px;background:transparent;border:1px solid var(--border);border-radius:5px;color:var(--text-tertiary);font-size:11px;cursor:pointer">Počisti</button>
-          </div>
-        </div>
 
-        <div style="border-top:1px solid var(--border);padding-top:16px">
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
-            <span style="font-size:10px;font-family:monospace;padding:3px 8px;border-radius:4px;background:#181810;color:#e8ff47;border:1px solid #252510">Nano Banana Pro</span>
-            <span style="font-size:10px;font-family:monospace;padding:3px 8px;border-radius:4px;background:#100d1a;color:#9988ff;border:1px solid #1a1530">1:1 Square</span>
-            <span style="font-size:10px;font-family:monospace;padding:3px 8px;border-radius:4px;background:#0a1218;color:#55aadd;border:1px solid #0f1e2a">16 kreativ / produkt</span>
-          </div>
           <button id="hfGenBtn" onclick="hfGenerate()" disabled
-            style="width:100%;padding:13px;background:#e8ff47;color:#000;border:none;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;opacity:0.3;transition:opacity 0.15s">
-            <span id="hfGenTxt">Generiraj kreative v Claude ↗</span>
+            style="padding:9px;background:#16a34a;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;opacity:0.35;transition:opacity 0.15s">
+            <span id="hfGenTxt">Generiraj v Claude ↗</span>
           </button>
-          <div style="font-size:11px;color:var(--text-tertiary);text-align:center;margin-top:6px;font-family:monospace">Kopira request → prilepi v Claude chat → DONE</div>
-          <div id="hfGenStatus" style="display:none;margin-top:10px;padding:8px 12px;border-radius:6px;font-size:11px;font-family:monospace;background:#091a0c;border:1px solid #0f2a15;color:#5ddd6a"></div>
+          <div style="font-size:11px;color:var(--text-tertiary);text-align:center">Kopira → prilepi v Claude chat</div>
+          <div id="hfGenStatus" style="display:none;padding:8px 10px;border-radius:var(--radius);font-size:11px;background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a"></div>
         </div>
+
+        <!-- DESNO: 3 sloti -->
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <p style="font-size:11px;color:var(--text-secondary);margin:0 0 2px;line-height:1.5">Fetch do 3 maaarket izdelke → pripravi request → Claude kliče Higgsfield MCP → 16 kreativ/produkt</p>
+
+          <!-- Slot 0 -->
+          <div class="card" id="hfSlot0" style="padding:12px">
+            <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Produkt 01</div>
+            <input type="text" id="hfUrl0" placeholder="https://www.maaarket.si/izdelek/..." onkeypress="if(event.key==='Enter')hfFetch(0)" style="width:100%;margin-bottom:6px">
+            <button onclick="hfFetch(0)" id="hfBtn0" style="width:100%;padding:7px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Fetch →</button>
+            <div id="hfStatus0" style="display:none;margin-top:6px;font-size:11px;padding:5px 8px;border-radius:4px"></div>
+            <div id="hfResult0" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
+            <button id="hfClear0" onclick="hfClear(0)" style="display:none;width:100%;margin-top:6px;padding:5px;background:transparent;border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);color:var(--red);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">Počisti</button>
+          </div>
+
+          <!-- Slot 1 -->
+          <div class="card" id="hfSlot1" style="padding:12px">
+            <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Produkt 02</div>
+            <input type="text" id="hfUrl1" placeholder="https://www.maaarket.si/izdelek/..." onkeypress="if(event.key==='Enter')hfFetch(1)" style="width:100%;margin-bottom:6px">
+            <button onclick="hfFetch(1)" id="hfBtn1" style="width:100%;padding:7px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Fetch →</button>
+            <div id="hfStatus1" style="display:none;margin-top:6px;font-size:11px;padding:5px 8px;border-radius:4px"></div>
+            <div id="hfResult1" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
+            <button id="hfClear1" onclick="hfClear(1)" style="display:none;width:100%;margin-top:6px;padding:5px;background:transparent;border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);color:var(--red);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">Počisti</button>
+          </div>
+
+          <!-- Slot 2 -->
+          <div class="card" id="hfSlot2" style="padding:12px">
+            <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Produkt 03</div>
+            <input type="text" id="hfUrl2" placeholder="https://www.maaarket.si/izdelek/..." onkeypress="if(event.key==='Enter')hfFetch(2)" style="width:100%;margin-bottom:6px">
+            <button onclick="hfFetch(2)" id="hfBtn2" style="width:100%;padding:7px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Fetch →</button>
+            <div id="hfStatus2" style="display:none;margin-top:6px;font-size:11px;padding:5px 8px;border-radius:4px"></div>
+            <div id="hfResult2" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
+            <button id="hfClear2" onclick="hfClear(2)" style="display:none;width:100%;margin-top:6px;padding:5px;background:transparent;border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);color:var(--red);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">Počisti</button>
+          </div>
+        </div>
+
       </div>
     </div><!-- /kr-panel-higgsfield -->
 
@@ -6399,9 +6415,10 @@ function hfUpdateGenBtn() {
   const ready = hfSlots.filter(Boolean).length;
   const btn = document.getElementById('hfGenBtn');
   btn.disabled = ready === 0;
-  btn.style.opacity = ready === 0 ? '0.3' : '1';
+  btn.style.opacity = ready === 0 ? '0.35' : '1';
+  btn.style.cursor = ready === 0 ? 'not-allowed' : 'pointer';
   document.getElementById('hfGenTxt').textContent = ready === 0
-    ? 'Generiraj kreative v Claude ↗'
+    ? 'Generiraj v Claude ↗'
     : `Generiraj ${ready * 16} kreativ (${ready} × 16) ↗`;
 }
 
@@ -6421,10 +6438,10 @@ function hfGenerate() {
     const btn = document.getElementById('hfGenBtn');
     const orig = btn.innerHTML;
     btn.innerHTML = '<span>✓ Kopirano! Prilepi v Claude</span>';
-    btn.style.background = '#7dff8a';
+    btn.style.background = '#15803d';
     document.getElementById('hfGenStatus').style.display = 'block';
     document.getElementById('hfGenStatus').textContent = `✓ ${ready.length} produkt${ready.length>1?'i':''} kopirani — prilepi v Claude chat za generacijo.`;
-    setTimeout(() => { btn.innerHTML = orig; btn.style.background = '#e8ff47'; }, 4000);
+    setTimeout(() => { btn.innerHTML = orig; btn.style.background = '#16a34a'; }, 4000);
   });
 }
 // ── /KREATIVE TABS + HIGGSFIELD ───────────────────────────────
