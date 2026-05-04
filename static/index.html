@@ -982,18 +982,18 @@ input[type="text"].error { border-color: var(--red) !important; }
 
     <!-- Tab switcher -->
     <div style="display:flex;gap:8px;padding:14px 14px 12px;border-bottom:1px solid var(--border);margin-bottom:0">
-      <button class="kreative-tab-btn" id="krTab-gemini" onclick="krSwitchTab('gemini')"
-        style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
-        ✨ Gemini Flash
-      </button>
       <button class="kreative-tab-btn" id="krTab-higgsfield" onclick="krSwitchTab('higgsfield')"
-        style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
+        style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
         🎬 Higgsfield
+      </button>
+      <button class="kreative-tab-btn" id="krTab-gemini" onclick="krSwitchTab('gemini')"
+        style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
+        ✨ Gemini Flash
       </button>
     </div>
 
     <!-- Tab: Gemini -->
-    <div id="kr-panel-gemini" style="display:block">
+    <div id="kr-panel-gemini" style="display:none">
     <div class="kreative-layout">
 
       <!-- LEVO: Vnos + A/B/C izbira -->
@@ -1108,7 +1108,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     </div><!-- /kr-panel-gemini -->
 
     <!-- Tab: Higgsfield -->
-    <div id="kr-panel-higgsfield" style="display:none;padding:14px">
+    <div id="kr-panel-higgsfield" style="display:block;padding:14px">
       <div style="display:grid;grid-template-columns:220px 1fr;gap:14px;align-items:start">
 
         <!-- LEVO: nastavitve + generiraj -->
