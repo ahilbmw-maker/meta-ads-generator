@@ -5116,91 +5116,95 @@ async def odprema_test():
 @app.post("/odprema-validate")
 async def odprema_validate(data: dict):
     """
-    Validira seznam BG naslovov z Geoapify API — vzporedno za hitrost.
-    Input: { "addresses": [ { "order": "...", "zip": "...", "city": "...", "street": "...", "streetNr": "..." }, ... ] }
+    Normalizira BG naslove z Claude AI — razčleni, popravi format, standardizira za Econt.
     """
-    if not GEOAPIFY_KEY:
-        return JSONResponse({"error": "GEOAPIFY_API_KEY ni nastavljen v environment spremenljivkah."}, status_code=500)
-
     addresses = data.get("addresses", [])
     if not addresses:
         return JSONResponse({"error": "Ni naslovov za validacijo."}, status_code=400)
 
-    async def validate_one(hc: httpx.AsyncClient, addr: dict) -> dict:
+    async def normalize_one(addr: dict) -> dict:
         order = addr.get("order", "")
         zip_code = (addr.get("zip") or "").strip()
         city = (addr.get("city") or "").strip()
         street = (addr.get("street") or "").strip()
         street_nr = (addr.get("streetNr") or "").strip()
 
-        street_full = street
-        if street_nr and street_nr.lower() not in ("nn", "n/a", "-", ""):
-            street_full = f"{street} {street_nr}"
+        prompt = f"""Si ekspert za bolgarske poštne naslove za Econt Express dostavo. Normaliziraj vhodni naslov v standardni format.
 
+VHODNI NASLOV:
+- Ulica/naslov: {street}
+- Hišna številka: {street_nr}
+- Mesto: {city}
+- ZIP: {zip_code}
+
+BOLGARSKE OKRAJŠAVE:
+- ul. = ulitsa (ulica), bul. = bulevard, zh.k. / jk / kv. = zhilishten kompleks (stanovanjski blok/četrt)
+- bl. = blok, vh. = vhod, et. = etazh (nadstropje), ap. = apartament
+- s. / selo = vas, gr. / grad = mesto, obl. = oblast (pokrajina)
+- ofis ekont / ofis Ekont = Econt pisarna (paketomat/depo)
+
+PRAVILA:
+1. Razčleni naslov in ga standardiziraj: "ul./bul./zh.k. IME ŠTEVILKA, bl. X, vh. Y, et. Z, ap. W"
+2. ZIP mora biti točno 4 cifre — popravi če vsebuje črko O namesto 0, ali je v naslovu
+3. Popravi ime mesta če je napačno (npr. "Sofiq" → "Sofia", "Plovdic" → "Plovdiv")
+4. Če je naslov Econt pisarna/office/paketomat → status ECONT_OFFICE, ohrani naslov
+5. Če naslov vsebuje mesto+ZIP skupaj (npr. "s.Izvorise 8116") → loči ju
+6. Če naslov je popolnoma nejasen ali prazen → status UNCLEAR
+
+Vrni SAMO JSON, brez razlag:
+{{"status": "OK", "fix_street": "standardiziran naslov brez mesta in ZIP", "fix_city": "pravilno ime mesta", "fix_zip": "4-mestni ZIP", "note": "kaj si popravil ali zakaj UNCLEAR"}}
+
+Status vrednosti: OK (že pravilen), FIXED (popravil sem), ECONT_OFFICE (Econt pisarna), UNCLEAR (ne morem določiti)"""
+
+        loop = asyncio.get_event_loop()
         try:
-            # Geoapify free-text search (structured endpoint vrača 404 na free tier)
-            query = f"{street_full}, {city}, {zip_code}, Bulgaria"
-            resp = await hc.get(
-                "https://api.geoapify.com/v1/geocode/search",
-                params={"text": query, "filter": "countrycode:bg", "limit": 1, "apiKey": GEOAPIFY_KEY, "format": "json"}
-            )
-            resp.raise_for_status()
-            results_list = resp.json().get("results", [])
-
-            if results_list:
-                best = results_list[0]
-                rank = best.get("rank", {})
-                confidence = rank.get("confidence", 0)
-
-                if confidence >= 0.8:
-                    status = "CONFIRMED"
-                elif confidence >= 0.5:
-                    status = "PARTIALLY_CONFIRMED"
-                else:
-                    status = "NOT_CONFIRMED"
-
-                return {
-                    "order": order,
-                    "status": status,
-                    "confidence": round(confidence, 2),
-                    "match_type": best.get("result_type", "unknown"),
-                    "formatted": best.get("formatted", ""),
-                    "fix_street": best.get("street", ""),
-                    "fix_nr": best.get("housenumber", ""),
-                    "fix_city": best.get("city", "") or best.get("town", "") or best.get("village", ""),
-                    "fix_zip": best.get("postcode", ""),
-                    "lat": best.get("lat"),
-                    "lon": best.get("lon"),
-                    "original": {"zip": zip_code, "city": city, "street": street, "streetNr": street_nr},
-                }
-            else:
-                return {
-                    "order": order, "status": "NOT_CONFIRMED", "confidence": 0,
-                    "match_type": "no_result", "formatted": "",
-                    "fix_street": street, "fix_nr": street_nr, "fix_city": city, "fix_zip": zip_code,
-                    "original": {"zip": zip_code, "city": city, "street": street, "streetNr": street_nr},
-                }
-
+            msg = await loop.run_in_executor(None, lambda: client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=300,
+                messages=[{"role": "user", "content": prompt}]
+            ))
+            text = msg.content[0].text.strip()
+            text = re.sub(r'```json\s*', '', text)
+            text = re.sub(r'```\s*', '', text).strip()
+            result = json.loads(text)
+            
+            status_map = {
+                "OK": "CONFIRMED",
+                "FIXED": "PARTIALLY_CONFIRMED", 
+                "ECONT_OFFICE": "ECONT_DEPO",
+                "UNCLEAR": "NOT_CONFIRMED"
+            }
+            
+            return {
+                "order": order,
+                "status": status_map.get(result.get("status", "UNCLEAR"), "NOT_CONFIRMED"),
+                "confidence": 1.0 if result.get("status") == "OK" else 0.7 if result.get("status") == "FIXED" else 0.3,
+                "formatted": f"{result.get('fix_street','')}, {result.get('fix_city','')}, {result.get('fix_zip','')}",
+                "fix_street": result.get("fix_street", street),
+                "fix_nr": street_nr,
+                "fix_city": result.get("fix_city", city),
+                "fix_zip": result.get("fix_zip", zip_code),
+                "note": result.get("note", ""),
+                "original": {"zip": zip_code, "city": city, "street": street, "streetNr": street_nr},
+            }
         except Exception as e:
-            print(f"[odprema] Geoapify error for {order}: {e}")
+            print(f"[odprema] AI error for {order}: {e}")
             return {
                 "order": order, "status": "ERROR", "confidence": 0,
-                "match_type": "error", "formatted": "",
-                "fix_street": street, "fix_nr": street_nr, "fix_city": city, "fix_zip": zip_code,
+                "formatted": "", "fix_street": street, "fix_nr": street_nr,
+                "fix_city": city, "fix_zip": zip_code,
                 "error": str(e),
                 "original": {"zip": zip_code, "city": city, "street": street, "streetNr": street_nr},
             }
 
-    # Vzporedno — max 10 hkrati da ne preseže rate limit
-    async with httpx.AsyncClient(timeout=15.0) as hc:
-        semaphore = asyncio.Semaphore(10)
+    # Vzporedno — max 5 hkrati (Claude rate limit)
+    semaphore = asyncio.Semaphore(5)
 
-        async def limited(addr):
-            async with semaphore:
-                return await validate_one(hc, addr)
+    async def limited(addr):
+        async with semaphore:
+            return await normalize_one(addr)
 
-        results = await asyncio.gather(*[limited(addr) for addr in addresses])
-
+    results = await asyncio.gather(*[limited(addr) for addr in addresses])
     return {"results": list(results), "total": len(results)}
 
 # ─── ECONT OFFICES CACHE ──────────────────────────────────────────────────────
