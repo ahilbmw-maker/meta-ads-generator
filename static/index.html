@@ -1731,7 +1731,6 @@ input[type="text"].error { border-color: var(--red) !important; }
                   <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Naziv</th>
                   <th style="padding:9px 10px;text-align:center;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">Pozicija</th>
                   <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Komentar</th>
-                  <th style="padding:9px 10px;text-align:center;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap;width:70px">Kol. ✓</th>
                   <th style="padding:9px 10px;text-align:center;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;width:36px">✕</th>
                 </tr>
               </thead>
@@ -5304,12 +5303,13 @@ function inventuraRender() {
       ? `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:600;font-family:monospace">${it.pozicija}</span>`
       : `<span style="color:var(--text-tertiary);font-size:11px">—</span>`;
     const qty = it.kolicina_dejansko !== undefined && it.kolicina_dejansko !== null ? it.kolicina_dejansko : '';
+    const skuEsc = (it.sku||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return `<tr style="background:${bg};border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-size:10px;color:var(--text-tertiary)">${i + 1}</td>
       <td style="padding:7px 10px;font-size:11px;color:var(--text);">
         <div style="display:flex;align-items:center;gap:5px">
           <span style="font-weight:700;font-family:monospace;white-space:nowrap">${it.sku}</span>
-          <button onclick="event.stopPropagation();invCopySku(this,'${it.sku.replace(/'/g,"\'")}')" style="flex-shrink:0;background:var(--surface2);border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:9px;font-weight:600;color:var(--text-secondary);padding:2px 6px;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:all 0.1s">📋</button>
+          <button onclick="event.stopPropagation();invCopySku(this,'${skuEsc}')" style="flex-shrink:0;background:var(--surface2);border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:9px;font-weight:600;color:var(--text-secondary);padding:2px 6px;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:all 0.1s">📋</button>
         </div>
       </td>
       <td style="padding:7px 10px;font-size:11px;color:var(--text-secondary);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(it.naziv||'').replace(/"/g,'&quot;')}">${it.naziv || '—'}</td>
@@ -5428,7 +5428,7 @@ async function invLoadHistory() {
       </div>`;
     }).join('');
   } catch(e) {
-    list.innerHTML = '<div style="font-size:11px;color:var(--red);padding:8px">Napaka pri nalaganju zgodovine</div>';
+    list.innerHTML = '<div style="font-size:11px;color:var(--red);padding:8px">Napaka</div>';
   }
 }
 
@@ -7640,6 +7640,9 @@ document.addEventListener('DOMContentLoaded', () => {
     switchPage('home');
   }
   homeUpdateDate();
+
+  // Obnovi inventuro iz diska (ne glede na kateri tab si)
+  setTimeout(() => invLoadCurrent(), 300);
 });
 
 // ═══════════════════════════════════════════════════════
