@@ -5087,9 +5087,89 @@ async def inventura_history_load(filename: str):
     return json.loads(f.read_text(encoding="utf-8"))
 
 
-# ─── ODPREMA / GEOAPIFY ADDRESS VALIDATION ───────────────────────────────────
+# ─── ODPREMA / AI ADDRESS VALIDATION ─────────────────────────────────────────
 
 GEOAPIFY_KEY = os.environ.get("GEOAPIFY_API_KEY", "")
+ODPREMA_DIR = DATA_DIR / "odprema"
+ODPREMA_DIR.mkdir(exist_ok=True, parents=True)
+
+
+def odprema_cleanup():
+    """Zbriše zapise starejše od 90 dni."""
+    try:
+        cutoff = datetime.now().timestamp() - (90 * 86400)
+        for f in ODPREMA_DIR.glob("*.json"):
+            if f.stat().st_mtime < cutoff:
+                f.unlink()
+    except Exception as e:
+        print(f"[odprema] cleanup err: {e}")
+
+
+@app.post("/odprema-save")
+async def odprema_save(data: dict):
+    """Shrani batch podatke pošiljk na disk (90 dni)."""
+    try:
+        odprema_cleanup()
+        ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"odprema_{ts}.json"
+        payload = {
+            "saved_at": datetime.now().isoformat(),
+            "filename": data.get("filename", ""),
+            "total": data.get("total", 0),
+            "rows": data.get("rows", []),
+            "validation": data.get("validation", {}),
+        }
+        (ODPREMA_DIR / filename).write_text(
+            json.dumps(payload, ensure_ascii=False), encoding="utf-8"
+        )
+        return {"ok": True, "filename": filename}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/odprema-history")
+async def odprema_history_list():
+    """Vrne seznam shranjenih batch zapisov (90 dni)."""
+    odprema_cleanup()
+    items = []
+    try:
+        for f in sorted(ODPREMA_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                items.append({
+                    "filename": f.name,
+                    "saved_at": data.get("saved_at", ""),
+                    "original_file": data.get("filename", ""),
+                    "total": data.get("total", 0),
+                    "size": f.stat().st_size,
+                })
+            except:
+                pass
+    except Exception as e:
+        print(f"[odprema] history err: {e}")
+    return {"items": items}
+
+
+@app.get("/odprema-history-load/{filename}")
+async def odprema_history_load(filename: str):
+    """Naloži shranjeni batch zapis."""
+    if "/" in filename or "\\" in filename or ".." in filename:
+        return JSONResponse({"error": "Neveljavno ime."}, status_code=400)
+    f = ODPREMA_DIR / filename
+    if not f.exists():
+        return JSONResponse({"error": "Ni najdeno."}, status_code=404)
+    return json.loads(f.read_text(encoding="utf-8"))
+
+
+@app.delete("/odprema-history-delete/{filename}")
+async def odprema_history_delete(filename: str):
+    """Zbriše shranjeni batch zapis."""
+    if "/" in filename or "\\" in filename or ".." in filename:
+        return JSONResponse({"error": "Neveljavno ime."}, status_code=400)
+    f = ODPREMA_DIR / filename
+    if f.exists():
+        f.unlink()
+    return {"ok": True}
 
 
 @app.get("/odprema-test")
