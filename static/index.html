@@ -590,6 +590,11 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div class="nav-sub-item" onclick="switchPage('narocilnice');narcSwitchTab('razlike')">Negativne razlike</div>
     <div class="nav-sub-item" onclick="switchPage('narocilnice');narcSwitchTab('karantena')">Karantena</div>
   </div>
+
+  <div class="nav-item nav-odprema" id="nav-odprema" onclick="switchPage('odprema')">
+    <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+    Odprema
+  </div>
 </nav>
 
 <!-- MAIN -->
@@ -693,6 +698,11 @@ input[type="text"].error { border-color: var(--red) !important; }
               <span class="home-pill" onclick="event.stopPropagation();switchPage('narocilnice');narcSwitchTab('razlike')">↗ Negativne razlike</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('narocilnice');narcSwitchTab('karantena')">↗ Karantena</span>
             </div>
+          </div>
+          <div class="home-tile" style="border-left-color:#06b6d4" onclick="switchPage('odprema')">
+            <div class="ht-icon">🚚</div>
+            <div class="ht-name">Odprema</div>
+            <div class="ht-desc">AI pregled Econt BG naslovov</div>
           </div>
         </div>
       </div>
@@ -2056,7 +2066,107 @@ input[type="text"].error { border-color: var(--red) !important; }
     </div>
   </div><!-- /page-zaloga -->
 
-</div>
+  <!-- ═══ ODPREMA PAGE ═══ -->
+  <div class="page" id="page-odprema">
+    <div style="display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start;padding:14px">
+
+      <!-- LEVO -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="card">
+          <span class="slabel">CSV UVOZ</span>
+          <p style="font-size:11px;color:var(--text-secondary);margin:6px 0 8px;line-height:1.5">Naloži Expedico nalepke CSV (Nalepke_Expedico_*.csv). AI bo preveril vse BG naslove.</p>
+          <div class="k-dropzone" style="padding:14px;cursor:pointer;text-align:center"
+               onclick="document.getElementById('odp-file-input').click()"
+               ondragover="event.preventDefault();this.classList.add('drag-over')"
+               ondragleave="this.classList.remove('drag-over')"
+               ondrop="event.preventDefault();this.classList.remove('drag-over');odpHandleFile(event.dataTransfer.files[0])">
+            <span style="font-size:11px">🚚 Klikni ali povleci CSV</span>
+          </div>
+          <input type="file" id="odp-file-input" accept=".csv" style="display:none" onchange="odpHandleFile(this.files[0])">
+          <div id="odp-loading" style="display:none;text-align:center;padding:10px;font-size:11px;color:var(--text-secondary)">⏳ Nalagam...</div>
+          <div id="odp-error" style="display:none;background:#fff5f5;border:1px solid #fed7d7;border-radius:var(--radius);padding:8px;color:#c53030;font-size:11px;margin-top:8px"></div>
+        </div>
+
+        <div class="card" id="odp-stats-card" style="display:none">
+          <span class="slabel">STATISTIKA</span>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+              <span style="font-size:11px;color:var(--text-secondary)">Skupaj</span>
+              <span id="odp-stat-total" style="font-size:13px;font-weight:700;color:var(--text)">0</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+              <span style="font-size:11px;color:var(--text-secondary)">✓ OK</span>
+              <span id="odp-stat-ok" style="font-size:13px;font-weight:700;color:#16a34a">0</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+              <span style="font-size:11px;color:var(--text-secondary)">⚠ Popraviti</span>
+              <span id="odp-stat-fix" style="font-size:13px;font-weight:700;color:#f59e0b">0</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+              <span style="font-size:11px;color:var(--text-secondary)">📦 Econt Depo</span>
+              <span id="odp-stat-depo" style="font-size:13px;font-weight:700;color:#f97316">0</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+              <span style="font-size:11px;color:var(--text-secondary)">🔴 Ročno</span>
+              <span id="odp-stat-manual" style="font-size:13px;font-weight:700;color:#ef4444">0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="odp-actions-card" style="display:none">
+          <span class="slabel">AKCIJE</span>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+            <div id="odp-progress-wrap" style="display:none">
+              <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px" id="odp-progress-text">Analiziram...</div>
+              <div style="height:4px;background:var(--border);border-radius:4px;overflow:hidden">
+                <div id="odp-progress-fill" style="height:100%;background:var(--accent);border-radius:4px;transition:width 0.3s;width:0%"></div>
+              </div>
+            </div>
+            <button id="odp-analyze-btn" onclick="odpStartAnalysis()" style="padding:8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🤖 Zaženi AI analizo</button>
+            <button id="odp-export-btn" onclick="odpExportCSV()" style="display:none;padding:8px;background:#16a34a;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">⬇ Izvozi popravljeni CSV</button>
+            <button onclick="odpReset()" style="padding:6px;background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🗑 Ponastavi</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DESNO -->
+      <div>
+        <div id="odp-empty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:3rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
+          Naloži Expedico CSV za AI pregled naslovov.
+        </div>
+
+        <div id="odp-table-wrap" style="display:none">
+          <!-- Filter tabs -->
+          <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+            <button class="odp-ftab active" onclick="odpSetFilter('all',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif">Vse</button>
+            <button class="odp-ftab" onclick="odpSetFilter('FIX',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">⚠ Popraviti</button>
+            <button class="odp-ftab" onclick="odpSetFilter('ECONT_DEPO',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">📦 Econt Depo</button>
+            <button class="odp-ftab" onclick="odpSetFilter('MANUAL',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">🔴 Ročno</button>
+            <button class="odp-ftab" onclick="odpSetFilter('OK',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">✓ OK</button>
+          </div>
+
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:11px">
+              <thead>
+                <tr style="background:#1e293b">
+                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">Status</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">Naročilo</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Ime</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">ZIP</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Mesto</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Ulica</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">Telefon</th>
+                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Problem / Opomba</th>
+                </tr>
+              </thead>
+              <tbody id="odp-tbody"></tbody>
+            </table>
+          </div>
+          <div id="odp-no-results" style="display:none;text-align:center;padding:24px;color:var(--text-secondary);font-size:12px">Ni zadetkov</div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /page-odprema -->
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -2109,7 +2219,7 @@ function closeMenu(){
   document.querySelector('.sidebar').classList.remove('open');
   document.getElementById('overlay').classList.remove('open');
 }
-const PAGES = ['home','meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads','orodja','analiza','zaloga'];
+const PAGES = ['home','meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads','orodja','analiza','zaloga','odprema'];
 let currentIdx = 0;
 
 function switchCalcTab(tab) {
@@ -2138,7 +2248,7 @@ function switchPage(page) {
   // Wide layout
   const mainEl = document.querySelector('.main');
   if(mainEl) {
-    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative' || page==='lokalizacija' || page==='narocilnice' || page==='videoads' || page==='orodja' || page==='analiza' || page==='zaloga') {
+    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative' || page==='lokalizacija' || page==='narocilnice' || page==='videoads' || page==='orodja' || page==='analiza' || page==='zaloga' || page==='odprema') {
       mainEl.classList.add('wide');
     } else if(page==='meta') {
       const formVisible = document.getElementById('metaFormSection').style.display !== 'none';
@@ -5468,6 +5578,291 @@ async function invHistoryLoad(filename) {
   }
 }
 // ── /INVENTURA ────────────────────────────────────────────────
+
+// ── ODPREMA ───────────────────────────────────────────────────
+let odpRows = [];
+let odpAnalysis = {};
+let odpFieldnames = [];
+let odpFilter = 'all';
+
+const ODP_SUSPENDED = new Set([
+  2865,2894,2891,2896,2872,2886,2883,2871,2882,2881,2880,2879,2878,2893,2884,2885,2890,
+  2341,2349,2348,2340,2343,2342,2438,2393,2397,2388,2489,2435,2391,2390,2396,2466,2464,
+  2470,2496,2497,2499,2495,2494,2491,2490,2439,2486,2398,2437,2434,2392,
+  8319,8322,8324,8323,8313,8327,8325,8328,8330,8106,8105,8107,8128,8129,8317,8340,8329,
+  8344,8345,8347,8342,8343,8320,8331,8333,8332,8335,8341,8318,8334,8336,8316,8337,8338,8348,8314,
+  8174,8357,8172,8364,8170,8631,8638,8640,8671,8670,8625,8624,8642,8649,8639,8657,8630,
+  8643,8644,8645,8660,8637,8629,8634,8635,8142,8140,
+  6194,6193,6192,6190,8895,6199,8899,6196,6172,8893,6191,8890,6189,6197,6174,6173,
+  4193,4196,4195,4194,4197,4199,4191,4198,4185,
+  6062,6013,6061,6064,6065,6063,6066,6060,6068,6067,6069,6011,6014,6015,
+  6055,6052,6054,6050,6051,6056,6053,6057,6058,6059,
+  5811,5824,5812,5825,5813,5814,5826,5821,5822,5819,5818,
+  3042,3044,3045,3043,3047,3048,3051,3053,3049,3050,3054,3064,3055,3061,3062,3056,3065,
+  3063,3058,3066,3067,3068,3069,3060,3057,3052,3041,3040,3012,3046,3039,3038,
+  2369,2373,2374,2371,2372,2377,2375,2370,2376,2362,2363,2364,2367,2366,2365,2361,2378,
+  2379,2222,2191,2221,8210,8217,4811,
+  3531,3520,3521,3532,3514,3511,3523,3530,3512,3515,3517,3519,3518,3533,3513,3522,3516,3524
+]);
+
+const ODP_ECONT_MAP = {
+  8640:'Yambol Kerkhanite office', 8637:'Yambol office', 8629:'Yambol office',
+  8631:'Yambol Kerkhanite office', 8638:'Yambol Kerkhanite office', 8671:'Yambol Kerkhanite office',
+  8670:'Yambol Kerkhanite office', 8625:'Yambol Kerkhanite office', 8624:'Yambol Kerkhanite office',
+  8642:'Yambol Kerkhanite office', 8649:'Yambol Kerkhanite office', 8639:'Yambol Kerkhanite office',
+  8657:'Yambol Kerkhanite office', 8630:'Yambol Kerkhanite office', 8643:'Yambol Kerkhanite office',
+  8644:'Yambol Kerkhanite office', 8645:'Yambol Kerkhanite office', 8660:'Yambol Kerkhanite office',
+  8634:'Yambol office', 8635:'Yambol office',
+  8142:'Sozopol office', 8140:'Sozopol office',
+  8174:'Tsarevo office', 8357:'Tsarevo office', 8172:'Tsarevo office', 8364:'Tsarevo office', 8170:'Tsarevo office',
+  8210:'Nessebar Kragovoto office', 8217:'Nessebar Kragovoto office',
+  4811:'Devin Vasil Levski office',
+};
+
+function odpHandleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => odpParseCSV(e.target.result);
+  reader.readAsText(file, 'utf-8');
+}
+
+function odpParseCSVLine(line) {
+  const result = []; let current = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQ = !inQ; }
+    else if (line[i] === ',' && !inQ) { result.push(current); current = ''; }
+    else { current += line[i]; }
+  }
+  result.push(current);
+  return result;
+}
+
+function odpParseCSV(text) {
+  text = text.replace(/^\uFEFF/, '');
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) { alert('Prazen CSV!'); return; }
+  odpFieldnames = odpParseCSVLine(lines[0]);
+  odpRows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = odpParseCSVLine(lines[i]);
+    if (vals.length < 5) continue;
+    const row = {};
+    odpFieldnames.forEach((f, idx) => { row[f] = (vals[idx] || '').trim(); });
+    odpRows.push(row);
+  }
+  document.getElementById('odp-empty').style.display = 'none';
+  document.getElementById('odp-stats-card').style.display = 'block';
+  document.getElementById('odp-actions-card').style.display = 'block';
+  document.getElementById('odp-table-wrap').style.display = 'block';
+  document.getElementById('odp-stat-total').textContent = odpRows.length;
+  odpUpdateStats();
+  odpRenderTable();
+}
+
+function odpQuickCheck(row) {
+  const zip = row.recipientZip || '';
+  const phone = row.recipientPhone || '';
+  const street = row.recipientStreet || '';
+  const city = row.recipientCity || '';
+  const zipClean = zip.replace(/\D/g, '');
+  const zipInt = parseInt(zipClean) || 0;
+  const phoneDigits = phone.replace(/\D/g, '');
+  const problems = [];
+  if (zipClean.length !== 4) problems.push(`ZIP napačna dolžina (${zipClean.length})`);
+  if (/[Oo]/.test(zip)) problems.push('ZIP vsebuje O');
+  if (ODP_SUSPENDED.has(zipInt)) problems.push('SUSPENDED ZIP');
+  if (/[Oo]/.test(phone)) problems.push('Telefon vsebuje O');
+  if (phoneDigits.length < 9) problems.push(`Telefon prekratek (${phoneDigits.length} cifr)`);
+  if (zipClean.length === 4 && street.includes(zipClean)) problems.push('ZIP v naslovu');
+  if (city && street.toLowerCase().includes(city.toLowerCase()) && /\d{4}/.test(street)) problems.push('Mesto+ZIP skupaj');
+  return problems;
+}
+
+async function odpStartAnalysis() {
+  const btn = document.getElementById('odp-analyze-btn');
+  btn.disabled = true; btn.textContent = '⏳ Analiziram...';
+  document.getElementById('odp-progress-wrap').style.display = 'block';
+
+  const toAnalyze = [];
+  for (const row of odpRows) {
+    const order = row.orderNumber;
+    const problems = odpQuickCheck(row);
+    const zipInt = parseInt((row.recipientZip || '').replace(/\D/g, '')) || 0;
+    if (ODP_SUSPENDED.has(zipInt)) {
+      odpAnalysis[order] = { action: 'ECONT_DEPO', problems: problems.join('; '),
+        note: `Pošlji na: ${ODP_ECONT_MAP[zipInt] || 'Najbližji Econt'}`,
+        fix_zip: row.recipientZip, fix_city: row.recipientCity,
+        fix_street: row.recipientStreet, fix_phone: row.recipientPhone };
+    } else if (problems.length > 0) {
+      odpAnalysis[order] = { action: 'ANALYZING', problems: problems.join('; ') };
+      toAnalyze.push(row);
+    } else {
+      odpAnalysis[order] = { action: 'OK', problems: '' };
+    }
+  }
+  odpUpdateStats(); odpRenderTable();
+
+  if (toAnalyze.length === 0) {
+    btn.textContent = '✓ Končano'; document.getElementById('odp-progress-wrap').style.display = 'none';
+    document.getElementById('odp-export-btn').style.display = 'block';
+    return;
+  }
+
+  const batchSize = 5;
+  for (let i = 0; i < toAnalyze.length; i += batchSize) {
+    const batch = toAnalyze.slice(i, i + batchSize);
+    const pct = Math.round((i / toAnalyze.length) * 100);
+    document.getElementById('odp-progress-fill').style.width = pct + '%';
+    document.getElementById('odp-progress-text').textContent = `AI: ${i+1}–${Math.min(i+batchSize,toAnalyze.length)} / ${toAnalyze.length}`;
+    try { await odpAnalyzeBatch(batch); } catch(e) { console.error('Batch error:', e); }
+    odpUpdateStats(); odpRenderTable();
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  document.getElementById('odp-progress-fill').style.width = '100%';
+  document.getElementById('odp-progress-text').textContent = 'Analiza končana ✓';
+  setTimeout(() => { document.getElementById('odp-progress-wrap').style.display = 'none'; }, 2000);
+  btn.textContent = '✓ Končano';
+  document.getElementById('odp-export-btn').style.display = 'block';
+  odpUpdateStats(); odpRenderTable();
+}
+
+async function odpAnalyzeBatch(batch) {
+  const prompt = `Analiziraj te bolgarske naslove za Econt dostavo. Za vsak naslov predlagaj popravke.
+
+PRAVILA:
+- BG ZIP = točno 4 cifre, brez O namesto 0
+- Telefon BG: 0XXXXXXXXX (10 cifr) ali +359XXXXXXXXX (12 cifr)
+- Če je ZIP v naslovu, ga odstrani in pusti samo ulico
+- Če naslov vsebuje "ofis ekont" ali "paketomat" → action=ECONT_DEPO
+- "nn" kot hišna številka je OK, ne popravljaj
+
+Vrni SAMO JSON array:
+[{"order":"...","action":"FIX|ECONT_DEPO|MANUAL|OK","problems":"kratek opis","fix_street":"ulica","fix_zip":"4-mestni ZIP","fix_city":"mesto","fix_phone":"telefon","note":"opomba"}]
+
+Naslovi:
+${JSON.stringify(batch.map(r => ({
+  order: r.orderNumber, zip: r.recipientZip, city: r.recipientCity,
+  street: r.recipientStreet, phone: r.recipientPhone,
+  name: (r.recipientFirstname||'') + ' ' + (r.recipientLastname||'')
+})))}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }] })
+  });
+  const data = await res.json();
+  const text = (data.content?.[0]?.text || '');
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) { batch.forEach(r => { odpAnalysis[r.orderNumber] = { action: 'MANUAL', problems: 'AI napaka', note: 'Preveri ročno' }; }); return; }
+  const results = JSON.parse(match[0]);
+  results.forEach(r => { odpAnalysis[r.order] = r; });
+}
+
+function odpUpdateStats() {
+  const c = { OK:0, FIX:0, ECONT_DEPO:0, MANUAL:0 };
+  odpRows.forEach(r => { const a = odpAnalysis[r.orderNumber]; if (a && c[a.action]!==undefined) c[a.action]++; });
+  document.getElementById('odp-stat-ok').textContent = c.OK;
+  document.getElementById('odp-stat-fix').textContent = c.FIX;
+  document.getElementById('odp-stat-depo').textContent = c.ECONT_DEPO;
+  document.getElementById('odp-stat-manual').textContent = c.MANUAL;
+}
+
+function odpSetFilter(f, el) {
+  odpFilter = f;
+  document.querySelectorAll('.odp-ftab').forEach(t => { t.style.background='transparent'; t.style.color='var(--text-secondary)'; t.style.borderColor='var(--border)'; });
+  el.style.background = 'var(--accent)'; el.style.color = '#fff'; el.style.borderColor = 'var(--accent)';
+  odpRenderTable();
+}
+
+function odpRenderTable() {
+  const tbody = document.getElementById('odp-tbody');
+  const noRes = document.getElementById('odp-no-results');
+  let rows = odpFilter === 'all' ? odpRows : odpRows.filter(r => (odpAnalysis[r.orderNumber]?.action || 'PENDING') === odpFilter);
+  if (!rows.length) { tbody.innerHTML = ''; noRes.style.display = 'block'; return; }
+  noRes.style.display = 'none';
+
+  const badgeMap = { OK:'#16a34a', FIX:'#f59e0b', ECONT_DEPO:'#f97316', MANUAL:'#ef4444', ANALYZING:'var(--accent)', PENDING:'var(--text-tertiary)' };
+  const labelMap = { OK:'✓ OK', FIX:'⚠ FIX', ECONT_DEPO:'📦 DEPO', MANUAL:'🔴 ROČNO', ANALYZING:'🤖...', PENDING:'⏳' };
+
+  tbody.innerHTML = rows.map((r, i) => {
+    const a = odpAnalysis[r.orderNumber];
+    const action = a?.action || 'PENDING';
+    const bg = i % 2 === 0 ? 'var(--surface)' : 'var(--surface2)';
+    const color = badgeMap[action] || 'var(--muted)';
+    const badge = `<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:${color}22;color:${color};border:1px solid ${color}44">${labelMap[action]}</span>`;
+
+    const zipO = r.recipientZip, cityO = r.recipientCity, streetO = r.recipientStreet, phoneO = r.recipientPhone;
+    const zipF = a?.fix_zip && a.fix_zip !== zipO ? a.fix_zip : null;
+    const cityF = a?.fix_city && a.fix_city !== cityO ? a.fix_city : null;
+    const streetF = a?.fix_street && a.fix_street !== streetO ? a.fix_street : null;
+    const phoneF = a?.fix_phone && a.fix_phone !== phoneO ? a.fix_phone : null;
+
+    const diff = (orig, fixed) => fixed
+      ? `<div style="text-decoration:line-through;color:var(--text-tertiary);font-size:10px">${orig}</div><div style="color:#16a34a;font-weight:600">${fixed}</div>`
+      : orig;
+
+    const prob = a?.problems ? `<div style="color:#f59e0b;font-size:10px;margin-top:2px">⚠ ${a.problems}</div>` : '';
+    const note = a?.note ? `<div style="color:#f97316;font-size:10px;margin-top:2px">→ ${a.note}</div>` : '';
+
+    return `<tr style="background:${bg};border-bottom:1px solid var(--border)">
+      <td style="padding:8px 10px">${badge}</td>
+      <td style="padding:8px 10px;font-family:monospace;font-size:11px;white-space:nowrap">${r.orderNumber}</td>
+      <td style="padding:8px 10px;font-size:11px;white-space:nowrap">${r.recipientFirstname||''} ${r.recipientLastname||''}</td>
+      <td style="padding:8px 10px;font-family:monospace">${diff(zipO, zipF)}</td>
+      <td style="padding:8px 10px">${diff(cityO, cityF)}</td>
+      <td style="padding:8px 10px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${diff(streetO, streetF)}</td>
+      <td style="padding:8px 10px;font-family:monospace">${diff(phoneO, phoneF)}</td>
+      <td style="padding:8px 10px">${prob}${note}</td>
+    </tr>`;
+  }).join('');
+}
+
+function odpExportCSV() {
+  const corrected = odpRows.map(r => {
+    const a = odpAnalysis[r.orderNumber];
+    const out = { ...r };
+    if (a && a.action !== 'OK') {
+      if (a.fix_zip) out.recipientZip = a.fix_zip;
+      if (a.fix_city) out.recipientCity = a.fix_city;
+      if (a.fix_street) out.recipientStreet = a.fix_street;
+      if (a.fix_phone) out.recipientPhone = a.fix_phone;
+    }
+    return out;
+  });
+  const lines = [odpFieldnames.join(',')];
+  corrected.forEach(r => {
+    const vals = odpFieldnames.map(f => {
+      const v = r[f] || '';
+      return v.includes(',') || v.includes('"') ? `"${v.replace(/"/g,'""')}"` : v;
+    });
+    lines.push(vals.join(','));
+  });
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `Nalepke_Expedico_POPRAVLJENO_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function odpReset() {
+  odpRows = []; odpAnalysis = {}; odpFieldnames = []; odpFilter = 'all';
+  document.getElementById('odp-empty').style.display = 'block';
+  document.getElementById('odp-stats-card').style.display = 'none';
+  document.getElementById('odp-actions-card').style.display = 'none';
+  document.getElementById('odp-table-wrap').style.display = 'none';
+  document.getElementById('odp-error').style.display = 'none';
+  document.getElementById('odp-file-input').value = '';
+  document.getElementById('odp-analyze-btn').disabled = false;
+  document.getElementById('odp-analyze-btn').textContent = '🤖 Zaženi AI analizo';
+  document.getElementById('odp-export-btn').style.display = 'none';
+  ['odp-stat-total','odp-stat-ok','odp-stat-fix','odp-stat-depo','odp-stat-manual'].forEach(id => {
+    document.getElementById(id).textContent = '0';
+  });
+}
+// ── /ODPREMA ──────────────────────────────────────────────────
 
 let hsItems = [];
 
