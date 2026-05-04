@@ -981,13 +981,13 @@ input[type="text"].error { border-color: var(--red) !important; }
   <div class="page" id="page-kreative">
 
     <!-- Tab switcher -->
-    <div style="display:flex;gap:8px;padding:14px 14px 0;border-bottom:1px solid var(--border);margin-bottom:0">
-      <button id="kr-tab-gemini" onclick="krSwitchTab('gemini')"
-        style="padding:8px 18px;border-radius:8px 8px 0 0;border:1px solid var(--border);border-bottom:none;background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:-1px;position:relative;z-index:1">
+    <div style="display:flex;gap:8px;padding:14px 14px 12px;border-bottom:1px solid var(--border);margin-bottom:0">
+      <button class="kreative-tab-btn" id="krTab-gemini" onclick="krSwitchTab('gemini')"
+        style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
         ✨ Gemini Flash
       </button>
-      <button id="kr-tab-higgsfield" onclick="krSwitchTab('higgsfield')"
-        style="padding:8px 18px;border-radius:8px 8px 0 0;border:1px solid var(--border);border-bottom:none;background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:-1px">
+      <button class="kreative-tab-btn" id="krTab-higgsfield" onclick="krSwitchTab('higgsfield')"
+        style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">
         🎬 Higgsfield
       </button>
     </div>
@@ -6283,14 +6283,16 @@ function odpReset() {
 function krSwitchTab(tab) {
   document.getElementById('kr-panel-gemini').style.display = tab === 'gemini' ? 'block' : 'none';
   document.getElementById('kr-panel-higgsfield').style.display = tab === 'higgsfield' ? 'block' : 'none';
-  const gBtn = document.getElementById('kr-tab-gemini');
-  const hBtn = document.getElementById('kr-tab-higgsfield');
-  if (tab === 'gemini') {
-    gBtn.style.background = 'var(--surface)'; gBtn.style.color = 'var(--text)';
-    hBtn.style.background = 'transparent'; hBtn.style.color = 'var(--text-secondary)';
-  } else {
-    hBtn.style.background = 'var(--surface)'; hBtn.style.color = 'var(--text)';
-    gBtn.style.background = 'transparent'; gBtn.style.color = 'var(--text-secondary)';
+  document.querySelectorAll('.kreative-tab-btn').forEach(btn => {
+    btn.style.background = 'transparent';
+    btn.style.color = 'var(--text-secondary)';
+    btn.style.border = '1px solid var(--border)';
+  });
+  const active = document.getElementById('krTab-' + tab);
+  if (active) {
+    active.style.background = 'var(--accent)';
+    active.style.color = 'white';
+    active.style.border = 'none';
   }
 }
 
