@@ -5540,6 +5540,7 @@ async def odprema_send_emails(data: dict):
             msg["Subject"] = subject
             msg["From"] = SMTP_FROM
             msg["To"] = email
+            msg["Reply-To"] = "podpora@silux.si"
             msg.attach(MIMEText(html, "html", "utf-8"))
 
             with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
