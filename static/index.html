@@ -5629,6 +5629,37 @@ function odpParseCSVLine(line) {
   r.push(cur); return r;
 }
 
+function odpFixPhone(phone) {
+  if (!phone) return { fixed: '', changed: false };
+  const orig = phone.trim();
+  let digits = orig.replace(/\D/g, '');
+
+  // 00359XXXXXXXXX → 0XXXXXXXXX
+  if (digits.startsWith('00359') && digits.length >= 13) {
+    digits = '0' + digits.slice(5);
+  }
+  // 359XXXXXXXXX (12 cifr) → 0XXXXXXXXX
+  else if (digits.startsWith('359') && digits.length === 12) {
+    digits = '0' + digits.slice(3);
+  }
+
+  // 7 cifr z 8/9 → manjkata 08 spredaj
+  if (digits.length === 7 && (digits[0] === '8' || digits[0] === '9')) {
+    digits = '08' + digits;
+  }
+  // 8 cifr z 8/9 → manjka 0 spredaj
+  else if (digits.length === 8 && (digits[0] === '8' || digits[0] === '9')) {
+    digits = '0' + digits;
+  }
+  // 9 cifr z 8/9 → manjka 0 spredaj
+  else if (digits.length === 9 && (digits[0] === '8' || digits[0] === '9')) {
+    digits = '0' + digits;
+  }
+
+  const changed = digits !== orig.replace(/\D/g, '');
+  return { fixed: digits, changed, orig };
+}
+
 function odpHandleFile(file) {
   if (!file) return;
   const reader = new FileReader();
@@ -5643,6 +5674,12 @@ function odpHandleFile(file) {
       if (vals.length < 5) continue;
       const row = {};
       odpFieldnames.forEach((f, idx) => { row[f] = (vals[idx] || '').trim(); });
+      // Auto-fix telefon
+      const phoneResult = odpFixPhone(row.recipientPhone);
+      if (phoneResult.changed) {
+        row._origPhone = row.recipientPhone;
+        row.recipientPhone = phoneResult.fixed;
+      }
       odpRows.push(row);
     }
     odpValidation = {};
@@ -5829,7 +5866,7 @@ function odpRenderTable() {
       <td style="padding:8px 10px;font-family:monospace;font-size:11px">${diff(zipO, zipF)}</td>
       <td style="padding:8px 10px;font-size:11px">${diff(cityO, cityF)}</td>
       <td style="padding:8px 10px;font-size:11px;max-width:200px">${diff(streetO, streetF)}${noteText}${fmtText}</td>
-      <td style="padding:8px 10px;font-family:monospace;font-size:11px">${r.recipientPhone||''}</td>
+      <td style="padding:8px 10px;font-family:monospace;font-size:11px">${r._origPhone ? `<div style="text-decoration:line-through;color:var(--text-tertiary);font-size:10px">${r._origPhone}</div><div style="color:#16a34a;font-weight:600">${r.recipientPhone}</div>` : r.recipientPhone||''}</td>
     </tr>`;
   }).join('');
 }
