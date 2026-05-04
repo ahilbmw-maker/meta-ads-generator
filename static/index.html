@@ -2123,6 +2123,7 @@ input[type="text"].error { border-color: var(--red) !important; }
             </div>
             <button id="odp-validate-btn" onclick="odpStartValidation()" style="padding:8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🤖 AI normalizacija naslovov</button>
             <button id="odp-export-btn" onclick="odpExportCSV()" style="display:none;padding:8px;background:#16a34a;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">⬇ Izvozi popravljeni CSV</button>
+            <button id="odp-email-btn" onclick="odpSendEmails()" style="display:none;padding:8px;background:#f97316;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">✉ Pošlji obvestila DEPO strankam</button>
             <button onclick="odpReset()" style="padding:6px;background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🗑 Ponastavi</button>
           </div>
         </div>
@@ -5899,6 +5900,75 @@ function odpUpdateStats() {
   document.getElementById('odp-stat-partial').textContent = c.PARTIALLY_CONFIRMED;
   document.getElementById('odp-stat-bad').textContent = c.NOT_CONFIRMED;
   document.getElementById('odp-stat-depo').textContent = c.ECONT_DEPO;
+
+  // Pokaži email gumb če obstajajo DEPO pošiljke z emailom
+  const depoWithEmail = odpRows.filter(r => {
+    const v = odpValidation[r.orderNumber];
+    return v?.status === 'ECONT_DEPO' && r.recipientEmail && r.recipientEmail.includes('@');
+  });
+  const emailBtn = document.getElementById('odp-email-btn');
+  if (emailBtn) {
+    emailBtn.style.display = depoWithEmail.length > 0 ? 'block' : 'none';
+    if (depoWithEmail.length > 0) {
+      emailBtn.textContent = `✉ Pošlji obvestila (${depoWithEmail.length} strankam)`;
+    }
+  }
+}
+
+async function odpSendEmails() {
+  const btn = document.getElementById('odp-email-btn');
+
+  // Zberi DEPO pošiljke z emailom
+  const depoShipments = odpRows
+    .filter(r => {
+      const v = odpValidation[r.orderNumber];
+      return v?.status === 'ECONT_DEPO' && r.recipientEmail && r.recipientEmail.includes('@');
+    })
+    .map(r => {
+      const v = odpValidation[r.orderNumber];
+      return {
+        order: r.orderNumber,
+        name: `${r.recipientFirstname || ''} ${r.recipientLastname || ''}`.trim(),
+        email: r.recipientEmail,
+        office: v?.note?.replace('📦 ', '') || v?.fix_street || 'Najbližji Econt office',
+        orig_city: r.recipientCity,
+      };
+    });
+
+  if (!depoShipments.length) { alert('Ni DEPO strank z e-mail naslovom.'); return; }
+
+  const confirm_msg = `Pošlji email obvestila ${depoShipments.length} strankam?\n\n` +
+    depoShipments.map(s => `${s.order} → ${s.email}`).join('\n');
+
+  if (!confirm(confirm_msg)) return;
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Pošiljam...';
+
+  try {
+    const res = await fetch('/odprema-send-emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shipments: depoShipments })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      alert('Napaka: ' + data.error);
+    } else {
+      let msg = `✓ Poslano: ${data.sent} emailov`;
+      if (data.failed > 0) {
+        msg += `\n⚠ Neuspešno: ${data.failed}\n`;
+        msg += data.failed_list.map(f => `${f.order}: ${f.reason}`).join('\n');
+      }
+      alert(msg);
+      btn.textContent = `✓ Poslano (${data.sent})`;
+    }
+  } catch(e) {
+    alert('Napaka: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = `✉ Pošlji obvestila (${depoShipments.length} strankam)`;
+  }
 }
 
 function odpSetFilter(f, el) {
@@ -6012,6 +6082,7 @@ function odpReset() {
   document.getElementById('odp-validate-btn').disabled = false;
   document.getElementById('odp-validate-btn').textContent = '🗺 Validiraj z Geoapify';
   document.getElementById('odp-export-btn').style.display = 'none';
+  const eb = document.getElementById('odp-email-btn'); if (eb) { eb.style.display = 'none'; eb.disabled = false; }
   document.getElementById('odp-credits-used').textContent = '';
   ['odp-stat-total','odp-stat-ok','odp-stat-partial','odp-stat-bad','odp-stat-depo']
     .forEach(id => { document.getElementById(id).textContent = '0'; });
