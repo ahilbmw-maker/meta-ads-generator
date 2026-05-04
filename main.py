@@ -659,6 +659,7 @@ class TikTokRequest(BaseModel):
     brand: str
     video_names: str
     skip_rs: bool = False
+    product_data: Optional[dict] = None  # maaarket API podatki iz frontenda
 
 
 # ─── ROUTES ──────────────────────────────────────────────────────────────────
@@ -918,8 +919,51 @@ Vrni SAMO JSON: {{{batch_json_keys}}}"""
 @app.post("/generate-tiktok")
 async def generate_tiktok(req: TikTokRequest):
     await ensure_cache_fresh()
-    user_msg = f"Preberi to stran in ustvari TikTok oglase: {req.source_url}"
-    data = await generate_tiktok_one(user_msg, "url", req.source_url)
+
+    # Če imamo API podatke iz frontenda → uporabimo jih (brez web_search)
+    if req.product_data and req.product_data.get("title"):
+        pd = req.product_data
+
+        # Zberi features opise
+        features_text = ""
+        for f in (pd.get("features") or []):
+            t = f.get("title", "")
+            c = f.get("content", "")
+            if t or c:
+                features_text += f"\n- {t}: {c}"
+
+        # Reviews
+        reviews_text = ""
+        for r in (pd.get("comments") or [])[:3]:
+            reviews_text += f'\n- "{r.get("content","")}" — {r.get("name","")}'
+
+        sales = pd.get("sales_count", "")
+        rating = ""
+        try:
+            rating = pd.get("rating", {}).get("total", {}).get("average", "")
+        except:
+            pass
+
+        user_msg = f"""Napiši TikTok oglase za ta izdelek. Piši kot izkušen copywriter — ne naštevaj specifikacij, piši zgodbe in čustva.
+
+IME: {pd.get('title', '')}
+OPIS: {pd.get('lead', '') or pd.get('short_desc', '')}
+PODROBNOSTI: {pd.get('content', '')[:800]}
+{f"PREDNOSTI:{features_text}" if features_text else ""}
+{f"PRODANO: {sales}x" if sales else ""}
+{f"OCENE kupcev:{reviews_text}" if reviews_text else ""}
+{f"POVPREČNA OCENA: {rating}/5" if rating else ""}
+
+Ustvari TikTok oglase za ta izdelek."""
+
+        print(f"[tiktok] API podatki: {pd.get('title','')[:50]} | {sales} prodaj | {rating}★")
+        data = await generate_tiktok_one(user_msg, "text", req.source_url)
+    else:
+        # Fallback: stari način z web_search
+        user_msg = f"Preberi to stran in ustvari TikTok oglase: {req.source_url}"
+        print(f"[tiktok] Fallback web_search za: {req.source_url}")
+        data = await generate_tiktok_one(user_msg, "url", req.source_url)
+
     if "error" in data:
         return data
 
