@@ -799,6 +799,21 @@ input[type="text"].error { border-color: var(--red) !important; }
         <div class="ifield">
           <div class="ifield-label"><svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> URL izdelka (SL)</div>
           <div class="url-wrap"><span class="url-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><input type="text" id="ttUrl" placeholder="https://www.maaarket.si/izdelek/..."/></div>
+          <!-- Način branja toggle -->
+          <div style="display:flex;align-items:center;gap:8px;margin-top:7px">
+            <span style="font-size:11px;color:var(--text-secondary)">Način branja:</span>
+            <div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-family:'DM Sans',sans-serif">
+              <button id="tt-mode-api" onclick="ttSetMode('api')"
+                style="padding:4px 12px;font-size:11px;font-weight:600;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;background:var(--accent);color:#fff;transition:all 0.15s">
+                ⚡ API (hitro)
+              </button>
+              <button id="tt-mode-fetch" onclick="ttSetMode('fetch')"
+                style="padding:4px 12px;font-size:11px;font-weight:600;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;background:transparent;color:var(--text-secondary);transition:all 0.15s">
+                🌐 Web fetch
+              </button>
+            </div>
+            <span id="tt-mode-status" style="font-size:11px;color:var(--text-tertiary)">privzeto API</span>
+          </div>
         </div>
 
         <div class="input-grid2">
@@ -3173,6 +3188,78 @@ function ttDeleteHistory(i){
   ttRenderHistory();
 }
 
+// ── MAAARKET API ─────────────────────────────────────────────
+let ttFetchMode = 'api'; // 'api' ali 'fetch'
+
+function ttSetMode(mode) {
+  ttFetchMode = mode;
+  const apiBtn = document.getElementById('tt-mode-api');
+  const fetchBtn = document.getElementById('tt-mode-fetch');
+  const status = document.getElementById('tt-mode-status');
+  if (!apiBtn || !fetchBtn) return;
+  if (mode === 'api') {
+    apiBtn.style.background = 'var(--accent)'; apiBtn.style.color = '#fff';
+    fetchBtn.style.background = 'transparent'; fetchBtn.style.color = 'var(--text-secondary)';
+    if (status) status.textContent = 'privzeto API';
+  } else {
+    fetchBtn.style.background = 'var(--accent)'; fetchBtn.style.color = '#fff';
+    apiBtn.style.background = 'transparent'; apiBtn.style.color = 'var(--text-secondary)';
+    if (status) status.textContent = 'web fetch (počasnejše)';
+  }
+}
+  'si':'sl','hr':'hr','rs':'sr','hu':'hu','cz':'cs',
+  'sk':'sk','gr':'el','bg':'bg','ro':'ro','pl':'pl'
+};
+
+function extractSlugAndLang(url) {
+  try {
+    const u = new URL(url);
+    const host = u.hostname; // www.maaarket.si
+    const tld = host.split('.').pop(); // si, hr, cz...
+    const lang = MAAARKET_LANG_MAP[tld] || 'sl';
+    // Slug je zadnji del poti: /sl/produkt/IME-SLUG → IME-SLUG
+    const parts = u.pathname.split('/').filter(Boolean);
+    const slug = parts[parts.length - 1];
+    return { slug, lang };
+  } catch(e) { return null; }
+}
+
+async function fetchMaaarketProduct(url) {
+  const parsed = extractSlugAndLang(url);
+  if (!parsed || !parsed.slug) return null;
+  try {
+    const apiUrl = `https://api.maaarket.si/api/v1/product/${parsed.slug}?lang=${parsed.lang}`;
+    const res = await fetch(apiUrl);
+    if (!res.ok) return null;
+    const data = await res.json();
+    // Izvleci relevantne podatke
+    const title = data.title || data.name || '';
+    const content = data.content || data.description || '';
+    const shortDesc = data.short_description || data.excerpt || '';
+    const lead = data.lead || '';
+    const salesCount = data.sales_count || 0;
+    const rating = data.rating || null;
+    const comments = (data.comments || []).slice(0, 5);
+    const features = (data.features || []).map(f => ({
+      title: f?.attributes?.title || '',
+      content: f?.attributes?.content || '',
+    }));
+    // Slike
+    const BASE = 'https://api.maaarket.si';
+    const images = [];
+    if (data.picture_x2) images.push(BASE + data.picture_x2);
+    (data.features || []).forEach(f => {
+      const pic = f?.attributes?.picture_x2;
+      if (pic) images.push(BASE + pic);
+    });
+    (data.gallery || []).forEach(g => {
+      if (g?.media_x2) images.push(BASE + g.media_x2);
+    });
+    return { title, content, shortDesc, lead, images, slug: parsed.slug, lang: parsed.lang, salesCount, rating, comments, features };
+  } catch(e) { return null; }
+}
+// ── /MAAARKET API ─────────────────────────────────────────────
+
 async function ttGenerate() {
 
   const url=document.getElementById('ttUrl').value.trim();
@@ -3186,18 +3273,48 @@ async function ttGenerate() {
   const btn=document.getElementById('ttBtnGen');btn.disabled=true;
   document.getElementById('ttError').classList.remove('show');
   document.getElementById('ttLoading').classList.add('show');
+  document.getElementById('ttLoadingText') && (document.getElementById('ttLoadingText').textContent = 'Nalagam podatke izdelka...');
+
   try{
+    // Poskusi fetchat maaarket API direktno iz brskalnika (samo če je način API)
+    let productData = null;
+    const isMaaarketDomain = url.includes('maaarket') || url.includes('thundershop') || url.includes('colibrishop') ||
+        url.includes('zipply') || url.includes('easyzo') || url.includes('fluxigo');
+
+    if (ttFetchMode === 'api' && isMaaarketDomain) {
+      const statusEl = document.getElementById('tt-mode-status');
+      if (statusEl) statusEl.textContent = '⏳ Nalagam API...';
+      productData = await fetchMaaarketProduct(url);
+      if (statusEl) statusEl.textContent = productData ? '✓ API uspel' : '⚠ API ni uspel, web fetch';
+    }
+
+    document.getElementById('ttLoadingText') && (document.getElementById('ttLoadingText').textContent = 'Generiram TikTok tekste...');
+
     const res=await fetch('/generate-tiktok',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({source_url:url,sku,brand,video_names:videos,skip_rs:document.getElementById('ttSkipRs')?.checked||false})});
+      body:JSON.stringify({
+        source_url: url,
+        sku, brand,
+        video_names: videos,
+        skip_rs: document.getElementById('ttSkipRs')?.checked||false,
+        // Pošlji API podatke če smo jih dobili
+        product_data: productData ? {
+          title: productData.title,
+          content: productData.content,
+          short_desc: productData.shortDesc,
+          lead: productData.lead,
+          features: productData.features,
+          comments: productData.comments,
+          sales_count: productData.salesCount,
+          rating: productData.rating,
+        } : null
+      })});
     const data=await res.json();
     if(data.error)throw new Error(data.error);
-    // Shrani texte in URL-je v zgodovino za Master XLS
     const texts = {};
     const urls = data.product_urls || {};
     ['sl','hr','rs','hu','cz','sk','pl','gr','ro','bg'].forEach(l => { if(data[l]) texts[l] = data[l]; });
     ttSaveToHistory(sku, brand, url, videos, texts, urls);
-  // Odznači RS checkbox po generiranju
-  const rsChk = document.getElementById("ttSkipRs"); if(rsChk) rsChk.checked = false;
+    const rsChk = document.getElementById("ttSkipRs"); if(rsChk) rsChk.checked = false;
     document.getElementById('ttLoading').classList.remove('show');
     renderTikTokResults(data);
   }catch(e){
