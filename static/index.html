@@ -2073,7 +2073,7 @@ input[type="text"].error { border-color: var(--red) !important; }
       <div style="display:flex;flex-direction:column;gap:12px">
         <div class="card">
           <span class="slabel">CSV UVOZ</span>
-          <p style="font-size:11px;color:var(--text-secondary);margin:6px 0 8px;line-height:1.5">Naloži Expedico CSV. Geoapify bo validiral vse BG naslove v živo.</p>
+          <p style="font-size:11px;color:var(--text-secondary);margin:6px 0 8px;line-height:1.5">Naloži Expedico CSV. Claude AI bo normaliziral vse BG naslove v standardni format za Econt.</p>
           <div class="k-dropzone" style="padding:14px;cursor:pointer;text-align:center"
                onclick="document.getElementById('odp-file-input').click()"
                ondragover="event.preventDefault();this.classList.add('drag-over')"
@@ -2121,7 +2121,7 @@ input[type="text"].error { border-color: var(--red) !important; }
                 <div id="odp-progress-fill" style="height:100%;background:var(--accent);border-radius:4px;transition:width 0.3s;width:0%"></div>
               </div>
             </div>
-            <button id="odp-validate-btn" onclick="odpStartValidation()" style="padding:8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🗺 Validiraj z Geoapify</button>
+            <button id="odp-validate-btn" onclick="odpStartValidation()" style="padding:8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🤖 AI normalizacija naslovov</button>
             <button id="odp-export-btn" onclick="odpExportCSV()" style="display:none;padding:8px;background:#16a34a;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">⬇ Izvozi popravljeni CSV</button>
             <button onclick="odpReset()" style="padding:6px;background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🗑 Ponastavi</button>
           </div>
@@ -5784,7 +5784,7 @@ async function odpStartValidation() {
       break;
     }
     odpUpdateStats(); odpRenderTable();
-    document.getElementById('odp-credits-used').textContent = `Geoapify krediti: ${odpCreditsUsed}`;
+    document.getElementById('odp-credits-used').textContent = `AI klici: ${odpCreditsUsed}`;
   }
 
   document.getElementById('odp-progress-fill').style.width = '100%';
