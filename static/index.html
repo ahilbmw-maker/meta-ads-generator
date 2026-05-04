@@ -2156,17 +2156,17 @@ input[type="text"].error { border-color: var(--red) !important; }
           </div>
 
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
               <thead>
                 <tr style="background:#1e293b">
-                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">Status</th>
-                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">Conf.</th>
-                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">Naročilo</th>
-                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Ime</th>
-                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">ZIP orig → fix</th>
-                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Mesto orig → fix</th>
-                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Ulica orig → fix</th>
-                  <th style="padding:9px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Telefon</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">Status</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">Conf.</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">Naročilo</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Ime</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">ZIP orig → fix</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Mesto orig → fix</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Ulica orig → fix</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Telefon</th>
                 </tr>
               </thead>
               <tbody id="odp-tbody"></tbody>
@@ -6023,14 +6023,14 @@ function odpRenderTable() {
       ? `<div style="color:var(--text-tertiary);font-size:10px;margin-top:2px" title="${v.formatted}">📍 ${v.formatted.slice(0,50)}${v.formatted.length>50?'...':''}</div>` : '';
 
     return `<tr style="background:${bg};border-bottom:1px solid var(--border)">
-      <td style="padding:8px 10px">${badge}</td>
-      <td style="padding:8px 10px">${conf}</td>
-      <td style="padding:8px 10px;font-family:monospace;font-size:11px;white-space:nowrap">${r.orderNumber}</td>
-      <td style="padding:8px 10px;font-size:11px;white-space:nowrap">${r.recipientFirstname||''} ${r.recipientLastname||''}</td>
-      <td style="padding:8px 10px;font-family:monospace;font-size:11px">${diff(zipO, zipF)}</td>
-      <td style="padding:8px 10px;font-size:11px">${diff(cityO, cityF)}</td>
-      <td style="padding:8px 10px;font-size:11px;max-width:200px">${diff(streetO, streetF)}${noteText}${fmtText}</td>
-      <td style="padding:8px 10px;font-family:monospace;font-size:11px">${r._origPhone ? `<div style="text-decoration:line-through;color:var(--text-tertiary);font-size:10px">${r._origPhone}</div><div style="color:#16a34a;font-weight:600">${r.recipientPhone}</div>` : r.recipientPhone||''}</td>
+      <td style="padding:10px 12px">${badge}</td>
+      <td style="padding:10px 12px">${conf}</td>
+      <td style="padding:10px 12px;font-family:monospace;font-size:13px;white-space:nowrap">${r.orderNumber}</td>
+      <td style="padding:10px 12px;font-size:13px;white-space:nowrap">${r.recipientFirstname||''} ${r.recipientLastname||''}</td>
+      <td style="padding:10px 12px;font-family:monospace;font-size:13px">${diff(zipO, zipF)}</td>
+      <td style="padding:10px 12px;font-size:13px">${diff(cityO, cityF)}</td>
+      <td style="padding:10px 12px;font-size:13px;max-width:240px">${diff(streetO, streetF)}${noteText}${fmtText}</td>
+      <td style="padding:10px 12px;font-family:monospace;font-size:13px">${r._origPhone ? `<div style="text-decoration:line-through;color:var(--text-tertiary);font-size:11px">${r._origPhone}</div><div style="color:#16a34a;font-weight:600">${r.recipientPhone}</div>` : r.recipientPhone||''}</td>
     </tr>`;
   }).join('');
 }
