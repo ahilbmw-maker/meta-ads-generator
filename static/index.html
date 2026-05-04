@@ -513,6 +513,11 @@ input[type="text"].error { border-color: var(--red) !important; }
     <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
     Kreative
     <span class="nav-badge" style="background:#fdf2f8;color:#9d174d">🎨</span>
+    <button class="nav-expand-btn" id="navexp-kreative" onclick="event.stopPropagation();navToggleSub('kreative')" title="Pododdelki">+</button>
+  </div>
+  <div class="nav-sub" id="navsub-kreative">
+    <div class="nav-sub-item" onclick="switchPage('kreative');krSwitchTab('higgsfield')">🎬 Higgsfield</div>
+    <div class="nav-sub-item" onclick="switchPage('kreative');krSwitchTab('gemini')">✨ Gemini Flash</div>
   </div>
 
   <div class="nav-item nav-videoads" id="nav-videoads" onclick="switchPage('videoads')">
@@ -624,6 +629,10 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div class="ht-icon">✨</div>
             <div class="ht-name">Kreative</div>
             <div class="ht-desc">AI generiranje kreativ</div>
+            <div class="ht-pills">
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('kreative');krSwitchTab('higgsfield')">↗ Higgsfield</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('kreative');krSwitchTab('gemini')">↗ Gemini Flash</span>
+            </div>
           </div>
           <div class="home-tile" style="border-left-color:#8b5cf6" onclick="switchPage('videoads')">
             <div class="ht-icon">🎬</div>
