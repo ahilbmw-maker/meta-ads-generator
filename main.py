@@ -5092,6 +5092,27 @@ async def inventura_history_load(filename: str):
 GEOAPIFY_KEY = os.environ.get("GEOAPIFY_API_KEY", "")
 
 
+@app.get("/odprema-test")
+async def odprema_test():
+    """Debug: preveri Geoapify API ključ in naredi en testni klic."""
+    if not GEOAPIFY_KEY:
+        return {"ok": False, "error": "GEOAPIFY_API_KEY ni nastavljen", "key_len": 0}
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as hc:
+            resp = await hc.get(
+                "https://api.geoapify.com/v1/geocode/search",
+                params={"text": "Sofia, Bulgaria", "limit": 1, "apiKey": GEOAPIFY_KEY, "format": "json"}
+            )
+            return {
+                "ok": resp.status_code == 200,
+                "status_code": resp.status_code,
+                "key_prefix": GEOAPIFY_KEY[:8] + "...",
+                "response_preview": resp.text[:200]
+            }
+    except Exception as e:
+        return {"ok": False, "error": str(e), "key_prefix": GEOAPIFY_KEY[:8] + "..."}
+
+
 @app.post("/odprema-validate")
 async def odprema_validate(data: dict):
     """
@@ -5116,33 +5137,15 @@ async def odprema_validate(data: dict):
         if street_nr and street_nr.lower() not in ("nn", "n/a", "-", ""):
             street_full = f"{street} {street_nr}"
 
-        params = {
-            "housenumber": street_nr if street_nr.lower() not in ("nn", "n/a", "-", "") else "",
-            "street": street,
-            "city": city,
-            "postcode": zip_code,
-            "country": "Bulgaria",
-            "format": "json",
-            "limit": 1,
-            "apiKey": GEOAPIFY_KEY,
-        }
-        params = {k: v for k, v in params.items() if v}
-
         try:
-            resp = await hc.get("https://api.geoapify.com/v1/geocode/structured", params=params)
+            # Geoapify free-text search (structured endpoint vrača 404 na free tier)
+            query = f"{street_full}, {city}, {zip_code}, Bulgaria"
+            resp = await hc.get(
+                "https://api.geoapify.com/v1/geocode/search",
+                params={"text": query, "filter": "countrycode:bg", "limit": 1, "apiKey": GEOAPIFY_KEY, "format": "json"}
+            )
             resp.raise_for_status()
-            geo = resp.json()
-            results_list = geo.get("results", [])
-
-            if not results_list:
-                # Fallback: free-text
-                query = f"{street_full}, {city}, {zip_code}, Bulgaria"
-                resp2 = await hc.get(
-                    "https://api.geoapify.com/v1/geocode/search",
-                    params={"text": query, "country": "bg", "limit": 1, "apiKey": GEOAPIFY_KEY, "format": "json"}
-                )
-                resp2.raise_for_status()
-                results_list = resp2.json().get("results", [])
+            results_list = resp.json().get("results", [])
 
             if results_list:
                 best = results_list[0]
