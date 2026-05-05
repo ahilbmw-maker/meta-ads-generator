@@ -552,8 +552,8 @@ input[type="text"].error { border-color: var(--red) !important; }
   </div>
   <div class="nav-sub" id="navsub-analiza">
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('meta')">Meta Ads</div>
-    <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('obrat14')">Obrat 14 dni (FB)</div>
-    <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('obrat14tt')">Obrat 14 dni (TikTok)</div>
+    <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('obrat14')">Obrat 7 dni (FB)</div>
+    <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('obrat14tt')">Obrat 7 dni (TikTok)</div>
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('ttkreative')">TikTok Kreative</div>
   </div>
 
@@ -665,8 +665,8 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div class="ht-desc">Meta Ads podatki</div>
             <div class="ht-pills">
               <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('meta')">↗ Meta Ads</span>
-              <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14')">↗ Obrat 14d (FB)</span>
-              <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14tt')">↗ Obrat 14d (TT)</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14')">↗ Obrat 7d (FB)</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14tt')">↗ Obrat 7d (TT)</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('ttkreative')">↗ TikTok Kreative</span>
             </div>
           </div>
@@ -1884,8 +1884,8 @@ input[type="text"].error { border-color: var(--red) !important; }
     <!-- Tab nav -->
     <div style="display:flex;gap:8px;padding:12px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border)">
       <button class="analiza-tab-btn active" id="analizaTab-meta" onclick="switchAnalizaTab('meta')" style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📘 Meta Ads</button>
-      <button class="analiza-tab-btn" id="analizaTab-obrat14" onclick="switchAnalizaTab('obrat14')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📊 Obrat 14 dni (FB)</button>
-      <button class="analiza-tab-btn" id="analizaTab-obrat14tt" onclick="switchAnalizaTab('obrat14tt')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📊 Obrat 14 dni (TikTok)</button>
+      <button class="analiza-tab-btn" id="analizaTab-obrat14" onclick="switchAnalizaTab('obrat14')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📊 Obrat 7 dni (FB)</button>
+      <button class="analiza-tab-btn" id="analizaTab-obrat14tt" onclick="switchAnalizaTab('obrat14tt')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📊 Obrat 7 dni (TikTok)</button>
       <button class="analiza-tab-btn" id="analizaTab-ttkreative" onclick="switchAnalizaTab('ttkreative')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🎬 TikTok Kreative</button>
     </div>
 
@@ -1968,7 +1968,7 @@ input[type="text"].error { border-color: var(--red) !important; }
 
           <div class="card" style="margin-top:12px">
             <span class="slabel">OBRAT 14 DNI</span>
-            <p style="font-size:11px;color:var(--text-secondary);margin:8px 0 10px;line-height:1.4">Naloži TXT/TSV s podatki o prodaji zadnjih 14 dni (SKU, Naziv, Količina).</p>
+            <p style="font-size:11px;color:var(--text-secondary);margin:8px 0 10px;line-height:1.4">Naloži TXT/TSV s podatki o prodaji zadnjih 7 dni (SKU, Naziv, Količina).</p>
             <div id="o14DropZone" class="k-dropzone" style="margin-top:8px;padding:14px;cursor:pointer" onclick="document.getElementById('o14Input').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="o14HandleDrop(event)">
               <span style="font-size:11px">📊 Klikni ali povleci TXT/TSV</span>
             </div>
@@ -1996,13 +1996,13 @@ input[type="text"].error { border-color: var(--red) !important; }
               <input type="text" id="o14Search" placeholder="🔍 Išči SKU ali naziv..." oninput="window._o14Page = 1; o14RenderTable()" style="padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text);font-family:'DM Sans',sans-serif;width:240px">
             </div>
             <div id="o14Table" style="display:flex;flex-direction:column;gap:6px;overflow-x:auto"></div>
-            <div id="o14Empty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:2rem">Naloži obrat 14 dni za začetek.</div>
+            <div id="o14Empty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:2rem">Naloži obrat 7 dni za začetek.</div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- TAB: Obrat 14 dni (TikTok) -->
+    <!-- TAB: Obrat 7 dni (TikTok) -->
     <div id="analizaSubpage-obrat14tt" style="display:none;padding:14px 0 0 0">
       <div style="display:grid;grid-template-columns:220px minmax(0, 1fr);gap:14px;align-items:start">
         <!-- Levo: upload -->
@@ -2020,7 +2020,7 @@ input[type="text"].error { border-color: var(--red) !important; }
 
           <div class="card" style="margin-top:12px">
             <span class="slabel">OBRAT 14 DNI</span>
-            <p style="font-size:11px;color:var(--text-secondary);margin:8px 0 10px;line-height:1.4">Skupen z FB — naloži tukaj ali v zavihku "Obrat 14 dni (FB)".</p>
+            <p style="font-size:11px;color:var(--text-secondary);margin:8px 0 10px;line-height:1.4">Skupen z FB — naloži tukaj ali v zavihku "Obrat 7 dni (FB)".</p>
             <div id="tt14ObratInfo" style="padding:8px;background:var(--bg-secondary);border-radius:var(--radius);font-size:11px;color:var(--text-secondary);margin-bottom:8px">Nalagam status...</div>
             <div class="k-dropzone" style="margin-top:4px;padding:14px;cursor:pointer" onclick="document.getElementById('tt14ObratInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();tt14UploadObrat(event.dataTransfer.files[0])">
               <span style="font-size:11px">📊 Klikni ali povleci TXT/TSV</span>
@@ -7308,7 +7308,7 @@ async function tt14UpdateObratInfo() {
         info.innerHTML = `<strong style="color:var(--green)">✓ ${n} izdelkov (shranjeno)</strong>`;
       }
     } else {
-      info.innerHTML = '<span style="color:var(--text-tertiary)">⚠ Naloži obrat 14 dni spodaj</span>';
+      info.innerHTML = '<span style="color:var(--text-tertiary)">⚠ Naloži obrat 7 dni spodaj</span>';
     }
   } catch(e) {
     const info2 = document.getElementById('tt14ObratInfo');
