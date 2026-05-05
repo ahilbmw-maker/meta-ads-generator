@@ -7460,9 +7460,15 @@ function tt14RenderTable() {
     })();
 
     const statusBadge = it.status === 'active'
-      ? `<div style="text-align:center;color:#fff;font-size:14px;font-weight:700;background:${TT_ACTIVE_BG};border-radius:3px;padding:3px 6px" title="Aktiven · ${it.active_campaigns} aktivnih / ${it.campaigns} skupaj">✓ <span style="font-size:10px;opacity:0.9">(${it.active_campaigns}/${it.campaigns})</span></div>`
+      ? `<div style="text-align:center">
+           <div style="color:#fff;font-size:13px;font-weight:700;background:${TT_ACTIVE_BG};border-radius:3px;padding:3px 6px;display:inline-block">✓ <span style="font-size:10px;opacity:0.9">(${it.active_campaigns}/${it.campaigns})</span></div>
+           ${createDateStr ? `<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px">${createDateStr}</div>` : ''}
+         </div>`
       : it.campaigns > 0
-      ? `<div style="text-align:center;color:#fff;font-size:11px;font-weight:700;background:${TT_PAUSED_BG};border-radius:3px;padding:3px 6px" title="Pavzirano · ${it.campaigns} kampanj${createDateStr ? ' · Kreirano: ' + createDateStr : ''}">⏸ <span style="opacity:0.9">(${it.campaigns})</span>${createDateStr ? `<div style="font-size:9px;opacity:0.85;font-weight:400;margin-top:1px">${createDateStr}</div>` : ''}</div>`
+      ? `<div style="text-align:center">
+           <div style="color:#fff;font-size:13px;font-weight:700;background:${TT_PAUSED_BG};border-radius:3px;padding:3px 6px;display:inline-block">⏸ <span style="font-size:10px;opacity:0.9">(${it.campaigns})</span></div>
+           ${createDateStr ? `<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px">${createDateStr}</div>` : ''}
+         </div>`
       : `<div style="text-align:center;color:var(--text-tertiary);font-size:14px;background:${TT_EMPTY_BG};border-radius:3px;padding:3px 0">—</div>`;
     const obratColor = it.obrat14 > 10 ? 'var(--green)' : it.obrat14 > 3 ? '#d97706' : it.obrat14 > 0 ? 'var(--red)' : 'var(--text-tertiary)';
     const stockColor = it.stock > 50 ? 'var(--green)' : it.stock > 10 ? '#d97706' : it.stock > 0 ? 'var(--red)' : 'var(--text-tertiary)';
