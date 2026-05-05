@@ -5164,7 +5164,7 @@ async def odprema_google_validate(data: dict):
         "address": {
             "addressLines": [address_line],
             "regionCode": "BG",
-            "languageCode": "bg-Latn",  # BG v latinici
+            "languageCode": "bg",  # cirilica - Econt sprejme oboje
         },
         "enableUspsCass": False,
     }
@@ -5202,6 +5202,9 @@ async def odprema_google_validate(data: dict):
 
         fix_city = get_comp("locality") or get_comp("administrative_area_level_2") or city
         fix_zip = get_comp("postal_code") or zip_code
+
+        # Mesto ohranimo v latinici (original iz naše baze, ne Google cirilica)
+        fix_city = city  # vedno originalno latinično ime mesta
         formatted = address.get("formattedAddress", "")
 
         validation_granularity = verdict.get("validationGranularity", "")
