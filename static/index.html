@@ -7441,9 +7441,9 @@ function tt14RenderTable() {
   }
   emptyEl.style.display = 'none';
 
-  const GRID = '160px 1fr 100px 70px 80px 90px 70px';
+  const GRID = '160px 1fr 100px 80px 70px 80px 90px 70px';
   const header = `<div style="display:grid;grid-template-columns:${GRID};gap:10px;padding:11px 14px;background:var(--bg-secondary);border-radius:var(--radius);font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid var(--border);margin-bottom:4px">
-    <span>SKU</span><span>Naziv</span><span style="text-align:center">Status TT</span><span style="text-align:right">Obrat 14d</span><span style="text-align:right">Spend</span><span style="text-align:right">Konv.</span><span style="text-align:right">Zaloga</span>
+    <span>SKU</span><span>Naziv</span><span style="text-align:center">Status TT</span><span style="text-align:center">Kreirano</span><span style="text-align:right">Obrat 14d</span><span style="text-align:right">Spend</span><span style="text-align:right">Konv.</span><span style="text-align:right">Zaloga</span>
   </div>`;
 
   tableEl.innerHTML = header + items.map(it => {
@@ -7460,15 +7460,9 @@ function tt14RenderTable() {
     })();
 
     const statusBadge = it.status === 'active'
-      ? `<div style="text-align:center">
-           <div style="color:#fff;font-size:13px;font-weight:700;background:${TT_ACTIVE_BG};border-radius:3px;padding:3px 6px;display:inline-block">✓ <span style="font-size:10px;opacity:0.9">(${it.active_campaigns}/${it.campaigns})</span></div>
-           ${createDateStr ? `<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px">${createDateStr}</div>` : ''}
-         </div>`
+      ? `<div style="text-align:center;color:#fff;font-size:13px;font-weight:700;background:${TT_ACTIVE_BG};border-radius:3px;padding:3px 6px">✓ <span style="font-size:10px;opacity:0.9">(${it.active_campaigns}/${it.campaigns})</span></div>`
       : it.campaigns > 0
-      ? `<div style="text-align:center">
-           <div style="color:#fff;font-size:13px;font-weight:700;background:${TT_PAUSED_BG};border-radius:3px;padding:3px 6px;display:inline-block">⏸ <span style="font-size:10px;opacity:0.9">(${it.campaigns})</span></div>
-           ${createDateStr ? `<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px">${createDateStr}</div>` : ''}
-         </div>`
+      ? `<div style="text-align:center;color:#fff;font-size:13px;font-weight:700;background:${TT_PAUSED_BG};border-radius:3px;padding:3px 6px">⏸ <span style="font-size:10px;opacity:0.9">(${it.campaigns})</span></div>`
       : `<div style="text-align:center;color:var(--text-tertiary);font-size:14px;background:${TT_EMPTY_BG};border-radius:3px;padding:3px 0">—</div>`;
     const obratColor = it.obrat14 > 10 ? 'var(--green)' : it.obrat14 > 3 ? '#d97706' : it.obrat14 > 0 ? 'var(--red)' : 'var(--text-tertiary)';
     const stockColor = it.stock > 50 ? 'var(--green)' : it.stock > 10 ? '#d97706' : it.stock > 0 ? 'var(--red)' : 'var(--text-tertiary)';
@@ -7478,6 +7472,7 @@ function tt14RenderTable() {
       <div style="font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.sku)}</div>
       <div style="color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.title)}">${esc(it.title||'—')}</div>
       ${statusBadge}
+      <div style="text-align:center;font-size:12px;color:var(--text-secondary)">${createDateStr || '—'}</div>
       <div style="text-align:right;font-weight:600;color:${obratColor}">${it.obrat14 || '—'}</div>
       <div style="text-align:right;color:var(--text-secondary)">${it.spend > 0 ? it.spend.toFixed(0) + ' €' : '—'}</div>
       <div style="text-align:right;color:var(--text-secondary)">${it.conversions || '—'}</div>
