@@ -2239,7 +2239,8 @@ input[type="text"].error { border-color: var(--red) !important; }
               </div>
             </div>
             <button id="odp-validate-btn" onclick="odpStartValidation()" style="padding:8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🤖 AI normalizacija naslovov</button>
-            <button id="odp-export-btn" onclick="odpExportCSV()" style="display:none;padding:8px;background:#16a34a;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">⬇ Izvozi popravljeni CSV</button>
+            <button id="odp-export-btn" onclick="odpExportCSV()" style="display:none;padding:8px;background:#16a34a;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">⬇ Izvozi popravljeni CSV (Econt)</button>
+            <button id="odp-export-alt-btn" onclick="odpExportAltCourier()" style="display:none;padding:8px;background:#8b5cf6;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🚐 Izvozi za drug kurir (<span id="odp-alt-count">0</span>)</button>
             <button id="odp-email-btn" onclick="odpSendEmails()" style="display:none;padding:8px;background:#f97316;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">✉ Pošlji obvestila DEPO strankam</button>
             <button onclick="odpReset()" style="padding:6px;background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🗑 Ponastavi</button>
           </div>
@@ -2280,6 +2281,7 @@ input[type="text"].error { border-color: var(--red) !important; }
               <button class="odp-ftab" onclick="odpSetFilter('PARTIALLY_CONFIRMED',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">⚠ Delno</button>
               <button class="odp-ftab" onclick="odpSetFilter('NOT_CONFIRMED',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">🔴 Ni najden</button>
               <button class="odp-ftab" onclick="odpSetFilter('ECONT_DEPO',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">📦 Econt Depo</button>
+              <button class="odp-ftab" onclick="odpSetFilter('ALT_COURIER',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid rgba(139,92,246,0.4);background:transparent;color:#8b5cf6;font-family:'DM Sans',sans-serif">🚐 Drug kurir</button>
             </div>
           </div>
 
@@ -2287,6 +2289,7 @@ input[type="text"].error { border-color: var(--red) !important; }
             <table style="width:100%;border-collapse:collapse;font-size:13px">
               <thead>
                 <tr style="background:#1e293b">
+                  <th style="padding:10px 8px;text-align:center;font-size:11px;color:#94a3b8;font-weight:600;width:36px"><input type="checkbox" id="odp-chk-all" onchange="odpToggleAllAlt(this.checked)" title="Označi vse"></th>
                   <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">Status</th>
                   <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">Conf.</th>
                   <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap">Naročilo</th>
@@ -5848,7 +5851,8 @@ const ODP_SUSPENDED = new Set([
   3063,3058,3066,3067,3068,3069,3060,3057,3052,3041,3040,3012,3046,3039,3038,
   2369,2373,2374,2371,2372,2377,2375,2370,2376,2362,2363,2364,2367,2366,2365,2361,2378,
   2379,2222,2191,2221,8210,8217,4811,
-  3531,3520,3521,3532,3514,3511,3523,3530,3512,3515,3517,3519,3518,3533,3513,3522,3516,3524
+  3531,3520,3521,3532,3514,3511,3523,3530,3512,3515,3517,3519,3518,3533,3513,3522,3516,3524,
+  2273
 ]);
 
 const ODP_ECONT_MAP = {
@@ -5861,6 +5865,7 @@ const ODP_ECONT_MAP = {
   8142:'Sozopol', 8140:'Sozopol',
   8174:'Tsarevo', 8357:'Tsarevo', 8172:'Tsarevo', 8364:'Tsarevo', 8170:'Tsarevo',
   8210:'Nessebar Kragovoto', 8217:'Nessebar Kragovoto', 4811:'Devin Vasil Levski',
+  2273:'Svoge',
 };
 
 function odpParseCSVLine(line) {
@@ -6051,10 +6056,15 @@ async function odpStartValidation() {
   setTimeout(() => { document.getElementById('odp-progress-wrap').style.display = 'none'; }, 3000);
   btn.textContent = '✓ Validacija končana';
   document.getElementById('odp-export-btn').style.display = 'block';
+  odpUpdateAltBtn();
   odpUpdateStats(); odpRenderTable();
 
-  // Auto-save na disk
-  odpSave();
+  // Auto-označi ECONT_DEPO kot drug kurir
+  odpRows.forEach(r => {
+    const v = odpValidation[r.orderNumber];
+    if (v?.status === 'ECONT_DEPO') odpAltCourier.add(r.orderNumber);
+  });
+  odpUpdateAltBtn();
   odpLoadHistory();
 }
 
@@ -6223,7 +6233,11 @@ function odpSetFilter(f, el) {
   document.querySelectorAll('.odp-ftab').forEach(t => {
     t.style.background = 'transparent'; t.style.color = 'var(--text-secondary)'; t.style.borderColor = 'var(--border)';
   });
-  el.style.background = 'var(--accent)'; el.style.color = '#fff'; el.style.borderColor = 'var(--accent)';
+  if (f === 'ALT_COURIER') {
+    el.style.background = '#8b5cf6'; el.style.color = '#fff'; el.style.borderColor = '#8b5cf6';
+  } else {
+    el.style.background = 'var(--accent)'; el.style.color = '#fff'; el.style.borderColor = 'var(--accent)';
+  }
   odpRenderTable();
 }
 
@@ -6233,6 +6247,7 @@ function odpRenderTable() {
   const search = (document.getElementById('odp-search')?.value || '').toLowerCase();
 
   let rows = odpFilter === 'all' ? odpRows
+    : odpFilter === 'ALT_COURIER' ? odpRows.filter(r => odpAltCourier.has(r.orderNumber))
     : odpRows.filter(r => (odpValidation[r.orderNumber]?.status || 'PENDING') === odpFilter);
 
   if (search) {
@@ -6281,7 +6296,9 @@ function odpRenderTable() {
     const fmtText = v?.formatted && status !== 'CONFIRMED'
       ? `<div style="color:var(--text-tertiary);font-size:10px;margin-top:2px" title="${v.formatted}">📍 ${v.formatted.slice(0,50)}${v.formatted.length>50?'...':''}</div>` : '';
 
-    return `<tr style="background:${bg};border-bottom:1px solid var(--border)">
+    const isAlt = odpAltCourier.has(r.orderNumber);
+    return `<tr style="background:${isAlt ? 'rgba(139,92,246,0.08)' : bg};border-bottom:1px solid var(--border)">
+      <td style="padding:10px 8px;text-align:center"><input type="checkbox" ${isAlt ? 'checked' : ''} onchange="odpToggleAlt('${r.orderNumber}',this.checked)" style="width:14px;height:14px;cursor:pointer;accent-color:#8b5cf6"></td>
       <td style="padding:10px 12px">${badge}</td>
       <td style="padding:10px 12px">${conf}</td>
       <td style="padding:10px 12px;font-family:monospace;font-size:13px;white-space:nowrap">${r.orderNumber}</td>
@@ -6343,13 +6360,67 @@ function odpReset() {
   document.getElementById('odp-export-btn').style.display = 'none';
   const eb = document.getElementById('odp-email-btn'); if (eb) { eb.style.display = 'none'; eb.disabled = false; }
   const srch = document.getElementById('odp-search'); if (srch) srch.value = '';
+  odpAltCourier.clear();
+  odpUpdateAltBtn();
   document.getElementById('odp-credits-used').textContent = '';
   ['odp-stat-total','odp-stat-ok','odp-stat-partial','odp-stat-bad','odp-stat-depo']
     .forEach(id => { document.getElementById(id).textContent = '0'; });
 }
 // ── /ODPREMA ──────────────────────────────────────────────────
 
-// ── KREATIVE TABS + HIGGSFIELD ────────────────────────────────
+// ── ALT COURIER ───────────────────────────────────────────────
+const odpAltCourier = new Set();
+
+function odpToggleAlt(orderNumber, checked) {
+  if (checked) odpAltCourier.add(orderNumber);
+  else odpAltCourier.delete(orderNumber);
+  odpUpdateAltBtn();
+}
+
+function odpToggleAllAlt(checked) {
+  // Označi vse trenutno vidne vrstice
+  const search = (document.getElementById('odp-search')?.value || '').toLowerCase();
+  let rows = odpFilter === 'all' ? odpRows
+    : odpFilter === 'ALT_COURIER' ? odpRows.filter(r => odpAltCourier.has(r.orderNumber))
+    : odpRows.filter(r => (odpValidation[r.orderNumber]?.status || '') === odpFilter);
+  if (search) rows = rows.filter(r => {
+    const v = odpValidation[r.orderNumber] || {};
+    return [r.orderNumber, r.recipientFirstname, r.recipientLastname, r.recipientPhone, r.recipientCity, r.recipientStreet, v.fix_street, v.fix_city].some(f => (f||'').toLowerCase().includes(search));
+  });
+  rows.forEach(r => { if (checked) odpAltCourier.add(r.orderNumber); else odpAltCourier.delete(r.orderNumber); });
+  odpUpdateAltBtn();
+  odpRenderTable();
+}
+
+function odpUpdateAltBtn() {
+  const count = odpAltCourier.size;
+  const btn = document.getElementById('odp-export-alt-btn');
+  const countEl = document.getElementById('odp-alt-count');
+  if (btn) btn.style.display = count > 0 ? 'block' : 'none';
+  if (countEl) countEl.textContent = count;
+}
+
+function odpExportAltCourier() {
+  const altRows = odpRows.filter(r => odpAltCourier.has(r.orderNumber));
+  if (!altRows.length) { alert('Ni označenih pošiljk.'); return; }
+
+  // Export kot CSV z originalnimi podatki (brez Econt popravkov)
+  const fields = odpFieldnames.length ? odpFieldnames : Object.keys(altRows[0] || {}).filter(k => !k.startsWith('_'));
+  const header = fields.join(',');
+  const csvRows = altRows.map(r => fields.map(f => {
+    let v = r[f] || '';
+    if (String(v).includes(',') || String(v).includes('"') || String(v).includes('\n')) v = `"${String(v).replace(/"/g,'""')}"`;
+    return v;
+  }).join(','));
+
+  const csv = [header, ...csvRows].join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `drug_kurir_${altRows.length}_posiljk.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+// ── /ALT COURIER ──────────────────────────────────────────────
 function krSwitchTab(tab) {
   document.getElementById('kr-panel-gemini').style.display = tab === 'gemini' ? 'block' : 'none';
   document.getElementById('kr-panel-higgsfield').style.display = tab === 'higgsfield' ? 'block' : 'none';
