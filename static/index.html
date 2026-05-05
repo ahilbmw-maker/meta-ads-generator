@@ -2298,6 +2298,7 @@ input[type="text"].error { border-color: var(--red) !important; }
                   <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Mesto orig → fix</th>
                   <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Ulica orig → fix</th>
                   <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Telefon</th>
+                  <th style="padding:10px 8px;text-align:center;font-size:11px;color:#4285f4;font-weight:600;white-space:nowrap">🔍 G</th>
                 </tr>
               </thead>
               <tbody id="odp-tbody"></tbody>
@@ -2328,7 +2329,9 @@ const AD_ACCOUNTS_CONFIG = [
   { name: 'Maaarket HR',           short: 'HR',        hidden: true  },
   { name: 'si_Suban_Maaarket HR',  short: 'HR2',       hidden: true  },
   { name: 'Easyzo',                short: 'Easyzo',    hidden: false },
-  // Ko dobiš nova accounta, dodaj ju sem:
+  { name: 'Thundershop ALL HU',    short: 'TS.HU',     hidden: false },
+  { name: 'ThunderShop HR',        short: 'TS.HR',     hidden: true  },
+  { name: 'ThunderShop RS',        short: 'TS.RS',     hidden: true  },
   // { name: 'Novi Account 1', short: 'NOV1', hidden: false },
   // { name: 'Novi Account 2', short: 'NOV2', hidden: true },  // privzeto skrit
 ];
@@ -6307,6 +6310,7 @@ function odpRenderTable() {
       <td style="padding:10px 12px;font-size:13px">${diff(cityO, cityF)}</td>
       <td style="padding:10px 12px;font-size:13px;max-width:240px">${diff(streetO, streetF)}${noteText}${fmtText}</td>
       <td style="padding:10px 12px;font-family:monospace;font-size:13px">${r._origPhone ? `<div style="text-decoration:line-through;color:var(--text-tertiary);font-size:11px">${r._origPhone}</div><div style="color:#16a34a;font-weight:600">${r.recipientPhone}</div>` : r.recipientPhone||''}</td>
+      <td style="padding:6px 8px"><button onclick="odpGoogleValidate('${r.orderNumber}')" style="padding:4px 8px;background:#4285f4;color:#fff;border:none;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">🔍 G</button></td>
     </tr>`;
   }).join('');
 }
@@ -6419,6 +6423,51 @@ function odpExportAltCourier() {
   const a = document.createElement('a');
   a.href = url; a.download = `drug_kurir_${altRows.length}_posiljk.csv`;
   a.click(); URL.revokeObjectURL(url);
+}
+async function odpGoogleValidate(orderNumber) {
+  const row = odpRows.find(r => r.orderNumber === orderNumber);
+  if (!row) return;
+  const v = odpValidation[orderNumber] || {};
+
+  // Uporabi popravljene vrednosti iz AI ali originalne
+  const street = v.fix_street || row.recipientStreet || '';
+  const city = v.fix_city || row.recipientCity || '';
+  const zip = v.fix_zip || row.recipientZip || '';
+
+  const btn = document.querySelector(`button[onclick="odpGoogleValidate('${orderNumber}')"]`);
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+
+  try {
+    const res = await fetch('/odprema-google-validate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ order: orderNumber, street, city, zip })
+    });
+    const data = await res.json();
+    if (data.error) {
+      alert('Google napaka: ' + data.error);
+      return;
+    }
+
+    // Posodobi validacijo
+    odpValidation[orderNumber] = {
+      ...v,
+      status: data.status,
+      fix_street: data.fix_street || street,
+      fix_city: data.fix_city || city,
+      fix_zip: data.fix_zip || zip,
+      formatted: data.formatted,
+      note: data.note,
+      confidence: data.status === 'CONFIRMED' ? 1.0 : data.status === 'PARTIALLY_CONFIRMED' ? 0.7 : 0.3,
+    };
+
+    odpUpdateStats();
+    odpRenderTable();
+  } catch(e) {
+    alert('Napaka: ' + e.message);
+  } finally {
+    if (btn) { btn.textContent = '🔍 G'; btn.disabled = false; }
+  }
 }
 // ── /ALT COURIER ──────────────────────────────────────────────
 function krSwitchTab(tab) {
