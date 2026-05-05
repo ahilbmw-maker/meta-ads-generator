@@ -444,6 +444,8 @@ def build_tiktok_xlsx(sku: str, brand: str, video_names: str,
     today = datetime.now().strftime('%-d_%-m_%Y')
     new_campaign = f'[{brand}] Smart+ {sku} - {today}'
 
+    # Zberemo vrstice za brisanje (ne brišemo med iteracijo!)
+    rows_to_delete = []
     for row in ws.iter_rows(min_row=2):
         r = row[0].row
         country = ws.cell(row=r, column=col_ag).value
@@ -451,7 +453,7 @@ def build_tiktok_xlsx(sku: str, brand: str, video_names: str,
             continue
         lang = COUNTRY_TO_LANG.get(country)
         if skip_rs and lang == 'rs':
-            ws.delete_rows(r)
+            rows_to_delete.append(r)
             continue
         ws.cell(row=r, column=col_campaign).value = new_campaign
         ws.cell(row=r, column=col_bc_id).value = new_bc_id
@@ -472,6 +474,10 @@ def build_tiktok_xlsx(sku: str, brand: str, video_names: str,
         url = (urls_by_lang.get(lang) if lang else None) or next(iter(urls_by_lang.values()), '')
         if url:
             ws.cell(row=r, column=col_url).value = url
+
+    # Zbriši RS vrstice po iteraciji (v obratnem vrstnem redu da ne zamešamo indeksov)
+    for r in sorted(rows_to_delete, reverse=True):
+        ws.delete_rows(r)
 
     out_path = str(EXPORTS_DIR / f"tiktok_{sku}_{uuid.uuid4().hex[:8]}.xlsx")
     wb.save(out_path)
