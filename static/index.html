@@ -6033,6 +6033,21 @@ async function odpStartValidation() {
 
   document.getElementById('odp-progress-fill').style.width = '100%';
   document.getElementById('odp-progress-text').textContent = `Validacija končana ✓ (${odpCreditsUsed} kreditov)`;
+
+  // Re-check suspended ZIPov po AI validaciji (AI lahko popravi ZIP)
+  odpRows.forEach(r => {
+    const v = odpValidation[r.orderNumber];
+    const fixZip = parseInt((v?.fix_zip || '').replace(/\D/g, '')) || 0;
+    const origZip = parseInt((r.recipientZip || '').replace(/\D/g, '')) || 0;
+    if (ODP_SUSPENDED.has(fixZip) && (!v || v.status !== 'ECONT_DEPO')) {
+      odpValidation[r.orderNumber] = {
+        status: 'ECONT_DEPO', confidence: 1.0,
+        fix_zip: String(fixZip), fix_city: v?.fix_city || r.recipientCity,
+        fix_street: v?.fix_street || r.recipientStreet,
+        note: `📦 Suspended ZIP ${fixZip} → ${ODP_ECONT_MAP[fixZip] || 'Najbližji Econt'} office`
+      };
+    }
+  });
   setTimeout(() => { document.getElementById('odp-progress-wrap').style.display = 'none'; }, 3000);
   btn.textContent = '✓ Validacija končana';
   document.getElementById('odp-export-btn').style.display = 'block';
