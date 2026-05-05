@@ -419,10 +419,19 @@ async function loadEntries(){
       entries = data.entries || [];
       return;
     }
+    // Poskusi localStorage backup (deluje tudi med Render deployom)
+    try {
+      const local = JSON.parse(localStorage.getItem('forecast_entries_' + today) || 'null');
+      if (local && local.date === today && local.entries && local.entries.length > 0) {
+        entries = local.entries;
+        await saveEntries();
+        console.log('[forecast] Obnovljeno iz localStorage:', entries.length, 'vnosov');
+        return;
+      }
+    } catch(e) {}
     // Poskusi obnoviti iz history za danes
     const hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json()).catch(()=>({}));
     if(hist && hist[today] && hist[today].length > 0){
-      // Obnovi vnose iz historija
       entries = hist[today].map(e => ({
         label: String(e.h).padStart(2,'0') + ':' + String(e.m||0).padStart(2,'0'),
         dejanski: e.rev || 0,
@@ -430,8 +439,8 @@ async function loadEntries(){
         napoved: null,
         napovedOrd: null,
       }));
-      // Shrani nazaj
       await saveEntries();
+      console.log('[forecast] Obnovljeno iz history:', entries.length, 'vnosov');
       return;
     }
     entries = [];
@@ -440,6 +449,10 @@ async function loadEntries(){
 
 async function saveEntries(){
   const today = getTodayLJ();
+  // Shrani v localStorage kot backup
+  try {
+    localStorage.setItem('forecast_entries_' + today, JSON.stringify({date: today, entries}));
+  } catch(e) {}
   // Najprej shrani v history (bolj zanesljivo)
   await collectHistoricalData(today);
   // Potem shrani entries
