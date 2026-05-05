@@ -5253,7 +5253,7 @@ async def odprema_validate(data: dict):
         street = (addr.get("street") or "").strip()
         street_nr = (addr.get("streetNr") or "").strip()
 
-        prompt = f"""Si ekspert za bolgarske poštne naslove za Econt Express dostavo. Normaliziraj vhodni naslov v standardni format.
+        prompt = f"""Si ekspert za bolgarske poštne naslove za Econt Express dostavo. Normaliziraj vhodni naslov v standardni format ZA ECONT VMESNIK (latinica).
 
 VHODNI NASLOV:
 - Ulica/naslov: {street}
@@ -5262,29 +5262,84 @@ VHODNI NASLOV:
 - ZIP: {zip_code}
 
 BOLGARSKE OKRAJŠAVE:
-- ul. = ulitsa (ulica), bul. = bulevard, zh.k. / jk / kv. = zhilishten kompleks (stanovanjski blok/četrt)
+- ul. = ulitsa (ulica), bul. = bulevard
+- zh.k. / jk / kv. / zk. / z.k. = zhilishten kompleks (stanovanjska četrt)
 - bl. = blok, vh. = vhod, et. = etazh (nadstropje), ap. = apartament
-- s. / selo = vas, gr. / grad = mesto, obl. = oblast (pokrajina)
-- ofis ekont / ofis Ekont = Econt pisarna (paketomat/depo)
+- s. / selo = vas, gr. / grad = mesto
+- ofis ekont / ekont / paketomat = Econt pisarna
 
-PRAVILA:
-1. Razčleni naslov in ga standardiziraj: "ul./bul./zh.k. IME ŠTEVILKA, bl. X, vh. Y, et. Z, ap. W"
-2. ZIP mora biti točno 4 cifre — popravi če vsebuje črko O namesto 0, ali je v naslovu
-3. Popravi ime mesta če je napačno (npr. "Sofiq" → "Sofia", "Plovdic" → "Plovdiv")
-4. Če je naslov Econt pisarna/office/paketomat → status ECONT_OFFICE, ohrani naslov
-5. Če naslov vsebuje mesto+ZIP skupaj (npr. "s.Izvorise 8116") → loči ju
-6. Če naslov je popolnoma nejasen ali prazen → status UNCLEAR
+KRITIČNA PRAVILA (po prioriteti):
+
+1. LATINICA OBVEZNA — vse vrni v latinici, tudi mesta in ulice (Econt vmesnik je v latinici)
+
+2. ZIP EKSTRAKCIJA — če je ZIP v polju ulice ali mesta, ga prestavi v fix_zip
+   Primer: "s.Izvorise 8116" → fix_city="Izvorise", fix_zip="8116"
+   Primer: "Sofia 1715" → fix_city="Sofia", fix_zip="1715", fix_street=""
+
+3. SOFIJSKE ČETRTI IN ZIP — poznaj pravilne ZIP-e za sofijske četrti:
+   zh.k. Lulin → 1343, zh.k. Mladost → 1750/1784, zh.k. Lyulin → 1343
+   zh.k. Druzhba → 1582, zh.k. Nadezhda → 1220, zh.k. Ovcha Kupel → 1618
+   zh.k. Bukston/Bakston → 1618, zh.k. Borovo → 1680, zh.k. Lozenets → 1164
+   zh.k. Dianabad → 1172, zh.k. Manastirski livadi → 1404
+   Če stranka piše ZIP 1000 za četrt → popravi na pravilen ZIP četrti!
+
+4. ULICA = IME MESTA → ni ulice
+   Če je ime ulice enako imenu mesta (npr. "ul. Kardzhali" v mestu Kardzhali) → fix_street=""
+   Če je naslov samo ime mesta brez ulice (npr. "Cerven bryag 3") → fix_street="", status UNCLEAR
+
+5. ULICA V VEČ ČETRTIH → opozori
+   Če ulica obstaja v več četrtih Sofije → status UNCLEAR, note mora vsebovati "Quarter needed: X, Y, Z"
+   Znani primeri: ul. Elin Pelin (Lozenets/Dragalevtsi/Pancharevo)
+
+6. ECONT OFFICE V LATINICI
+   Vse Econt office naslove vrni v latinici:
+   "Ofis Ekont" → "Econt office [mesto]"
+   Primer: "Ekont Bokar, zh.k. Manastirski livadi" → "Econt office Bokar, zh.k. Manastirski livadi"
+
+7. IME MESTA V ULICI → odstrani
+   "Sofia bul. Bulgaria 102" → fix_street="bul. Bulgaria 102", fix_city="Sofia"
+   "Bansko Glazne 6" → fix_street="ul. Glazne 6", fix_city="Bansko"
+
+8. PODVOJENE ŠTEVILKE → odstrani duplikat
+   "Vasil Petleshkov 4 4" → "ul. Vasil Petleshkov 4"
+   "Bl. 503 vh.A ap 65 et 11" → "bl. 503, vh. A, et. 11, ap. 65"
+
+9. TIPKARSKE NAPAKE V IMENIH MEST:
+   Vitosa → Vitosha, Blgaria → Bulgaria, Sofiq → Sofia
+   Plovdic → Plovdiv, Kustendil → Kyustendil, Vraca → Vratsa
+   Carevo → Tsarevo, Dupnica → Dupnitsa, Krdzali → Kardzhali
+   Trstenik → Trastenik, Satovca → Satovcha
+
+10. MALE VASI BREZ ULICE → status UNCLEAR z opombo
+    Če je naslov samo ime vasi brez ulice in hišne številke → UNCLEAR, note="No street - recommend Econt office [najbližje mesto]"
+
+PRIMERI (few-shot):
+Input: ulica="Sofia bul.Vitosa 38", mesto="Sofia", ZIP="1000"
+Output: {{"status":"FIXED","fix_street":"bul. Vitosha 38","fix_city":"Sofia","fix_zip":"1000","note":"Removed city from street, fixed Vitosa→Vitosha"}}
+
+Input: ulica="Zk.Borovo bl.5 vh B ET.6 AP.34 34", mesto="Sofia", ZIP="1000"
+Output: {{"status":"FIXED","fix_street":"zh.k. Borovo, bl. 5, vh. B, et. 6, ap. 34","fix_city":"Sofia","fix_zip":"1680","note":"Fixed format, removed duplicate 34, corrected ZIP for Borovo"}}
+
+Input: ulica="Lulin5 bl540vhb 65etz11", mesto="Sofia", ZIP="1000"
+Output: {{"status":"FIXED","fix_street":"zh.k. Lulin 5, bl. 540, vh. B, et. 11, ap. 65","fix_city":"Sofia","fix_zip":"1343","note":"Parsed compressed format, corrected ZIP for Lulin"}}
+
+Input: ulica="ul. Elin Pelin 18", mesto="Sofia", ZIP="1000"
+Output: {{"status":"UNCLEAR","fix_street":"ul. Elin Pelin 18","fix_city":"Sofia","fix_zip":"1000","note":"Quarter needed: Lozenets (1164), Dragalevtsi (1415), Pancharevo (1137)"}}
+
+Input: ulica="Cerven brag 3", mesto="Cerven bryag", ZIP="5980"
+Output: {{"status":"UNCLEAR","fix_street":"","fix_city":"Cherven Bryag","fix_zip":"5980","note":"No street provided - recommend Econt office Cherven Bryag, ul. Hristo Botev 2"}}
+
+Input: ulica="Sofia Manastirski livadi Ekont Bokar", mesto="Sofia", ZIP="1000"
+Output: {{"status":"ECONT_OFFICE","fix_street":"Econt office Bokar, zh.k. Manastirski livadi","fix_city":"Sofia","fix_zip":"1404","note":"Econt office Bokar in Manastirski livadi"}}
 
 Vrni SAMO JSON, brez razlag:
-{{"status": "OK", "fix_street": "standardiziran naslov brez mesta in ZIP", "fix_city": "pravilno ime mesta", "fix_zip": "4-mestni ZIP", "note": "kaj si popravil ali zakaj UNCLEAR"}}
-
-Status vrednosti: OK (že pravilen), FIXED (popravil sem), ECONT_OFFICE (Econt pisarna), UNCLEAR (ne morem določiti)"""
+{{"status": "OK|FIXED|ECONT_OFFICE|UNCLEAR", "fix_street": "...", "fix_city": "...", "fix_zip": "4-mestni ZIP", "note": "..."}}"""
 
         loop = asyncio.get_event_loop()
         try:
             msg = await loop.run_in_executor(None, lambda: client.messages.create(
                 model="claude-sonnet-4-6",
-                max_tokens=300,
+                max_tokens=400,
                 messages=[{"role": "user", "content": prompt}]
             ))
             text = msg.content[0].text.strip()
