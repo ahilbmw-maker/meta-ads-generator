@@ -419,7 +419,21 @@ async function loadEntries(){
       entries = data.entries || [];
       return;
     }
-    // Ce ni danes ali ni vnosov — prazen dan
+    // Poskusi obnoviti iz history za danes
+    const hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json()).catch(()=>({}));
+    if(hist && hist[today] && hist[today].length > 0){
+      // Obnovi vnose iz historija
+      entries = hist[today].map(e => ({
+        label: String(e.h).padStart(2,'0') + ':' + String(e.m||0).padStart(2,'0'),
+        dejanski: e.rev || 0,
+        dejanskiOrd: e.ord || 0,
+        napoved: null,
+        napovedOrd: null,
+      }));
+      // Shrani nazaj
+      await saveEntries();
+      return;
+    }
     entries = [];
   }catch(e){ entries=[]; }
 }
