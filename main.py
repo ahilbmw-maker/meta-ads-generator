@@ -5142,8 +5142,92 @@ async def inventura_history_load(filename: str):
 # ─── ODPREMA / AI ADDRESS VALIDATION ─────────────────────────────────────────
 
 GEOAPIFY_KEY = os.environ.get("GEOAPIFY_API_KEY", "")
+GOOGLE_MAPS_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 ODPREMA_DIR = DATA_DIR / "odprema"
 ODPREMA_DIR.mkdir(exist_ok=True, parents=True)
+
+
+@app.post("/odprema-google-validate")
+async def odprema_google_validate(data: dict):
+    """Google Address Validation API za problematične naslove."""
+    if not GOOGLE_MAPS_KEY:
+        return JSONResponse({"error": "GOOGLE_MAPS_API_KEY ni nastavljen."}, status_code=500)
+
+    street = (data.get("street") or "").strip()
+    city = (data.get("city") or "").strip()
+    zip_code = (data.get("zip") or "").strip()
+    order = data.get("order", "")
+
+    address_line = f"{street}, {city}, {zip_code}, Bulgaria"
+
+    payload = {
+        "address": {
+            "addressLines": [address_line],
+            "regionCode": "BG",
+            "languageCode": "en",  # latinica
+        },
+        "enableUspsCass": False,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as hc:
+            resp = await hc.post(
+                f"https://addressvalidation.googleapis.com/v1:validateAddress?key={GOOGLE_MAPS_KEY}",
+                json=payload,
+            )
+            resp.raise_for_status()
+            result = resp.json()
+
+        verdict = result.get("result", {}).get("verdict", {})
+        address = result.get("result", {}).get("address", {})
+        components = address.get("addressComponents", [])
+
+        # Izvleci komponente
+        def get_comp(comp_type):
+            for c in components:
+                if comp_type in c.get("componentType", ""):
+                    return c.get("componentName", {}).get("text", "")
+            return ""
+
+        fix_street = ""
+        route = get_comp("route")
+        street_nr = get_comp("street_number")
+        subpremise = get_comp("subpremise")
+        if route:
+            fix_street = route
+            if street_nr:
+                fix_street += f" {street_nr}"
+            if subpremise:
+                fix_street += f", ap. {subpremise}"
+
+        fix_city = get_comp("locality") or get_comp("administrative_area_level_2") or city
+        fix_zip = get_comp("postal_code") or zip_code
+        formatted = address.get("formattedAddress", "")
+
+        validation_granularity = verdict.get("validationGranularity", "")
+        has_unconfirmed = verdict.get("hasUnconfirmedComponents", False)
+
+        if validation_granularity in ("PREMISE", "SUB_PREMISE", "ROUTE"):
+            status = "CONFIRMED"
+        elif validation_granularity in ("BLOCK", "PREMISE_PROXIMITY"):
+            status = "PARTIALLY_CONFIRMED"
+        else:
+            status = "NOT_CONFIRMED"
+
+        return {
+            "order": order,
+            "status": status,
+            "fix_street": fix_street or street,
+            "fix_city": fix_city,
+            "fix_zip": fix_zip,
+            "formatted": formatted,
+            "granularity": validation_granularity,
+            "has_unconfirmed": has_unconfirmed,
+            "note": f"Google: {validation_granularity}",
+        }
+
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 def odprema_cleanup():
