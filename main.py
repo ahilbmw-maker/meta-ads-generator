@@ -3420,6 +3420,7 @@ async def analiza_tiktok_upload(file: UploadFile = File(...)):
                 'status': 'active' if 'active' in status else 'inactive',
                 'spend': spend, 'conversions': conversions,
                 'currency': str(fcol(row, 'Currency', 'currency') or 'EUR').strip(),
+                'create_time': str(fcol(row, 'Campaign create time', 'Create time', 'create_time', 'Created time', 'Ad group create time') or '').strip(),
             })
 
         if not parsed:
@@ -3437,7 +3438,7 @@ async def analiza_tiktok_upload(file: UploadFile = File(...)):
             existing[row['campaign']] = row
 
         out = io.StringIO()
-        fieldnames = ['campaign', 'sku', 'status', 'spend', 'conversions', 'currency']
+        fieldnames = ['campaign', 'sku', 'status', 'spend', 'conversions', 'currency', 'create_time']
         writer = _csv2.DictWriter(out, fieldnames=fieldnames, extrasaction='ignore')
         writer.writeheader()
         writer.writerows(existing.values())
@@ -3515,6 +3516,7 @@ async def analiza_tiktok_data():
                 'currency': r.get('currency', 'EUR'),
                 'stock': st_data.get('stock', 0),
                 'stock30': st_data.get('stock30', 0),
+                'create_time': r.get('create_time', ''),
             })
 
         meta = {}
