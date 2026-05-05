@@ -778,6 +778,13 @@ async function saveEodData(){
   renderChart();
   renderLog();
   await updateDataCounter();
+  // Auto-save vsakih 5 minut
+  setInterval(async () => {
+    if (entries.length > 0) {
+      await saveEntries();
+      console.log('[forecast] Auto-save:', entries.length, 'vnosov');
+    }
+  }, 5 * 60 * 1000);
 })();
 </script>
 </body>
