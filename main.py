@@ -3426,7 +3426,7 @@ async def analiza_tiktok_upload(file: UploadFile = File(...)):
                 'status': 'active' if 'active' in status else 'inactive',
                 'spend': spend, 'conversions': conversions,
                 'currency': str(fcol(row, 'Currency', 'currency') or 'EUR').strip(),
-                'create_time': str(fcol(row, 'Campaign create time', 'Create time', 'create_time', 'Created time', 'Ad group create time') or '').strip(),
+                'create_time': str(fcol(row, 'Date Created', 'Campaign create time', 'Create time', 'create_time', 'Created time', 'Ad group create time') or '').strip(),
             })
 
         if not parsed:
