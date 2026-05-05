@@ -364,6 +364,7 @@
         <th style="width:36px"><input type="checkbox" id="selectAllMain" onchange="bulkToggleAll(this.checked)" style="cursor:pointer;width:15px;height:15px"></th>
         <th onclick="sortBy('id')" style="cursor:pointer">ID naročila ↕</th>
         <th onclick="sortBy('sku')" style="cursor:pointer">SKU ↕</th>
+        <th onclick="sortBy('stock')" style="cursor:pointer">Zaloga ↕</th>
         <th onclick="sortBy('amount')" style="cursor:pointer">Cena originalna ↕</th>
         <th onclick="sortBy('suggested')" style="cursor:pointer">Predlagana cena ↕</th>
         <th onclick="sortBy('ncNum')" style="cursor:pointer">NC ↕</th>
@@ -674,7 +675,7 @@ function parseFile(text) {
     if (parts.some(p => p.trim() === 'ID naročila' || p.trim() === 'SKU izdelka')) continue;
 
     // Find columns — flexible parsing
-    let id, sku, product, price, nc, razlika, marza, store;
+    let id, sku, product, stock, price, nc, razlika, marza, store;
 
     // Try to find ID (7-digit number)
     for (let i = 0; i < parts.length; i++) {
@@ -683,9 +684,8 @@ function parseFile(text) {
         id = p;
         sku = parts[i+1]?.trim();
         product = parts[i+2]?.trim();
-        // price is usually parts[i+4] — contains currency info
+        stock = parts[i+3]?.trim(); // Zaloga
         price = parts[i+4]?.trim();
-        // NC, razlika, marza so naslednje cele kolone
         nc = parts[i+5]?.trim();
         razlika = parts[i+6]?.trim();
         marza = parts[i+7]?.trim();
@@ -722,6 +722,7 @@ function parseFile(text) {
       id,
       sku: sku || '',
       product: product || '',
+      stock: parseInt(stock) || 0,
       priceRaw: isNull ? (priceClean || 'null') : priceClean,
       qty: qty,
       isNull: isNull,
@@ -840,6 +841,7 @@ function renderTable(rows) {
         <a href="https://www.siluxar.si/narocilnice/${row.id}" target="_blank" class="id-badge" style="text-decoration:none;color:var(--green);border-color:rgba(64,193,80,0.4)">${row.id} ↗</a>
       </td>
       <td style="font-weight:600;color:var(--text)">${row.sku}</td>
+      <td style="font-size:12px;font-weight:600;text-align:center;${row.stock <= 5 ? 'color:#ef4444' : row.stock <= 20 ? 'color:#f59e0b' : 'color:#16a34a'}">${row.stock ?? '—'}</td>
       <td>${priceDisplay}</td>
       <td>${suggestedDisplay}</td>
       <td style="font-size:11px;color:var(--muted)">${row.nc}</td>
