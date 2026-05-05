@@ -5365,11 +5365,10 @@ BOLGARSKE OKRAJŠAVE:
 
 KRITIČNA PRAVILA (po prioriteti):
 
-1. LATINICA OBVEZNA — vse vrni v latinici, tudi mesta in ulice (Econt vmesnik je v latinici)
+1. LATINICA OBVEZNA — vse vrni v latinici, tudi ulice (Econt vmesnik je v latinici)
+   **IZJEMA: fix_city VEDNO v latinici** — nikoli ne prevajaj ali transliteriraj imena mesta v cirilico, tudi če Google ali drug vir vrne cirilico. Mesto ohrani točno tako kot je napisano v originalnem naslovu ali v standardni latinični obliki.
 
-2. ZIP EKSTRAKCIJA — če je ZIP v polju ulice ali mesta, ga prestavi v fix_zip
-   Primer: "s.Izvorise 8116" → fix_city="Izvorise", fix_zip="8116"
-   Primer: "Sofia 1715" → fix_city="Sofia", fix_zip="1715", fix_street=""
+2. ZIP EKSTRAKCIJA — če je ZIP v polju ulice ali mesta, ga prestavi v fix_zip. Popravi ZIP SAMO če je očitno napačen (vsebuje črke, ni 4 cifre, ali je ZIP drugega mesta). Če si negotov → pusti originalni ZIP.
 
 3. SOFIJSKE ČETRTI IN ZIP — poznaj pravilne ZIP-e za sofijske četrti:
    zh.k. Lulin → 1343, zh.k. Mladost → 1750/1784, zh.k. Lyulin → 1343
