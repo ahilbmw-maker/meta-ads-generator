@@ -5164,7 +5164,7 @@ async def odprema_google_validate(data: dict):
         "address": {
             "addressLines": [address_line],
             "regionCode": "BG",
-            "languageCode": "en",  # latinica
+            "languageCode": "bg-Latn",  # BG v latinici
         },
         "enableUspsCass": False,
     }
