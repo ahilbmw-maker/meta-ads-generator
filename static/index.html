@@ -7396,7 +7396,7 @@ function tt14RenderTable() {
         spend: 0, conversions: 0,
         status: 'inactive', campaigns: 0, active_campaigns: 0,
         stock: row.stock || 0, stock30: row.stock30 || 0,
-        obrat14: 0,
+        obrat14: 0, create_time: '',
       };
     }
     skuMap[sku].spend += row.spend || 0;
@@ -7407,6 +7407,12 @@ function tt14RenderTable() {
       skuMap[sku].status = 'active';
     } else if (skuMap[sku].status === 'none' || skuMap[sku].status === 'inactive') {
       skuMap[sku].status = 'inactive';
+    }
+    // Shrani najstarejši create_time za SKU
+    if (row.create_time) {
+      if (!skuMap[sku].create_time || row.create_time < skuMap[sku].create_time) {
+        skuMap[sku].create_time = row.create_time;
+      }
     }
     // Posodobi stock/title iz TikTok če manjka
     if (!skuMap[sku].title && row.title) skuMap[sku].title = row.title;
@@ -7444,10 +7450,19 @@ function tt14RenderTable() {
     const TT_ACTIVE_BG = '#639922';
     const TT_PAUSED_BG = '#EF9F27';
     const TT_EMPTY_BG = 'rgba(0,0,0,0.04)';
+    const createDateStr = (() => {
+      if (!it.create_time) return '';
+      try {
+        const d = new Date(it.create_time);
+        if (isNaN(d)) return it.create_time.slice(0,10);
+        return d.toLocaleDateString('sl-SI', {day:'2-digit',month:'2-digit',year:'numeric'});
+      } catch(e) { return ''; }
+    })();
+
     const statusBadge = it.status === 'active'
       ? `<div style="text-align:center;color:#fff;font-size:14px;font-weight:700;background:${TT_ACTIVE_BG};border-radius:3px;padding:3px 6px" title="Aktiven · ${it.active_campaigns} aktivnih / ${it.campaigns} skupaj">✓ <span style="font-size:10px;opacity:0.9">(${it.active_campaigns}/${it.campaigns})</span></div>`
       : it.campaigns > 0
-      ? `<div style="text-align:center;color:#fff;font-size:13px;font-weight:700;background:${TT_PAUSED_BG};border-radius:3px;padding:3px 6px" title="Pavzirano · ${it.campaigns} kampanj">⏸ <span style="font-size:10px;opacity:0.9">(${it.campaigns})</span></div>`
+      ? `<div style="text-align:center;color:#fff;font-size:11px;font-weight:700;background:${TT_PAUSED_BG};border-radius:3px;padding:3px 6px" title="Pavzirano · ${it.campaigns} kampanj${createDateStr ? ' · Kreirano: ' + createDateStr : ''}">⏸ <span style="opacity:0.9">(${it.campaigns})</span>${createDateStr ? `<div style="font-size:9px;opacity:0.85;font-weight:400;margin-top:1px">${createDateStr}</div>` : ''}</div>`
       : `<div style="text-align:center;color:var(--text-tertiary);font-size:14px;background:${TT_EMPTY_BG};border-radius:3px;padding:3px 0">—</div>`;
     const obratColor = it.obrat14 > 10 ? 'var(--green)' : it.obrat14 > 3 ? '#d97706' : it.obrat14 > 0 ? 'var(--red)' : 'var(--text-tertiary)';
     const stockColor = it.stock > 50 ? 'var(--green)' : it.stock > 10 ? '#d97706' : it.stock > 0 ? 'var(--red)' : 'var(--text-tertiary)';
