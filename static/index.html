@@ -2274,9 +2274,16 @@ input[type="text"].error { border-color: var(--red) !important; }
               </div>
               <span id="odp-credits-used" style="font-size:10px;color:var(--text-tertiary);white-space:nowrap;flex-shrink:0"></span>
             </div>
+            <!-- Bulk action bar -->
+            <div id="odp-bulk-bar" style="display:none;align-items:center;gap:8px;padding:8px 0 4px;flex-wrap:wrap">
+              <span id="odp-bulk-count" style="font-size:12px;font-weight:600;color:var(--text)">0 označenih</span>
+              <div style="width:1px;height:16px;background:var(--border);flex-shrink:0"></div>
+              <button id="odp-bulk-google" onclick="odpBulkGoogle()" style="padding:6px 14px;font-size:12px;font-weight:600;background:#4285f4;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:'DM Sans',sans-serif">🔍 Google validacija (<span id="odp-bulk-google-count">0</span>)</button>
+              <button id="odp-bulk-econt" onclick="odpBulkEcont()" style="display:none;padding:6px 14px;font-size:12px;font-weight:600;background:#f97316;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:'DM Sans',sans-serif">📦 Preusmeri na Econt + email (<span id="odp-bulk-econt-count">0</span>)</button>
+              <button onclick="odpBulkClear()" style="padding:6px 12px;font-size:12px;color:var(--text-secondary);background:transparent;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;font-family:'DM Sans',sans-serif">Odznači vse</button>
+            </div>
             <!-- Filter tabi -->
-            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-              <button class="odp-ftab active" onclick="odpSetFilter('all',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif">Vse</button>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"> style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif">Vse</button>
               <button class="odp-ftab" onclick="odpSetFilter('CONFIRMED',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">✓ Potrjeni</button>
               <button class="odp-ftab" onclick="odpSetFilter('PARTIALLY_CONFIRMED',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">⚠ Delno</button>
               <button class="odp-ftab" onclick="odpSetFilter('NOT_CONFIRMED',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">🔴 Ni najden</button>
@@ -6380,9 +6387,7 @@ function odpSetFilter(f, el) {
     el.style.background = 'var(--accent)'; el.style.color = '#fff'; el.style.borderColor = 'var(--accent)';
   }
   odpRenderTable();
-}
-
-function odpRenderTable() {
+  odpUpdateBulkBar();
   const tbody = document.getElementById('odp-tbody');
   const noRes = document.getElementById('odp-no-results');
   const search = (document.getElementById('odp-search')?.value || '').toLowerCase();
@@ -6518,6 +6523,130 @@ function odpToggleAlt(orderNumber, checked) {
   if (checked) odpAltCourier.add(orderNumber);
   else odpAltCourier.delete(orderNumber);
   odpUpdateAltBtn();
+  odpUpdateBulkBar();
+}
+
+function odpUpdateBulkBar() {
+  const bar = document.getElementById('odp-bulk-bar');
+  if (!bar) return;
+  const checked = odpAltCourier.size;
+  if (checked === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  document.getElementById('odp-bulk-count').textContent = `${checked} označenih`;
+  document.getElementById('odp-bulk-google-count').textContent = checked;
+  // Suspended ZIP gumb samo na Suspended ZIP filtru
+  const econtBtn = document.getElementById('odp-bulk-econt');
+  const suspendedChecked = [...odpAltCourier].filter(on => {
+    const r = odpRows.find(r => r.orderNumber === on);
+    if (!r) return false;
+    return ODP_SUSPENDED.has(parseInt((r.recipientZip||'').replace(/\D/g,''))||0);
+  }).length;
+  if (econtBtn) {
+    econtBtn.style.display = (odpFilter === 'SUSPENDED_ZIP' && suspendedChecked > 0) ? 'inline-block' : 'none';
+    document.getElementById('odp-bulk-econt-count').textContent = suspendedChecked;
+  }
+}
+
+function odpBulkClear() {
+  odpAltCourier.clear();
+  const chkAll = document.getElementById('odp-chk-all');
+  if (chkAll) chkAll.checked = false;
+  odpUpdateAltBtn();
+  odpUpdateBulkBar();
+  odpRenderTable();
+}
+
+async function odpBulkGoogle() {
+  const orders = [...odpAltCourier];
+  if (!orders.length) return;
+  const btn = document.getElementById('odp-bulk-google');
+  btn.disabled = true;
+  btn.textContent = `⏳ Validiram (0/${orders.length})...`;
+  let done = 0;
+  for (const orderNumber of orders) {
+    const r = odpRows.find(r => r.orderNumber === orderNumber);
+    if (!r) { done++; continue; }
+    const v = odpValidation[orderNumber] || {};
+    await fetch('/odprema-google-validate', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        order: orderNumber,
+        street: v.fix_street || r.recipientStreet || '',
+        city: v.fix_city || r.recipientCity || '',
+        zip: v.fix_zip || r.recipientZip || ''
+      })
+    }).then(res => res.json()).then(data => {
+      if (!data.error) {
+        odpValidation[orderNumber] = {
+          ...v, status: data.status,
+          fix_street: data.fix_street || v.fix_street,
+          fix_city: data.fix_city || v.fix_city,
+          fix_zip: data.fix_zip || v.fix_zip,
+          formatted: data.formatted,
+          note: data.note,
+          confidence: data.status === 'CONFIRMED' ? 1.0 : 0.7,
+        };
+      }
+    }).catch(()=>{});
+    done++;
+    btn.textContent = `⏳ Validiram (${done}/${orders.length})...`;
+  }
+  btn.disabled = false;
+  btn.innerHTML = `🔍 Google validacija (<span id="odp-bulk-google-count">${orders.length}</span>)`;
+  odpUpdateStats(); odpRenderTable();
+}
+
+async function odpBulkEcont() {
+  const orders = [...odpAltCourier].filter(on => {
+    const r = odpRows.find(r => r.orderNumber === on);
+    return r && ODP_SUSPENDED.has(parseInt((r.recipientZip||'').replace(/\D/g,''))||0);
+  });
+  if (!orders.length) return;
+  const withEmail = orders.filter(on => {
+    const r = odpRows.find(r => r.orderNumber === on);
+    return r?.recipientEmail?.includes('@');
+  });
+  if (!confirm(`Preusmeri ${orders.length} pošiljk na Econt?\n${withEmail.length} strank bo dobilo email.`)) return;
+  const btn = document.getElementById('odp-bulk-econt');
+  btn.disabled = true; btn.textContent = '⏳ Preusmerjam...';
+  // Preusmeri na Econt
+  orders.forEach(on => {
+    const r = odpRows.find(r => r.orderNumber === on);
+    if (!r) return;
+    const zip = parseInt((r.recipientZip||'').replace(/\D/g,''))||0;
+    const office = ODP_ECONT_MAP[zip] || 'Nearest Econt';
+    odpValidation[on] = {
+      ...(odpValidation[on]||{}),
+      status: 'ECONT_DEPO',
+      fix_street: `Econt office ${office}`,
+      fix_city: r.recipientCity,
+      fix_zip: r.recipientZip,
+      note: `📦 Suspended ZIP ${zip} → ${office} office`,
+      confidence: 1.0,
+    };
+  });
+  // Pošlji emaile
+  if (withEmail.length > 0) {
+    const shipments = withEmail.map(on => {
+      const r = odpRows.find(r => r.orderNumber === on);
+      const zip = parseInt((r.recipientZip||'').replace(/\D/g,''))||0;
+      return {
+        order: on,
+        name: `${r.recipientFirstname||''} ${r.recipientLastname||''}`.trim(),
+        email: r.recipientEmail,
+        office: `Econt office ${ODP_ECONT_MAP[zip]||'najbližji'}`,
+        orig_city: r.recipientCity,
+      };
+    });
+    const res = await fetch('/odprema-send-emails', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({shipments})
+    }).then(r=>r.json()).catch(()=>({sent:0,failed:withEmail.length}));
+    alert(`✓ Preusmerjeno: ${orders.length}\n✉ Poslano: ${res.sent || 0} emailov${res.failed>0?' ('+res.failed+' neuspešnih)':''}`);
+  }
+  btn.disabled = false;
+  odpUpdateStats(); odpRenderTable(); odpUpdateBulkBar();
 }
 
 function odpToggleAllAlt(checked) {
@@ -6532,6 +6661,7 @@ function odpToggleAllAlt(checked) {
   });
   rows.forEach(r => { if (checked) odpAltCourier.add(r.orderNumber); else odpAltCourier.delete(r.orderNumber); });
   odpUpdateAltBtn();
+  odpUpdateBulkBar();
   odpRenderTable();
 }
 
