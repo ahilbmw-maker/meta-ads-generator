@@ -364,7 +364,7 @@ async function loadPersonalModel(){
     const resp = await fetch(API_BASE + '/forecast-history');
     const text = await resp.text();
     let hist;
-    try{ hist = JSON.parse(text); } catch(e){ console.warn('[forecast] history not JSON:', text.slice(0,80)); return 0; }
+    try{ hist = JSON.parse(text); } catch(e){ return 0; } // HTML = preview/offline, tiho neha
     if(!hist || typeof hist !== 'object') return 0;
     
     // Naloži EOD podatke
@@ -395,7 +395,7 @@ async function loadPersonalModel(){
     }
     return days.length;
   }catch(e){
-    console.warn('[forecast] Personal model error:', e);
+    // tiho neha v preview okolju
     return 0;
   }
 }
@@ -414,23 +414,28 @@ function getTodayLJ(){
 async function loadEntries(){
   try{
     const today = getTodayLJ();
-    const data = await fetch(API_BASE + '/forecast-entries').then(r=>r.json());
+    const text = await fetch(API_BASE + '/forecast-entries').then(r=>r.text());
+    if(text.trim().startsWith('<')){ console.log('[forecast] entries endpoint not ready'); entries=[]; return; }
+    const data = JSON.parse(text);
     if(data && data.date === today && data.entries && data.entries.length > 0){
       entries = data.entries || [];
+      console.log('[forecast] loaded from server:', entries.length, 'entries');
       return;
     }
-    // Poskusi localStorage backup (deluje tudi med Render deployom)
+    // Poskusi localStorage backup
     try {
       const local = JSON.parse(localStorage.getItem('forecast_entries_' + today) || 'null');
       if (local && local.date === today && local.entries && local.entries.length > 0) {
         entries = local.entries;
+        console.log('[forecast] loaded from localStorage:', entries.length, 'entries');
         await saveEntries();
-        console.log('[forecast] Obnovljeno iz localStorage:', entries.length, 'vnosov');
         return;
       }
     } catch(e) {}
     // Poskusi obnoviti iz history za danes
-    const hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json()).catch(()=>({}));
+    const histText = await fetch(API_BASE + '/forecast-history').then(r=>r.text()).catch(()=>'{}');
+    if(histText.trim().startsWith('<')){ entries=[]; return; }
+    const hist = JSON.parse(histText);
     if(hist && hist[today] && hist[today].length > 0){
       entries = hist[today].map(e => ({
         label: String(e.h).padStart(2,'0') + ':' + String(e.m||0).padStart(2,'0'),
@@ -439,12 +444,13 @@ async function loadEntries(){
         napoved: null,
         napovedOrd: null,
       }));
+      console.log('[forecast] loaded from history:', entries.length, 'entries');
       await saveEntries();
-      console.log('[forecast] Obnovljeno iz history:', entries.length, 'vnosov');
       return;
     }
+    console.log('[forecast] no entries found for today:', today);
     entries = [];
-  }catch(e){ entries=[]; }
+  }catch(e){ console.warn('[forecast] loadEntries error:', e); entries=[]; }
 }
 
 async function saveEntries(){
@@ -452,14 +458,20 @@ async function saveEntries(){
   // Shrani v localStorage kot backup
   try {
     localStorage.setItem('forecast_entries_' + today, JSON.stringify({date: today, entries}));
-  } catch(e) {}
-  // Najprej shrani v history (bolj zanesljivo)
-  await collectHistoricalData(today);
-  // Potem shrani entries
+    console.log('[forecast] localStorage saved:', entries.length, 'entries');
+  } catch(e) { console.warn('[forecast] localStorage fail:', e); }
+  // Shrani v history
+  try {
+    await collectHistoricalData(today);
+  } catch(e) { console.warn('[forecast] history save fail:', e); }
+  // Shrani entries na server
   try{
-    await fetch(API_BASE + '/forecast-entries', {method:'POST', headers:{'Content-Type':'application/json'},
+    const r = await fetch(API_BASE + '/forecast-entries', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({date:today, entries})});
-  }catch(e){}
+    const txt = await r.text();
+    if(txt.trim().startsWith('<')) { console.warn('[forecast] entries endpoint returned HTML — not saved to server'); return; }
+    console.log('[forecast] server saved OK, entries:', entries.length);
+  }catch(e){ console.warn('[forecast] server save fail:', e); }
 }
 
 async function collectHistoricalData(today){
@@ -610,15 +622,34 @@ function calc(){
   document.getElementById('empty').style.display='none';
 }
 
-function addEntry(){
+async function addEntry(){
   if(!lastPredRev){alert('Najprej vpiši podatke.');return;}
   const h=parseInt(document.getElementById('hours').value)||0;
   const m=parseInt(document.getElementById('mins').value)||0;
   const rev=parseFloat(document.getElementById('revenue').value)||0;
   const ord=parseFloat(document.getElementById('orders').value)||0;
   const label=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-  entries.push({label,napoved:Math.round(lastPredRev),dejanski:Math.round(rev),napovedOrd:Math.round(lastPredOrd),dejanskiOrd:Math.round(ord)});
-  saveEntries();
+
+  // Preveri duplikat — če že obstaja vnos za ta čas, posodobi
+  const existing = entries.findIndex(e => e.label === label);
+  const entry = {label, napoved:Math.round(lastPredRev), dejanski:Math.round(rev), napovedOrd:Math.round(lastPredOrd), dejanskiOrd:Math.round(ord)};
+  if(existing >= 0){
+    entries[existing] = entry;
+  } else {
+    entries.push(entry);
+    // Sortiraj po uri
+    entries.sort((a,b) => a.label.localeCompare(b.label));
+  }
+
+  const btn = document.querySelector('.add-btn');
+  if(btn){ btn.disabled=true; btn.textContent='Shranjujem...'; }
+  try {
+    await saveEntries();
+    if(btn){ btn.style.background='#16a34a'; btn.textContent='✓ Shranjeno!'; }
+    setTimeout(()=>{ if(btn){ btn.style.background=''; btn.textContent='⊕ Dodaj vnos v graf'; btn.disabled=false; }}, 1500);
+  } catch(e) {
+    if(btn){ btn.disabled=false; btn.textContent='⊕ Dodaj vnos v graf'; }
+  }
   renderChart();renderLog();
 }
 
