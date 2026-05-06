@@ -5500,9 +5500,12 @@ KRITIČNA PRAVILA (po prioriteti):
 1. LATINICA OBVEZNA — vse vrni v latinici, tudi ulice (Econt vmesnik je v latinici)
    **IZJEMA: fix_city VEDNO v latinici** — nikoli ne prevajaj ali transliteriraj imena mesta v cirilico, tudi če Google ali drug vir vrne cirilico. Mesto ohrani točno tako kot je napisano v originalnem naslovu ali v standardni latinični obliki.
 
-2. ULICA MORA BITI IZ MESTA — KRITIČNO!
-   Če imaš seznam ulic tega mesta (zgoraj), predlagaj popravek SAMO iz tistega seznama.
-   NIKOLI ne predlagaj ulice iz drugega mesta. Če ulica ni v seznamu → status UNCLEAR, note="Street not found in {city_entry.get('name_en', city) if city_entry else city}"
+2. ULICA IN MESTO — POMEMBNO!
+   Če imaš seznam ulic tega mesta (zgoraj), ga uporabi za validacijo in popravke pravopisnih napak.
+   NIKOLI ne predlagaj ulice iz drugega mesta.
+   AMPAK: Econt baza ulic ni popolna — manjkajo nove ulice, manjše vasi, četrti brez ulic.
+   Če ulica ni v seznamu, jo VSEENO potrdi (status FIXED ali OK) če je naslov smiselno formatiran.
+   Status UNCLEAR nastavi SAMO če naslov je res nerazumljiv ali manjka ulica/hišna številka — NE samo zato ker ulice ni v bazi.
 
 3. ZIP EKSTRAKCIJA — če je ZIP v polju ulice ali mesta, ga prestavi v fix_zip. Popravi ZIP SAMO če je očitno napačen (vsebuje črke, ni 4 cifre, ali je ZIP drugega mesta). Če si negotov → pusti originalni ZIP.
 
@@ -5746,7 +5749,92 @@ async def get_nearest_office(data: dict):
     return {"ok": True, "office": econt_office_to_address(office), "raw": office}
 
 
-@app.post("/odprema-resolve-suspended")
+@app.post("/odprema-econt-check")
+async def odprema_econt_check(data: dict):
+    """
+    Double-check naslova direktno pri Econt API — preveri ali mesto + ulica obstajata.
+    Klic gre iz Render serverja (whitelist IP). 
+    Input: {"zip": "1000", "city": "Sofia", "street": "bul. Vitosha 38"}
+    """
+    zip_code = (data.get("zip") or "").strip()
+    city_name = (data.get("city") or "").strip()
+    street = (data.get("street") or "").strip()
+    order = data.get("order", "")
+
+    result = {"order": order, "zip": zip_code, "city": city_name}
+
+    async with httpx.AsyncClient(timeout=15.0) as hc:
+        for base_url in [ECONT_API_URL, ECONT_DEMO_URL]:
+            try:
+                # 1. getCities — preveri ali mesto obstaja
+                r = await hc.post(
+                    f"{base_url}/Nomenclatures/NomenclaturesService.getCities.json",
+                    json={"countryCode": "BG", "name": city_name},
+                    auth=(ECONT_USER, ECONT_PASS)
+                )
+                if r.status_code != 200:
+                    continue
+
+                cities = r.json().get("cities", [])
+                city_match = None
+                for c in cities:
+                    if str(c.get("postCode", "")) == zip_code or \
+                       (c.get("nameEn", "").lower() == city_name.lower()) or \
+                       (c.get("name", "").lower() == city_name.lower()):
+                        city_match = c
+                        break
+
+                result["city_found"] = bool(city_match)
+                result["city_econt"] = city_match.get("nameEn", "") if city_match else ""
+                result["city_zip"] = str(city_match.get("postCode", "")) if city_match else ""
+
+                if not city_match:
+                    result["status"] = "CITY_NOT_FOUND"
+                    result["note"] = f"Mesto '{city_name}' ni v Econt bazi"
+                    return result
+
+                # 2. getStreets — preveri ali ulica obstaja v tem mestu
+                if street:
+                    # Ekstrahiraj samo ime ulice brez številke
+                    street_name = re.sub(r'\b\d+\b.*$', '', street).strip().rstrip(',').strip()
+                    street_name = re.sub(r'^(ul\.|bul\.|zh\.k\.|kv\.)\s*', '', street_name, flags=re.IGNORECASE).strip()
+
+                    r2 = await hc.post(
+                        f"{base_url}/Nomenclatures/NomenclaturesService.getStreets.json",
+                        json={"cityID": city_match.get("id"), "name": street_name},
+                        auth=(ECONT_USER, ECONT_PASS)
+                    )
+                    if r2.status_code == 200:
+                        streets = r2.json().get("streets", [])
+                        result["street_found"] = bool(streets)
+                        result["street_matches"] = [s.get("nameEn", s.get("name", "")) for s in streets[:3]]
+                        if streets:
+                            result["status"] = "OK"
+                            result["note"] = f"Mesto in ulica potrjena pri Econt"
+                        else:
+                            result["status"] = "STREET_NOT_FOUND"
+                            result["note"] = f"Ulica '{street_name}' ni v Econt bazi za {city_name}"
+                    else:
+                        result["street_found"] = None
+                        result["status"] = "OK"
+                        result["note"] = "Mesto potrjeno, ulica ni preverjena"
+                else:
+                    result["street_found"] = None
+                    result["status"] = "OK"
+                    result["note"] = "Mesto potrjeno (ni ulice za preverjanje)"
+
+                return result
+
+            except Exception as e:
+                result["error"] = str(e)
+                continue
+
+    result["status"] = "API_UNAVAILABLE"
+    result["note"] = "Econt API ni dosegljiv (IP whitelist?)"
+    return result
+
+
+
 async def odprema_resolve_suspended(data: dict):
     """
     Za seznam suspended naslovov poišče najbližji Econt office.
