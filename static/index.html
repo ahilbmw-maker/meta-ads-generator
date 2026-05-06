@@ -6376,20 +6376,10 @@ async function odpSendEmails() {
   }
 }
 
-function odpSetFilter(f, el) {
-  odpFilter = f;
-  document.querySelectorAll('.odp-ftab').forEach(t => {
-    t.style.background = 'transparent'; t.style.color = 'var(--text-secondary)'; t.style.borderColor = 'var(--border)';
-  });
-  if (f === 'ALT_COURIER') {
-    el.style.background = '#8b5cf6'; el.style.color = '#fff'; el.style.borderColor = '#8b5cf6';
-  } else {
-    el.style.background = 'var(--accent)'; el.style.color = '#fff'; el.style.borderColor = 'var(--accent)';
-  }
-  odpRenderTable();
-  odpUpdateBulkBar();
+function odpRenderTable() {
   const tbody = document.getElementById('odp-tbody');
   const noRes = document.getElementById('odp-no-results');
+  if (!tbody) return;
   const search = (document.getElementById('odp-search')?.value || '').toLowerCase();
 
   let rows = odpFilter === 'all' ? odpRows
@@ -6408,8 +6398,8 @@ function odpSetFilter(f, el) {
     });
   }
 
-  if (!rows.length) { tbody.innerHTML = ''; noRes.style.display = 'block'; return; }
-  noRes.style.display = 'none';
+  if (!rows.length) { tbody.innerHTML = ''; if(noRes) noRes.style.display = 'block'; return; }
+  if(noRes) noRes.style.display = 'none';
 
   const statusColor = {
     CONFIRMED: '#16a34a', PARTIALLY_CONFIRMED: '#f59e0b',
@@ -6457,6 +6447,22 @@ function odpSetFilter(f, el) {
       <td style="padding:6px 8px"><button onclick="odpGoogleValidate('${r.orderNumber}')" style="padding:4px 8px;background:#4285f4;color:#fff;border:none;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">🔍 G</button></td>
     </tr>`;
   }).join('');
+}
+
+function odpSetFilter(f, el) {
+  odpFilter = f;
+  document.querySelectorAll('.odp-ftab').forEach(t => {
+    t.style.background = 'transparent'; t.style.color = 'var(--text-secondary)'; t.style.borderColor = 'var(--border)';
+  });
+  if (f === 'ALT_COURIER') {
+    el.style.background = '#8b5cf6'; el.style.color = '#fff'; el.style.borderColor = '#8b5cf6';
+  } else if (f === 'SUSPENDED_ZIP') {
+    el.style.background = '#f97316'; el.style.color = '#fff'; el.style.borderColor = '#f97316';
+  } else {
+    el.style.background = 'var(--accent)'; el.style.color = '#fff'; el.style.borderColor = 'var(--accent)';
+  }
+  odpRenderTable();
+  odpUpdateBulkBar();
 }
 
 function odpExportCSV() {
@@ -9667,7 +9673,6 @@ async function hsuvozLoadHistory() {
 }
 
 </script>
-<!-- HOVER PREVIEW -->
 <div class="k-hover-preview" id="kHoverPreview">
   <img id="kHoverPreviewImg" src="" alt="">
 </div>
