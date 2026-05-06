@@ -5598,13 +5598,28 @@ Vrni SAMO JSON, brez razlag:
                 "UNCLEAR": "NOT_CONFIRMED"
             }
             
+            fix_street_raw = result.get("fix_street", street)
+
+            # Ekstrahiraj hišno številko iz fix_street če je streetNr nn/N/A
+            fix_nr_out = street_nr
+            is_placeholder = street_nr.lower().strip() in ("nn", "n/a", "")
+            if is_placeholder and fix_street_raw:
+                # Poišči hišno številko na koncu naslova (npr. "ul. Vasil Levski 36b" → "36b")
+                # Ne velja za Econt office naslove
+                if not re.search(r'econt\s*office', fix_street_raw, re.IGNORECASE):
+                    nr_match = re.search(r'^(.*?)[\s,]+(\d+[A-Za-z]?(?:\s+\d+[A-Za-z]?)?)$', fix_street_raw.strip())
+                    if nr_match:
+                        fix_nr_out = nr_match.group(2).strip()
+                        # Odstrani hišno številko iz fix_street (Econt želi ločena polja)
+                        fix_street_raw = nr_match.group(1).strip().rstrip(',')
+
             return {
                 "order": order,
                 "status": status_map.get(result.get("status", "UNCLEAR"), "NOT_CONFIRMED"),
                 "confidence": 1.0 if result.get("status") == "OK" else 0.7 if result.get("status") == "FIXED" else 0.3,
-                "formatted": f"{result.get('fix_street','')}, {result.get('fix_city','')}, {result.get('fix_zip','')}",
-                "fix_street": result.get("fix_street", street),
-                "fix_nr": street_nr,
+                "formatted": f"{fix_street_raw}, {result.get('fix_city','')}, {result.get('fix_zip','')}",
+                "fix_street": fix_street_raw,
+                "fix_nr": fix_nr_out,
                 "fix_city": result.get("fix_city", city),
                 "fix_zip": result.get("fix_zip", zip_code),
                 "note": result.get("note", ""),
