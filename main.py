@@ -38,6 +38,80 @@ KREATIVE_HISTORY_FILE = DATA_DIR / "kreative_history.json"
 FORECAST_ENTRIES_FILE = DATA_DIR / "forecast_entries.json"
 FORECAST_HISTORY_FILE = DATA_DIR / "forecast_history.json"
 
+# ─── ECONT GEO (cities / streets / quarters lookup) ──────────────────────────
+def _load_econt_geo():
+    for p in [DATA_DIR / "econt_geo.json", Path("econt_geo.json"), Path("static/econt_geo.json")]:
+        if p.exists():
+            try:
+                with open(p, encoding="utf-8") as f:
+                    data = json.load(f)
+                print(f"[econt_geo] Loaded from {p} — {len(data.get('city_by_id',{}))} cities, {len(data.get('streets_by_city',{}))} cities w/ streets")
+                return data
+            except Exception as e:
+                print(f"[econt_geo] Failed to load {p}: {e}")
+    print("[econt_geo] NOT FOUND — street validation disabled")
+    return {}
+
+ECONT_GEO = _load_econt_geo()
+
+
+def econt_lookup_city(zip_code: str, city_name: str) -> dict | None:
+    """Vrni city entry (id, name_bg, name_en, zip) glede na ZIP ali ime mesta."""
+    if not ECONT_GEO:
+        return None
+    zip_map = ECONT_GEO.get("zip_to_city_id", {})
+    city_map = ECONT_GEO.get("city_by_id", {})
+    # 1. ZIP lookup (natančno)
+    cid = zip_map.get(str(zip_code).strip())
+    if cid:
+        return {"id": cid, **city_map.get(str(cid), {})}
+    # 2. Ime lookup (lowercase, točno)
+    name_map = ECONT_GEO.get("name_to_city_ids", {})
+    key = city_name.lower().strip()
+    cids = name_map.get(key)
+    if cids:
+        cid = cids[0]
+        return {"id": cid, **city_map.get(str(cid), {})}
+    # 3. Delno ujemanje po imenu
+    for k, ids in name_map.items():
+        if key and (key in k or k in key):
+            cid = ids[0]
+            return {"id": cid, **city_map.get(str(cid), {})}
+    return None
+
+
+def econt_get_streets_context(city_id, street_query: str, max_results: int = 12) -> str:
+    """Vrni seznam ulic iz mesta kot kontekst za AI — fuzzy match na street_query."""
+    if not ECONT_GEO or not city_id:
+        return ""
+    streets = ECONT_GEO.get("streets_by_city", {}).get(str(city_id), [])
+    quarters = ECONT_GEO.get("quarters_by_city", {}).get(str(city_id), [])
+    if not streets and not quarters:
+        return ""
+    # Fuzzy match — poišči ulice ki vsebujejo ključne besede iz poizvedbe
+    q = re.sub(r'(ul\.|bul\.|zh\.k\.|kv\.|bl\.|vh\.|et\.|ap\.|\d+)', '', street_query.lower()).strip()
+    words = [w for w in q.split() if len(w) > 2]
+    scored = []
+    for s in streets:
+        en = s[1].lower() if s[1] else ""
+        bg = s[0].lower() if s[0] else ""
+        score = sum(1 for w in words if w in en or w in bg)
+        if score > 0:
+            scored.append((score, s))
+    scored.sort(key=lambda x: -x[0])
+    top_streets = [s for _, s in scored[:max_results]]
+    # Če ni zadetkov — vrni prvih N ulic (za osnovno validacijo)
+    if not top_streets:
+        top_streets = streets[:8]
+    lines = []
+    if quarters:
+        q_sample = quarters[:6]
+        lines.append("Četrti: " + ", ".join(f"{q[1]}" for q in q_sample if q[1]))
+    lines.append("Ulice (vzorec):")
+    for s in top_streets:
+        lines.append(f"  {s[1]} / {s[0]}")
+    return "\n".join(lines)
+
 # ─── BRAND DOMAIN MAPS ───────────────────────────────────────────────────────
 
 BRAND_DOMAINS = {
@@ -5361,6 +5435,22 @@ async def odprema_validate(data: dict):
         street = (addr.get("street") or "").strip()
         street_nr = (addr.get("streetNr") or "").strip()
 
+        # ── Geo lookup — poišči mesto in ulice iz Econt baze ──────────────────
+        city_entry = econt_lookup_city(zip_code, city)
+        streets_context = ""
+        city_info = ""
+        if city_entry:
+            cid = city_entry.get("id")
+            name_bg = city_entry.get("name_bg", "")
+            name_en = city_entry.get("name_en", "")
+            city_zip = city_entry.get("zip", "")
+            city_info = f"\nVERIFICIRANO MESTO (Econt baza): {name_en} / {name_bg}, ZIP={city_zip} (cityID={cid})"
+            streets_context = econt_get_streets_context(cid, street)
+            if streets_context:
+                streets_context = f"\nULICE TEGA MESTA (Econt baza — predlagaj SAMO iz tega seznama):\n{streets_context}"
+        else:
+            city_info = "\n⚠ Mesto ni najdeno v Econt bazi — previdno z validacijo."
+
         prompt = f"""Si ekspert za bolgarske poštne naslove za Econt Express dostavo. Normaliziraj vhodni naslov v standardni format ZA ECONT VMESNIK (latinica).
 
 VHODNI NASLOV:
@@ -5368,6 +5458,7 @@ VHODNI NASLOV:
 - Hišna številka: {street_nr}
 - Mesto: {city}
 - ZIP: {zip_code}
+{city_info}{streets_context}
 
 BOLGARSKE OKRAJŠAVE:
 - ul. = ulitsa (ulica), bul. = bulevard
@@ -5381,43 +5472,47 @@ KRITIČNA PRAVILA (po prioriteti):
 1. LATINICA OBVEZNA — vse vrni v latinici, tudi ulice (Econt vmesnik je v latinici)
    **IZJEMA: fix_city VEDNO v latinici** — nikoli ne prevajaj ali transliteriraj imena mesta v cirilico, tudi če Google ali drug vir vrne cirilico. Mesto ohrani točno tako kot je napisano v originalnem naslovu ali v standardni latinični obliki.
 
-2. ZIP EKSTRAKCIJA — če je ZIP v polju ulice ali mesta, ga prestavi v fix_zip. Popravi ZIP SAMO če je očitno napačen (vsebuje črke, ni 4 cifre, ali je ZIP drugega mesta). Če si negotov → pusti originalni ZIP.
+2. ULICA MORA BITI IZ MESTA — KRITIČNO!
+   Če imaš seznam ulic tega mesta (zgoraj), predlagaj popravek SAMO iz tistega seznama.
+   NIKOLI ne predlagaj ulice iz drugega mesta. Če ulica ni v seznamu → status UNCLEAR, note="Street not found in {city_entry.get('name_en', city) if city_entry else city}"
 
-3. SOFIJSKE ČETRTI IN ZIP — poznaj pravilne ZIP-e za sofijske četrti:
+3. ZIP EKSTRAKCIJA — če je ZIP v polju ulice ali mesta, ga prestavi v fix_zip. Popravi ZIP SAMO če je očitno napačen (vsebuje črke, ni 4 cifre, ali je ZIP drugega mesta). Če si negotov → pusti originalni ZIP.
+
+4. SOFIJSKE ČETRTI IN ZIP — poznaj pravilne ZIP-e za sofijske četrti:
    zh.k. Lulin → 1343, zh.k. Mladost → 1750/1784, zh.k. Lyulin → 1343
    zh.k. Druzhba → 1582, zh.k. Nadezhda → 1220, zh.k. Ovcha Kupel → 1618
    zh.k. Bukston/Bakston → 1618, zh.k. Borovo → 1680, zh.k. Lozenets → 1164
    zh.k. Dianabad → 1172, zh.k. Manastirski livadi → 1404
    Če stranka piše ZIP 1000 za četrt → popravi na pravilen ZIP četrti!
 
-4. ULICA = IME MESTA → ni ulice
+5. ULICA = IME MESTA → ni ulice
    Če je ime ulice enako imenu mesta (npr. "ul. Kardzhali" v mestu Kardzhali) → fix_street=""
    Če je naslov samo ime mesta brez ulice (npr. "Cerven bryag 3") → fix_street="", status UNCLEAR
 
-5. ULICA V VEČ ČETRTIH → opozori
+6. ULICA V VEČ ČETRTIH → opozori
    Če ulica obstaja v več četrtih Sofije → status UNCLEAR, note mora vsebovati "Quarter needed: X, Y, Z"
    Znani primeri: ul. Elin Pelin (Lozenets/Dragalevtsi/Pancharevo)
 
-6. ECONT OFFICE V LATINICI
+7. ECONT OFFICE V LATINICI
    Vse Econt office naslove vrni v latinici:
    "Ofis Ekont" → "Econt office [mesto]"
    Primer: "Ekont Bokar, zh.k. Manastirski livadi" → "Econt office Bokar, zh.k. Manastirski livadi"
 
-7. IME MESTA V ULICI → odstrani
+8. IME MESTA V ULICI → odstrani
    "Sofia bul. Bulgaria 102" → fix_street="bul. Bulgaria 102", fix_city="Sofia"
    "Bansko Glazne 6" → fix_street="ul. Glazne 6", fix_city="Bansko"
 
-8. PODVOJENE ŠTEVILKE → odstrani duplikat
+9. PODVOJENE ŠTEVILKE → odstrani duplikat
    "Vasil Petleshkov 4 4" → "ul. Vasil Petleshkov 4"
    "Bl. 503 vh.A ap 65 et 11" → "bl. 503, vh. A, et. 11, ap. 65"
 
-9. TIPKARSKE NAPAKE V IMENIH MEST:
+10. TIPKARSKE NAPAKE V IMENIH MEST:
    Vitosa → Vitosha, Blgaria → Bulgaria, Sofiq → Sofia
    Plovdic → Plovdiv, Kustendil → Kyustendil, Vraca → Vratsa
    Carevo → Tsarevo, Dupnica → Dupnitsa, Krdzali → Kardzhali
    Trstenik → Trastenik, Satovca → Satovcha
 
-10. MALE VASI BREZ ULICE → status UNCLEAR z opombo
+11. MALE VASI BREZ ULICE → status UNCLEAR z opombo
     Če je naslov samo ime vasi brez ulice in hišne številke → UNCLEAR, note="No street - recommend Econt office [najbližje mesto]"
 
 PRIMERI (few-shot):
