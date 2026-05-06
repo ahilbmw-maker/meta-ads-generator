@@ -477,16 +477,23 @@ function checkPrice(amount, currency) {
       issues.push('HUF mora končati na 99');
     }
     // Proximity check: če je cena blizu X.999 vzorca (npr. 6799 → 6999, razlika ≤ 300)
-    // Preverimo naslednji .999 nivo (1999, 2999, 3999, ...)
     const hufRounded = Math.round(amount);
-    const nextNineNine9 = Math.ceil(hufRounded / 1000) * 1000 - 1; // npr. 6799 → 6999
+    const nextNineNine9 = Math.ceil(hufRounded / 1000) * 1000 - 1;
     const distUp = nextNineNine9 - hufRounded;
-    if (distUp > 0 && distUp <= 300 && lastTwo === 99) {
-      // Cena je X99 ampak blizu naslednjega X999 — predlog navzgor
+    // Preveri ali smo TAKOJ NAD tisočico (mejna cena navzdol) — npr. 5099 → 4999
+    const prevThousand = Math.floor(hufRounded / 1000) * 1000;
+    const distDown = prevThousand > 0 ? hufRounded - prevThousand : 999;
+    if (distDown > 0 && distDown <= 100) {
+      // Smo max 100 FT nad tisočico → predlagaj X999 navzdol (npr. 5099 → 4999)
+      const lowerBoundary = prevThousand - 1;
+      if (lowerBoundary > 0) {
+        suggested = lowerBoundary;
+        issues.push(`Mejna cena — samo ${distDown} FT nad ${prevThousand} → predlog ${lowerBoundary}`);
+      }
+    } else if (distUp > 0 && distUp <= 300 && lastTwo === 99) {
       issues.push(`Blizu ${nextNineNine9} FT (razlika ${distUp} FT) → predlog navzgor`);
       suggested = nextNineNine9;
     } else if (distUp > 0 && distUp <= 300 && lastTwo !== 99) {
-      // Že ima napako (ni na 99), samo posodobimo predlog na naslednji .999
       suggested = nextNineNine9;
     }
     const boundaryCheck = checkBoundary(hufRounded, currency);
