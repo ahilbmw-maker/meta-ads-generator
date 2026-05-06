@@ -2283,7 +2283,8 @@ input[type="text"].error { border-color: var(--red) !important; }
               <button onclick="odpBulkClear()" style="padding:6px 12px;font-size:12px;color:var(--text-secondary);background:transparent;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;font-family:'DM Sans',sans-serif">Odznači vse</button>
             </div>
             <!-- Filter tabi -->
-            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"> style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif">Vse</button>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+              <button class="odp-ftab active" onclick="odpSetFilter('all',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif">Vse</button>
               <button class="odp-ftab" onclick="odpSetFilter('CONFIRMED',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">✓ Potrjeni</button>
               <button class="odp-ftab" onclick="odpSetFilter('PARTIALLY_CONFIRMED',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">⚠ Delno</button>
               <button class="odp-ftab" onclick="odpSetFilter('NOT_CONFIRMED',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">🔴 Ni najden</button>
