@@ -5692,6 +5692,15 @@ async def get_econt_offices():
     return {"ok": True, "total": len(offices), "offices": offices}
 
 
+@app.get("/econt-valid-zips")
+async def get_econt_valid_zips():
+    """Vrne set vseh veljavnih ZIP kod iz Econt geo baze. ZIP ki NI tukaj = suspended."""
+    if not ECONT_GEO:
+        return {"ok": False, "error": "econt_geo.json not loaded", "zips": []}
+    zips = list(ECONT_GEO.get("zip_to_city_id", {}).keys())
+    return {"ok": True, "total": len(zips), "zips": zips}
+
+
 @app.post("/econt-nearest-office")
 async def get_nearest_office(data: dict):
     """Za dani ZIP/mesto vrne najbližji Econt office z naslovom."""
