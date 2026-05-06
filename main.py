@@ -420,6 +420,26 @@ COUNTRY_TO_LANG = {
 }
 
 
+def normalize_tiktok_text(raw: str) -> str:
+    """Zagotovi format [var1],[var2],[var3],[var4] ne glede na vhodni format."""
+    raw = raw.strip()
+    # Pravilni AI format: [var1],[var2],... — pusti kot je
+    if re.match(r'^\[.*\],\[.*\]', raw):
+        return raw
+    # Format ],[  brez prefiksa/sufiksa oklepaja
+    if '],[' in raw:
+        parts = re.split(r'\]\s*,\s*\[', raw)
+        parts = [p.strip().strip('[]') for p in parts if p.strip().strip('[]')]
+        return ','.join(f'[{p}]' for p in parts)
+    # Brez oklepajev — AI pozabil dodati []. Splittaj po vejici.
+    # Varno ker pravilo narekuje max 80 znakov / varianto in vsebinska vejica ni pričakovana.
+    if '[' not in raw:
+        parts = [p.strip() for p in raw.split(',') if p.strip()]
+        return ','.join(f'[{p}]' for p in parts)
+    # En sam oklepaj npr. [t1,t2,t3,t4] — pusti kot je, TikTok bo rešil
+    return raw
+
+
 def build_tiktok_xlsx(sku: str, brand: str, video_names: str,
                       texts_by_lang: dict, urls_by_lang: dict,
                       skip_rs: bool = False) -> str:
@@ -459,18 +479,7 @@ def build_tiktok_xlsx(sku: str, brand: str, video_names: str,
         ws.cell(row=r, column=col_bc_id).value = new_bc_id
         ws.cell(row=r, column=col_video).value = video_names
         if lang and lang in texts_by_lang:
-            raw = texts_by_lang[lang]
-            # Izloci variante
-            if '[' in raw and ']' in raw:
-                # Že v [] formatu — uporabi kot je
-                ws.cell(row=r, column=col_text).value = raw
-            else:
-                # Brez oklepajev — splittaj po pikastih ločilih (".," ali "?," ali "!,")
-                # da ne razbijemo posameznih povedi znotraj variante
-                parts = re.split(r'(?<=[.!?]),', raw)
-                parts = [p.strip() for p in parts if p.strip()]
-                raw = ','.join(f'[{p}]' for p in parts)
-                ws.cell(row=r, column=col_text).value = raw
+            ws.cell(row=r, column=col_text).value = normalize_tiktok_text(texts_by_lang[lang])
         url = (urls_by_lang.get(lang) if lang else None) or next(iter(urls_by_lang.values()), '')
         if url:
             ws.cell(row=r, column=col_url).value = url
@@ -561,7 +570,7 @@ def build_master_xlsx(skus: list) -> str:
             ws_out.cell(row=out_row, column=col_bc_id).value = new_bc_id
             ws_out.cell(row=out_row, column=col_video).value = video_names
             if lang and lang in texts_by_lang:
-                ws_out.cell(row=out_row, column=col_text).value = texts_by_lang[lang]
+                ws_out.cell(row=out_row, column=col_text).value = normalize_tiktok_text(texts_by_lang[lang])
             # URL: lang-specifičen ali fallback
             url = (urls_by_lang.get(lang) if lang else None) or fallback_url or next(iter(urls_by_lang.values()), '')
             if url:
