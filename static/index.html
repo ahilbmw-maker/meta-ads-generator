@@ -2274,14 +2274,8 @@ input[type="text"].error { border-color: var(--red) !important; }
               </div>
               <span id="odp-credits-used" style="font-size:10px;color:var(--text-tertiary);white-space:nowrap;flex-shrink:0"></span>
             </div>
-            <!-- Bulk action bar -->
-            <div id="odp-bulk-bar" style="display:none;align-items:center;gap:8px;padding:8px 0 4px;flex-wrap:wrap">
-              <span id="odp-bulk-count" style="font-size:12px;font-weight:600;color:var(--text)">0 označenih</span>
-              <div style="width:1px;height:16px;background:var(--border);flex-shrink:0"></div>
-              <button id="odp-bulk-google" onclick="odpBulkGoogle()" style="padding:6px 14px;font-size:12px;font-weight:600;background:#4285f4;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:'DM Sans',sans-serif">🔍 Google validacija (<span id="odp-bulk-google-count">0</span>)</button>
-              <button id="odp-bulk-econt" onclick="odpBulkEcont()" style="display:none;padding:6px 14px;font-size:12px;font-weight:600;background:#f97316;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:'DM Sans',sans-serif">📦 Preusmeri na Econt + email (<span id="odp-bulk-econt-count">0</span>)</button>
-              <button onclick="odpBulkClear()" style="padding:6px 12px;font-size:12px;color:var(--text-secondary);background:transparent;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;font-family:'DM Sans',sans-serif">Odznači vse</button>
-            </div>
+            <!-- Bulk action bar — fixed na dnu -->
+            
             <!-- Filter tabi -->
             <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
               <button class="odp-ftab active" onclick="odpSetFilter('all',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif">Vse</button>
@@ -2317,6 +2311,16 @@ input[type="text"].error { border-color: var(--red) !important; }
       </div>
     </div>
   </div><!-- /page-odprema -->
+
+<!-- BULK ACTION BAR — fixed dno, samo za odprema -->
+<div id="odp-bulk-bar" style="display:none;position:fixed;bottom:0;left:var(--sidebar-width, 200px);right:0;z-index:100;background:var(--surface);border-top:1px solid var(--border);padding:10px 20px;align-items:center;gap:10px;box-shadow:0 -2px 8px rgba(0,0,0,0.08)">
+  <span id="odp-bulk-count" style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap">0 označenih</span>
+  <div style="width:1px;height:18px;background:var(--border);flex-shrink:0"></div>
+  <button id="odp-bulk-google" onclick="odpBulkGoogle()" style="padding:7px 16px;font-size:13px;font-weight:600;background:#4285f4;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">🔍 Google validacija (<span id="odp-bulk-google-count">0</span>)</button>
+  <button id="odp-bulk-econt" onclick="odpBulkEcont()" style="display:none;padding:7px 16px;font-size:13px;font-weight:600;background:#f97316;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">📦 Preusmeri na Econt + email (<span id="odp-bulk-econt-count">0</span>)</button>
+  <div style="flex:1"></div>
+  <button onclick="odpBulkClear()" style="padding:7px 14px;font-size:13px;color:var(--text-secondary);background:transparent;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">Odznači vse</button>
+</div>
 
 </div>
 
@@ -2415,6 +2419,7 @@ function switchPage(page) {
   if (page === 'tiktok') { ttLoadSkus(); }
   if (page === 'zaloga') { zalogaLoad(); }
   if (page === 'odprema') { odpLoadHistory(); }
+  else { const b = document.getElementById('odp-bulk-bar'); if(b) b.style.display='none'; }
   try { localStorage.setItem('slx_active_page', page); } catch(e) {}
 }
 
