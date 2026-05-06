@@ -2239,7 +2239,8 @@ input[type="text"].error { border-color: var(--red) !important; }
               </div>
             </div>
             <button id="odp-validate-btn" onclick="odpStartValidation()" style="padding:8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🤖 AI normalizacija naslovov</button>
-            <button id="odp-export-btn" onclick="odpExportCSV()" style="display:none;padding:8px;background:#16a34a;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">⬇ Izvozi popravljeni CSV (Econt)</button>
+            <button id="odp-export-btn" onclick="odpExportCSV(true)" style="display:none;padding:8px;background:#16a34a;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">⬇ Izvozi CSV (s hišnimi št.)</button>
+            <button id="odp-export-nonr-btn" onclick="odpExportCSV(false)" style="display:none;padding:8px;background:#0f7a32;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">⬇ Izvozi CSV (brez hišnih št.)</button>
             <button id="odp-export-alt-btn" onclick="odpExportAltCourier()" style="display:none;padding:8px;background:#8b5cf6;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🚐 Izvozi za drug kurir (<span id="odp-alt-count">0</span>)</button>
             <button id="odp-email-btn" onclick="odpSendEmails()" style="display:none;padding:8px;background:#f97316;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">✉ Pošlji obvestila Suspended ZIP strankam</button>
             <button onclick="odpReset()" style="padding:6px;background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🗑 Ponastavi</button>
@@ -6197,6 +6198,7 @@ async function odpStartValidation() {
   setTimeout(() => { document.getElementById('odp-progress-wrap').style.display = 'none'; }, 3000);
   btn.textContent = '✓ Validacija končana';
   document.getElementById('odp-export-btn').style.display = 'block';
+  document.getElementById('odp-export-nonr-btn').style.display = 'block';
   odpUpdateAltBtn();
   odpUpdateStats(); odpRenderTable();
 
@@ -6271,6 +6273,7 @@ async function odpHistoryLoad(filename) {
     document.getElementById('odp-actions-card').style.display = 'block';
     document.getElementById('odp-table-wrap').style.display = 'block';
     document.getElementById('odp-export-btn').style.display = 'block';
+  document.getElementById('odp-export-nonr-btn').style.display = 'block';
     const si = document.getElementById('inv-search'); if (si) si.value = '';
     odpUpdateStats(); odpRenderTable();
   } catch(e) {
@@ -6468,23 +6471,29 @@ function odpSetFilter(f, el) {
   odpUpdateBulkBar();
 }
 
-function odpExportCSV() {
+function odpExportCSV(withNr = true) {
   const corrected = odpRows.map(r => {
     const v = odpValidation[r.orderNumber];
     const out = { ...r };
     if (v) {
       if (v.status === 'ECONT_DEPO') {
-        // Zamenjaj naslov z Econt office naslovom
         if (v.fix_city) out.recipientCity = v.fix_city;
         if (v.fix_street) out.recipientStreet = v.fix_street;
-        if (v.fix_nr) out.recipientStreetNumber = v.fix_nr;
         if (v.fix_zip) out.recipientZip = v.fix_zip;
-      } else if (v.status === 'PARTIALLY_CONFIRMED' || v.status === 'NOT_CONFIRMED') {
-        // Popravi kar Geoapify predlaga
+        if (withNr) {
+          if (v.fix_nr) out.recipientStreetNumber = v.fix_nr;
+        } else {
+          out.recipientStreetNumber = 'nn';
+        }
+      } else if (v.status === 'PARTIALLY_CONFIRMED' || v.status === 'NOT_CONFIRMED' || v.status === 'CONFIRMED') {
         if (v.fix_zip) out.recipientZip = v.fix_zip;
         if (v.fix_city) out.recipientCity = v.fix_city;
         if (v.fix_street) out.recipientStreet = v.fix_street;
-        if (v.fix_nr && v.fix_nr !== 'nn') out.recipientStreetNumber = v.fix_nr;
+        if (withNr) {
+          if (v.fix_nr && v.fix_nr !== 'nn') out.recipientStreetNumber = v.fix_nr;
+        } else {
+          out.recipientStreetNumber = 'nn';
+        }
       }
     }
     return out;
@@ -6500,7 +6509,8 @@ function odpExportCSV() {
   const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = `Nalepke_Expedico_POPRAVLJENO_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  const suffix = withNr ? 'S_HISNIMI_ST' : 'BREZ_HISNIH_ST';
+  a.href = url; a.download = `Nalepke_Expedico_${suffix}_${new Date().toISOString().slice(0,10)}.csv`; a.click();
   URL.revokeObjectURL(url);
 }
 
@@ -6515,6 +6525,7 @@ function odpReset() {
   document.getElementById('odp-validate-btn').disabled = false;
   document.getElementById('odp-validate-btn').textContent = '🗺 Validiraj z Geoapify';
   document.getElementById('odp-export-btn').style.display = 'none';
+  document.getElementById('odp-export-nonr-btn').style.display = 'none';
   const eb = document.getElementById('odp-email-btn'); if (eb) { eb.style.display = 'none'; eb.disabled = false; }
   const srch = document.getElementById('odp-search'); if (srch) srch.value = '';
   odpAltCourier.clear();
