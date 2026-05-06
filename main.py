@@ -5500,55 +5500,66 @@ KRITIČNA PRAVILA (po prioriteti):
 1. LATINICA OBVEZNA — vse vrni v latinici, tudi ulice (Econt vmesnik je v latinici)
    **IZJEMA: fix_city VEDNO v latinici** — nikoli ne prevajaj ali transliteriraj imena mesta v cirilico, tudi če Google ali drug vir vrne cirilico. Mesto ohrani točno tako kot je napisano v originalnem naslovu ali v standardni latinični obliki.
 
-2. ULICA IN MESTO — POMEMBNO!
+2. HIŠNA ŠTEVILKA — NIKOLI NE BRIŠI!
+   Hišno številko VEDNO ohrani v fix_street — stranka jo je vpisala in ve kje stanuje.
+   Odstrani SAMO če je očiten placeholder: "nn", "NN", "N/A", "n/a" — to so sistemske vrednosti brez pomena.
+   VSE ostalo ohrani: številke, črke, duplikate (65 65), 0, 36b, 4A itd.
+   Če je hišna številka v polju streetNr, jo dodaj na konec fix_street.
+   Primer: ulica="Vasil Levski", streetNr="36b" → fix_street="ul. Vasil Levski 36b"
+
+3. ULICA IN MESTO — POMEMBNO!
    Če imaš seznam ulic tega mesta (zgoraj), ga uporabi za validacijo in popravke pravopisnih napak.
    NIKOLI ne predlagaj ulice iz drugega mesta.
    AMPAK: Econt baza ulic ni popolna — manjkajo nove ulice, manjše vasi, četrti brez ulic.
    Če ulica ni v seznamu, jo VSEENO potrdi (status FIXED ali OK) če je naslov smiselno formatiran.
    Status UNCLEAR nastavi SAMO če naslov je res nerazumljiv ali manjka ulica/hišna številka — NE samo zato ker ulice ni v bazi.
 
-3. ZIP EKSTRAKCIJA — če je ZIP v polju ulice ali mesta, ga prestavi v fix_zip. Popravi ZIP SAMO če je očitno napačen (vsebuje črke, ni 4 cifre, ali je ZIP drugega mesta). Če si negotov → pusti originalni ZIP.
+4. ZIP EKSTRAKCIJA — če je ZIP v polju ulice ali mesta, ga prestavi v fix_zip. Popravi ZIP SAMO če je očitno napačen (vsebuje črke, ni 4 cifre, ali je ZIP drugega mesta). Če si negotov → pusti originalni ZIP.
 
-4. SOFIJSKE ČETRTI IN ZIP — poznaj pravilne ZIP-e za sofijske četrti:
+5. SOFIJSKE ČETRTI IN ZIP — poznaj pravilne ZIP-e za sofijske četrti:
    zh.k. Lulin → 1343, zh.k. Mladost → 1750/1784, zh.k. Lyulin → 1343
    zh.k. Druzhba → 1582, zh.k. Nadezhda → 1220, zh.k. Ovcha Kupel → 1618
    zh.k. Bukston/Bakston → 1618, zh.k. Borovo → 1680, zh.k. Lozenets → 1164
    zh.k. Dianabad → 1172, zh.k. Manastirski livadi → 1404
    Če stranka piše ZIP 1000 za četrt → popravi na pravilen ZIP četrti!
 
-5. ULICA = IME MESTA → ni ulice
+6. ULICA = IME MESTA → ni ulice
    Če je ime ulice enako imenu mesta (npr. "ul. Kardzhali" v mestu Kardzhali) → fix_street=""
    Če je naslov samo ime mesta brez ulice (npr. "Cerven bryag 3") → fix_street="", status UNCLEAR
 
-6. ULICA V VEČ ČETRTIH → opozori
+7. ULICA V VEČ ČETRTIH → opozori
    Če ulica obstaja v več četrtih Sofije → status UNCLEAR, note mora vsebovati "Quarter needed: X, Y, Z"
    Znani primeri: ul. Elin Pelin (Lozenets/Dragalevtsi/Pancharevo)
 
-7. ECONT OFFICE V LATINICI
+8. ECONT OFFICE V LATINICI
    Vse Econt office naslove vrni v latinici:
    "Ofis Ekont" → "Econt office [mesto]"
    Primer: "Ekont Bokar, zh.k. Manastirski livadi" → "Econt office Bokar, zh.k. Manastirski livadi"
 
-8. IME MESTA V ULICI → odstrani
+9. IME MESTA V ULICI → odstrani
    "Sofia bul. Bulgaria 102" → fix_street="bul. Bulgaria 102", fix_city="Sofia"
    "Bansko Glazne 6" → fix_street="ul. Glazne 6", fix_city="Bansko"
 
-9. PODVOJENE ŠTEVILKE → odstrani duplikat
-   "Vasil Petleshkov 4 4" → "ul. Vasil Petleshkov 4"
+10. PODVOJENI DELI NASLOVA → ohrani, ne briši
+   Podvojena hišna številka (npr. "65 65", "9 9") je verjetno resnična — ohrani kot je.
+   Odstrani duplikat SAMO pri okrajšavah formata (npr. "bl. 5 bl. 5" → "bl. 5").
    "Bl. 503 vh.A ap 65 et 11" → "bl. 503, vh. A, et. 11, ap. 65"
 
-10. TIPKARSKE NAPAKE V IMENIH MEST:
+11. TIPKARSKE NAPAKE V IMENIH MEST:
    Vitosa → Vitosha, Blgaria → Bulgaria, Sofiq → Sofia
    Plovdic → Plovdiv, Kustendil → Kyustendil, Vraca → Vratsa
    Carevo → Tsarevo, Dupnica → Dupnitsa, Krdzali → Kardzhali
    Trstenik → Trastenik, Satovca → Satovcha
 
-11. MALE VASI BREZ ULICE → status UNCLEAR z opombo
+12. MALE VASI BREZ ULICE → status UNCLEAR z opombo
     Če je naslov samo ime vasi brez ulice in hišne številke → UNCLEAR, note="No street - recommend Econt office [najbližje mesto]"
 
 PRIMERI (few-shot):
 Input: ulica="Sofia bul.Vitosa 38", mesto="Sofia", ZIP="1000"
 Output: {{"status":"FIXED","fix_street":"bul. Vitosha 38","fix_city":"Sofia","fix_zip":"1000","note":"Removed city from street, fixed Vitosa→Vitosha"}}
+
+Input: ulica="Vasil Levski", streetNr="36b", mesto="Starcevo", ZIP="4987"
+Output: {{"status":"FIXED","fix_street":"ul. Vasil Levski 36b","fix_city":"Presoka","fix_zip":"4987","note":"Added ul. prefix, kept house number 36b, corrected city name"}}
 
 Input: ulica="Zk.Borovo bl.5 vh B ET.6 AP.34 34", mesto="Sofia", ZIP="1000"
 Output: {{"status":"FIXED","fix_street":"zh.k. Borovo, bl. 5, vh. B, et. 6, ap. 34","fix_city":"Sofia","fix_zip":"1680","note":"Fixed format, removed duplicate 34, corrected ZIP for Borovo"}}
