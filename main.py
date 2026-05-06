@@ -229,7 +229,11 @@ KRITIČNO PREPOVEDANO:
 
 Jeziki: SL (izvirnik), HR (latinica), RS (SAMO latinica!), HU, CZ, SK, PL, GR (grška pisava), RO (latinica), BG (SAMO cirilica!).
 
-KRITIČNO VAŽNO: Vrni IZKLJUČNO in SAMO JSON — nobenih uvodnih besed, nobenih razlag, nobenih komentarjev, nobenih markdown backticks. Prva in zadnja stvar v odgovoru mora biti {{ in }}. Nič drugega.
+KRITIČNO VAŽNO — FORMAT:
+- Vsak jezik mora imeti TOČNO 4 oklepaje: [var1],[var2],[var3],[var4]
+- Vejica ZNOTRAJ variante je PREPOVEDANA — če bi napisal "Brez kuhinje, brez stresa" → napiši "Brez kuhinje in brez stresa"
+- Vejica se sme pojaviti SAMO med oklepaji kot separator: ],[
+- Vrni IZKLJUČNO in SAMO JSON — nobenih uvodnih besed, nobenih razlag, nobenih komentarjev, nobenih markdown backticks. Prva in zadnja stvar v odgovoru mora biti {{ in }}. Nič drugega.
 {{
   "product": "ime",
   "sl": "[tekst1],[tekst2],[tekst3],[tekst4]",
