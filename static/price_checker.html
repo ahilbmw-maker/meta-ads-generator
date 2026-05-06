@@ -185,7 +185,7 @@
   .badge-ok { background: var(--green-dim); color: #166534; }
   .badge-null { background: var(--blue-dim); color: #1e40af; }
 
-  .price-old { color: #c4cdd8; text-decoration: line-through; margin-right: 4px; font-size: 11px; }
+  .price-old { color: #6b7280; text-decoration: line-through; margin-right: 4px; font-size: 11px; }
   .price-new { color: var(--green); font-weight: 700; }
   .price-ok { color: var(--text); }
 
@@ -364,9 +364,9 @@
         <th style="width:36px"><input type="checkbox" id="selectAllMain" onchange="bulkToggleAll(this.checked)" style="cursor:pointer;width:15px;height:15px"></th>
         <th onclick="sortBy('id')" style="cursor:pointer">ID naročila ↕</th>
         <th onclick="sortBy('sku')" style="cursor:pointer">SKU ↕</th>
-        <th onclick="sortBy('stock')" style="cursor:pointer">Zaloga ↕</th>
         <th onclick="sortBy('amount')" style="cursor:pointer">Cena originalna ↕</th>
         <th onclick="sortBy('suggested')" style="cursor:pointer">Predlagana cena ↕</th>
+        <th onclick="sortBy('stock')" style="cursor:pointer">Zaloga ↕</th>
         <th onclick="sortBy('ncNum')" style="cursor:pointer">NC ↕</th>
         <th onclick="sortBy('razlikaNum')" style="cursor:pointer">Razlika ↕</th>
         <th onclick="sortBy('marzaNum')" style="cursor:pointer">Marža ↕</th>
@@ -841,9 +841,9 @@ function renderTable(rows) {
         <a href="https://www.siluxar.si/narocilnice/${row.id}" target="_blank" class="id-badge" style="text-decoration:none;color:var(--green);border-color:rgba(64,193,80,0.4)">${row.id} ↗</a>
       </td>
       <td style="font-weight:600;color:var(--text)">${row.sku}</td>
-      <td style="font-size:12px;font-weight:600;text-align:center;${row.stock <= 5 ? 'color:#ef4444' : row.stock <= 20 ? 'color:#f59e0b' : 'color:#16a34a'}">${row.stock ?? '—'}</td>
       <td>${priceDisplay}</td>
       <td>${suggestedDisplay}</td>
+      <td style="font-size:12px;font-weight:600;text-align:center;${row.stock <= 5 ? 'color:#ef4444' : row.stock <= 20 ? 'color:#f59e0b' : 'color:#16a34a'}">${row.stock ?? '—'}</td>
       <td style="font-size:11px;color:var(--muted)">${row.nc}</td>
       <td style="font-size:11px;color:var(--muted)">${row.razlika}</td>
       <td style="font-size:11px;color:var(--muted)">${row.marza}</td>
