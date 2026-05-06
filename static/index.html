@@ -5858,19 +5858,24 @@ let ODP_VALID_ZIPS = new Set(); // vsi veljavni ZIP-i
 async function odpLoadValidZips() {
   try {
     const res = await fetch('/econt-valid-zips');
-    const ct = res.headers.get('content-type') || '';
-    if (!res.ok || !ct.includes('application/json')) {
-      console.warn('[odprema] Valid ZIPs endpoint not ready (not JSON), retry in 10s');
+    if (!res.ok) {
+      console.warn('[odprema] Valid ZIPs endpoint error:', res.status, 'retry in 10s');
       setTimeout(odpLoadValidZips, 10000);
       return;
     }
-    const data = await res.json();
+    const text = await res.text();
+    if (text.trim().startsWith('<')) {
+      console.warn('[odprema] Valid ZIPs returned HTML, retry in 10s');
+      setTimeout(odpLoadValidZips, 10000);
+      return;
+    }
+    const data = JSON.parse(text);
     if (data.ok && data.zips) {
       ODP_VALID_ZIPS = new Set(data.zips.map(z => String(z)));
       console.log(`[odprema] Econt valid ZIPs loaded: ${ODP_VALID_ZIPS.size}`);
     }
   } catch(e) {
-    console.warn('[odprema] Valid ZIPs load failed:', e.message);
+    console.warn('[odprema] Valid ZIPs load failed:', e.message, 'retry in 10s');
     setTimeout(odpLoadValidZips, 10000);
   }
 }
