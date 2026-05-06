@@ -2280,7 +2280,7 @@ input[type="text"].error { border-color: var(--red) !important; }
               <button class="odp-ftab" onclick="odpSetFilter('CONFIRMED',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">✓ Potrjeni</button>
               <button class="odp-ftab" onclick="odpSetFilter('PARTIALLY_CONFIRMED',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">⚠ Delno</button>
               <button class="odp-ftab" onclick="odpSetFilter('NOT_CONFIRMED',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:'DM Sans',sans-serif">🔴 Ni najden</button>
-              <button class="odp-ftab" onclick="odpSetFilter('ECONT_DEPO',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid rgba(249,115,22,0.4);background:transparent;color:#f97316;font-family:'DM Sans',sans-serif">📦 Suspended ZIP</button>
+              <button class="odp-ftab" onclick="odpSetFilter('SUSPENDED_ZIP',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid rgba(249,115,22,0.4);background:transparent;color:#f97316;font-family:'DM Sans',sans-serif">📦 Suspended ZIP</button>
               <button class="odp-ftab" onclick="odpSetFilter('ALT_COURIER',this)" style="padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid rgba(139,92,246,0.4);background:transparent;color:#8b5cf6;font-family:'DM Sans',sans-serif">🚐 Drug kurir</button>
             </div>
           </div>
@@ -6295,7 +6295,9 @@ function odpUpdateStats() {
   document.getElementById('odp-stat-ok').textContent = c.CONFIRMED;
   document.getElementById('odp-stat-partial').textContent = c.PARTIALLY_CONFIRMED;
   document.getElementById('odp-stat-bad').textContent = c.NOT_CONFIRMED;
-  document.getElementById('odp-stat-depo').textContent = c.ECONT_DEPO;
+  // Suspended ZIP — štej po ZIP listi, ne po statusu
+  const suspendedCount = odpRows.filter(r => ODP_SUSPENDED.has(parseInt((r.recipientZip||'').replace(/\D/g,''))||0)).length;
+  document.getElementById('odp-stat-depo').textContent = suspendedCount;
 
   // Pokaži email gumb če obstajajo DEPO pošiljke z emailom
   const depoWithEmail = odpRows.filter(r => {
@@ -6387,6 +6389,7 @@ function odpRenderTable() {
 
   let rows = odpFilter === 'all' ? odpRows
     : odpFilter === 'ALT_COURIER' ? odpRows.filter(r => odpAltCourier.has(r.orderNumber))
+    : odpFilter === 'SUSPENDED_ZIP' ? odpRows.filter(r => ODP_SUSPENDED.has(parseInt((r.recipientZip||'').replace(/\D/g,''))||0))
     : odpRows.filter(r => (odpValidation[r.orderNumber]?.status || 'PENDING') === odpFilter);
 
   if (search) {
