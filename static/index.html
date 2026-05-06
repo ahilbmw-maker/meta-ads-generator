@@ -2300,7 +2300,9 @@ input[type="text"].error { border-color: var(--red) !important; }
                   <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Mesto orig → fix</th>
                   <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Ulica orig → fix</th>
                   <th style="padding:10px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Telefon</th>
+                  <th style="padding:10px 8px;text-align:center;font-size:11px;color:#10b981;font-weight:600;white-space:nowrap" title="Ali je bil ZIP/mesto najden v Econt geo bazi">GEO</th>
                   <th style="padding:10px 8px;text-align:center;font-size:11px;color:#4285f4;font-weight:600;white-space:nowrap">🔍 G</th>
+                  <th style="padding:10px 8px;text-align:center;font-size:11px;color:#10b981;font-weight:600;white-space:nowrap" title="Econt API double-check">✓ E</th>
                 </tr>
               </thead>
               <tbody id="odp-tbody"></tbody>
@@ -5859,24 +5861,21 @@ async function odpLoadValidZips() {
   try {
     const res = await fetch('/econt-valid-zips');
     if (!res.ok) {
-      console.warn('[odprema] Valid ZIPs endpoint error:', res.status, 'retry in 10s');
+      // 404 = preview/offline okolje, ne retryaj
+      if (res.status === 404) return;
+      console.warn('[odprema] Valid ZIPs endpoint error:', res.status);
       setTimeout(odpLoadValidZips, 10000);
       return;
     }
     const text = await res.text();
-    if (text.trim().startsWith('<')) {
-      console.warn('[odprema] Valid ZIPs returned HTML, retry in 10s');
-      setTimeout(odpLoadValidZips, 10000);
-      return;
-    }
+    if (text.trim().startsWith('<')) return; // HTML = preview, tiho neha
     const data = JSON.parse(text);
     if (data.ok && data.zips) {
       ODP_VALID_ZIPS = new Set(data.zips.map(z => String(z)));
       console.log(`[odprema] Econt valid ZIPs loaded: ${ODP_VALID_ZIPS.size}`);
     }
   } catch(e) {
-    console.warn('[odprema] Valid ZIPs load failed:', e.message, 'retry in 10s');
-    setTimeout(odpLoadValidZips, 10000);
+    // Network error = offline/preview, tiho neha
   }
 }
 
@@ -6164,12 +6163,6 @@ async function odpStartValidation() {
   odpUpdateAltBtn();
   odpUpdateStats(); odpRenderTable();
 
-  // Auto-označi ECONT_DEPO kot drug kurir
-  odpRows.forEach(r => {
-    const v = odpValidation[r.orderNumber];
-    if (v?.status === 'ECONT_DEPO') odpAltCourier.add(r.orderNumber);
-  });
-  odpUpdateAltBtn();
   odpLoadHistory();
 
   // Shrani na disk
@@ -6395,6 +6388,13 @@ function odpRenderTable() {
     const fmtText = v?.formatted && status !== 'CONFIRMED'
       ? `<div style="color:var(--text-tertiary);font-size:10px;margin-top:2px" title="${v.formatted}">📍 ${v.formatted.slice(0,50)}${v.formatted.length>50?'...':''}</div>` : '';
 
+    const geoZip = String(r.recipientZip||'').replace(/\D/g,'');
+    const geoFound = ODP_VALID_ZIPS.size > 0 ? ODP_VALID_ZIPS.has(geoZip) : null;
+    const geoBadge = geoFound === null ? '<span style="color:#94a3b8;font-size:11px">—</span>'
+      : geoFound
+        ? '<span style="color:#10b981;font-size:13px" title="ZIP najden v Econt bazi">✓</span>'
+        : '<span style="color:#ef4444;font-size:13px" title="ZIP NI v Econt bazi — suspended">✗</span>';
+
     const isAlt = odpAltCourier.has(r.orderNumber);
     return `<tr style="background:${isAlt ? 'rgba(139,92,246,0.08)' : bg};border-bottom:1px solid var(--border)">
       <td style="padding:10px 8px;text-align:center"><input type="checkbox" ${isAlt ? 'checked' : ''} onchange="odpToggleAlt('${r.orderNumber}',this.checked)" style="width:14px;height:14px;cursor:pointer;accent-color:#8b5cf6"></td>
@@ -6406,7 +6406,9 @@ function odpRenderTable() {
       <td style="padding:10px 12px;font-size:13px">${diff(cityO, cityF)}</td>
       <td style="padding:10px 12px;font-size:13px;max-width:240px">${diff(streetO, streetF)}${noteText}${fmtText}</td>
       <td style="padding:10px 12px;font-family:monospace;font-size:13px">${r._origPhone ? `<div style="text-decoration:line-through;color:var(--text-tertiary);font-size:11px">${r._origPhone}</div><div style="color:#16a34a;font-weight:600">${r.recipientPhone}</div>` : r.recipientPhone||''}</td>
+      <td style="padding:6px 8px;text-align:center">${geoBadge}</td>
       <td style="padding:6px 8px"><button onclick="odpGoogleValidate('${r.orderNumber}')" style="padding:4px 8px;background:#4285f4;color:#fff;border:none;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">🔍 G</button></td>
+      <td style="padding:6px 8px;text-align:center" id="econt-chk-${r.orderNumber}"><button onclick="odpEcontCheck('${r.orderNumber}')" style="padding:4px 8px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">✓ E</button></td>
     </tr>`;
   }).join('');
 }
@@ -6745,6 +6747,45 @@ async function odpGoogleValidate(orderNumber) {
     alert('Napaka: ' + e.message);
   } finally {
     if (btn) { btn.textContent = '🔍 G'; btn.disabled = false; }
+  }
+}
+
+async function odpEcontCheck(orderNumber) {
+  const row = odpRows.find(r => r.orderNumber === orderNumber);
+  if (!row) return;
+  const v = odpValidation[orderNumber] || {};
+
+  const street = v.fix_street || row.recipientStreet || '';
+  const city = v.fix_city || row.recipientCity || '';
+  const zip = v.fix_zip || row.recipientZip || '';
+
+  const cell = document.getElementById(`econt-chk-${orderNumber}`);
+  if (cell) cell.innerHTML = '<span style="font-size:11px;color:#94a3b8">⏳</span>';
+
+  try {
+    const res = await fetch('/odprema-econt-check', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ order: orderNumber, zip, city, street })
+    });
+    const data = await res.json();
+
+    const status = data.status;
+    let html = '';
+    if (status === 'OK') {
+      html = `<span style="color:#10b981;font-size:12px;font-weight:700" title="Econt: ${data.note}">✓</span>`;
+    } else if (status === 'STREET_NOT_FOUND') {
+      html = `<span style="color:#f59e0b;font-size:12px;font-weight:700" title="Econt: ${data.note}">⚠</span>`;
+    } else if (status === 'CITY_NOT_FOUND') {
+      html = `<span style="color:#ef4444;font-size:12px;font-weight:700" title="Econt: ${data.note}">✗</span>`;
+    } else if (status === 'API_UNAVAILABLE') {
+      html = `<span style="color:#94a3b8;font-size:10px" title="${data.note}">—</span>`;
+    } else {
+      html = `<span style="color:#94a3b8;font-size:10px">${status}</span>`;
+    }
+    if (cell) cell.innerHTML = html;
+  } catch(e) {
+    if (cell) cell.innerHTML = '<span style="color:#ef4444;font-size:10px">err</span>';
   }
 }
 // ── /ALT COURIER ──────────────────────────────────────────────
