@@ -61,20 +61,48 @@ def econt_lookup_city(zip_code: str, city_name: str) -> dict | None:
         return None
     zip_map = ECONT_GEO.get("zip_to_city_id", {})
     city_map = ECONT_GEO.get("city_by_id", {})
-    # 1. ZIP lookup (natančno)
-    cid = zip_map.get(str(zip_code).strip())
-    if cid:
-        return {"id": cid, **city_map.get(str(cid), {})}
-    # 2. Ime lookup (lowercase, točno)
     name_map = ECONT_GEO.get("name_to_city_ids", {})
-    key = city_name.lower().strip()
-    cids = name_map.get(key)
+    city_key = city_name.lower().strip()
+
+    # 1. Poskusi ZIP + ime skupaj — poišči city ki ima ta ZIP IN ime se ujema
+    if zip_code and city_name:
+        # Najdi vse city ki imajo ta ZIP
+        candidates = []
+        for cid, cdata in city_map.items():
+            if cdata.get("zip") == str(zip_code).strip():
+                candidates.append((cid, cdata))
+        if candidates:
+            # Med kandidati poišči najboljše ujemanje po imenu
+            for cid, cdata in candidates:
+                en = (cdata.get("name_en") or "").lower()
+                bg = (cdata.get("name_bg") or "").lower()
+                if city_key == en or city_key == bg:
+                    return {"id": int(cid), **cdata}
+            # Delno ujemanje
+            for cid, cdata in candidates:
+                en = (cdata.get("name_en") or "").lower()
+                bg = (cdata.get("name_bg") or "").lower()
+                if city_key in en or en in city_key or city_key in bg or bg in city_key:
+                    return {"id": int(cid), **cdata}
+            # ZIP ustreza ampak ime ne — vrni prvega (fallback)
+            cid, cdata = candidates[0]
+            return {"id": int(cid), **cdata}
+
+    # 2. Samo ZIP lookup
+    if zip_code:
+        cid = zip_map.get(str(zip_code).strip())
+        if cid:
+            return {"id": cid, **city_map.get(str(cid), {})}
+
+    # 3. Samo ime lookup (lowercase, točno)
+    cids = name_map.get(city_key)
     if cids:
         cid = cids[0]
         return {"id": cid, **city_map.get(str(cid), {})}
-    # 3. Delno ujemanje po imenu
+
+    # 4. Delno ujemanje po imenu
     for k, ids in name_map.items():
-        if key and (key in k or k in key):
+        if city_key and (city_key in k or k in city_key):
             cid = ids[0]
             return {"id": cid, **city_map.get(str(cid), {})}
     return None
