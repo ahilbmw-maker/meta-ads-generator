@@ -2241,7 +2241,7 @@ input[type="text"].error { border-color: var(--red) !important; }
             <button id="odp-validate-btn" onclick="odpStartValidation()" style="padding:8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🤖 AI normalizacija naslovov</button>
             <button id="odp-export-btn" onclick="odpExportCSV()" style="display:none;padding:8px;background:#16a34a;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">⬇ Izvozi popravljeni CSV (Econt)</button>
             <button id="odp-export-alt-btn" onclick="odpExportAltCourier()" style="display:none;padding:8px;background:#8b5cf6;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🚐 Izvozi za drug kurir (<span id="odp-alt-count">0</span>)</button>
-            <button id="odp-email-btn" onclick="odpSendEmails()" style="display:none;padding:8px;background:#f97316;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">✉ Pošlji obvestila DEPO strankam</button>
+            <button id="odp-email-btn" onclick="odpSendEmails()" style="display:none;padding:8px;background:#f97316;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">✉ Pošlji obvestila Suspended ZIP strankam</button>
             <button onclick="odpReset()" style="padding:6px;background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%">🗑 Ponastavi</button>
           </div>
         </div>
@@ -6299,8 +6299,8 @@ function odpUpdateStats() {
 
   // Pokaži email gumb če obstajajo DEPO pošiljke z emailom
   const depoWithEmail = odpRows.filter(r => {
-    const v = odpValidation[r.orderNumber];
-    return v?.status === 'ECONT_DEPO' && r.recipientEmail && r.recipientEmail.includes('@');
+    const zip = parseInt((r.recipientZip || '').replace(/\D/g,'')) || 0;
+    return ODP_SUSPENDED.has(zip) && r.recipientEmail && r.recipientEmail.includes('@');
   });
   const emailBtn = document.getElementById('odp-email-btn');
   if (emailBtn) {
@@ -6317,8 +6317,8 @@ async function odpSendEmails() {
   // Zberi DEPO pošiljke z emailom
   const depoShipments = odpRows
     .filter(r => {
-      const v = odpValidation[r.orderNumber];
-      return v?.status === 'ECONT_DEPO' && r.recipientEmail && r.recipientEmail.includes('@');
+      const zip = parseInt((r.recipientZip || '').replace(/\D/g,'')) || 0;
+      return ODP_SUSPENDED.has(zip) && r.recipientEmail && r.recipientEmail.includes('@');
     })
     .map(r => {
       const v = odpValidation[r.orderNumber];
