@@ -5688,7 +5688,7 @@ async def odprema_send_emails(data: dict):
         orig_city = s.get("orig_city", "")
 
         # Email v bolgarščini + angleščini
-        subject = f"Вашата пратка {order} - промяна на адрес за доставка / Your parcel {order} - delivery address change"
+        subject = f"Вашата поръчка {order} - промяна на адрес за доставка / Your order {order} - delivery address change"
 
         html = f"""
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
@@ -5696,34 +5696,34 @@ async def odprema_send_emails(data: dict):
   
   <h2 style="color:#1a1a2e">Уважаеми {name},</h2>
   
-  <p>Вашата пратка с номер <strong>{order}</strong> не може да бъде доставена до посочения адрес 
+  <p>Вашата поръчка с номер <strong>{order}</strong> не може да бъде доставена до посочения адрес 
   (<strong>{orig_city}</strong>), тъй като куриерската фирма <strong>Econt Express</strong> временно е 
   преустановила доставките до вашия район.</p>
   
   <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:16px;margin:20px 0">
-    <strong>📦 Вашата пратка ще ви чака на:</strong><br><br>
+    <strong>📦 Вашата поръчка ще ви чака на:</strong><br><br>
     <span style="font-size:16px;color:#1a1a2e">{office}</span>
   </div>
   
-  <p>Моля, посетете горепосочения офис с <strong>личен документ</strong> за получаване на пратката.</p>
+  <p>Моля, посетете горепосочения офис с <strong>личен документ</strong> за получаване на поръчката.</p>
   
   <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
   
   <h3 style="color:#1a1a2e">Dear {name},</h3>
   
-  <p>Your parcel <strong>{order}</strong> cannot be delivered to the specified address 
+  <p>Your order <strong>{order}</strong> cannot be delivered to the specified address 
   (<strong>{orig_city}</strong>) as <strong>Econt Express</strong> has temporarily suspended 
   deliveries to your area.</p>
   
   <div style="background:#d1ecf1;border:1px solid #bee5eb;border-radius:8px;padding:16px;margin:20px 0">
-    <strong>📦 Your parcel will be waiting at:</strong><br><br>
+    <strong>📦 Your order will be waiting at:</strong><br><br>
     <span style="font-size:16px;color:#1a1a2e">{office}</span>
   </div>
   
-  <p>Please visit the above office with a <strong>valid ID</strong> to collect your parcel.</p>
+  <p>Please visit the above office with a <strong>valid ID</strong> to collect your order.</p>
   
   <p style="color:#666;font-size:12px;margin-top:30px">
-    Maaarket.eu | За въпроси / For questions: <a href="mailto:parcel@maaarket.eu">parcel@maaarket.eu</a>
+    Maaarket.eu | За въпроси / For questions: <a href="mailto:info@maaarket.bg">info@maaarket.bg</a>
   </p>
 </div>
 """
@@ -5733,7 +5733,7 @@ async def odprema_send_emails(data: dict):
             msg["Subject"] = subject
             msg["From"] = SMTP_FROM
             msg["To"] = email
-            msg["Reply-To"] = "podpora@silux.si"
+            msg["Reply-To"] = "info@maaarket.bg"
             msg.attach(MIMEText(html, "html", "utf-8"))
 
             with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
