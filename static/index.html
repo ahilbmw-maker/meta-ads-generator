@@ -6454,12 +6454,14 @@ function odpSetFilter(f, el) {
   document.querySelectorAll('.odp-ftab').forEach(t => {
     t.style.background = 'transparent'; t.style.color = 'var(--text-secondary)'; t.style.borderColor = 'var(--border)';
   });
-  if (f === 'ALT_COURIER') {
-    el.style.background = '#8b5cf6'; el.style.color = '#fff'; el.style.borderColor = '#8b5cf6';
-  } else if (f === 'SUSPENDED_ZIP') {
-    el.style.background = '#f97316'; el.style.color = '#fff'; el.style.borderColor = '#f97316';
-  } else {
-    el.style.background = 'var(--accent)'; el.style.color = '#fff'; el.style.borderColor = 'var(--accent)';
+  if (el) {
+    if (f === 'ALT_COURIER') {
+      el.style.background = '#8b5cf6'; el.style.color = '#fff'; el.style.borderColor = '#8b5cf6';
+    } else if (f === 'SUSPENDED_ZIP') {
+      el.style.background = '#f97316'; el.style.color = '#fff'; el.style.borderColor = '#f97316';
+    } else {
+      el.style.background = 'var(--accent)'; el.style.color = '#fff'; el.style.borderColor = 'var(--accent)';
+    }
   }
   odpRenderTable();
   odpUpdateBulkBar();
