@@ -5851,92 +5851,42 @@ let odpFieldnames = [];
 let odpFilter = 'all';
 let odpCreditsUsed = 0;
 
-const ODP_SUSPENDED = new Set([
-  // Petrich Monopola (Apr 1-3)
-  2865,2894,2891,2896,2872,2886,2883,2871,2882,2881,2880,2879,2878,2893,2884,2885,2890,
-  // Pernik Daskalovo (Apr 6)
-  2341,2349,2348,2340,
-  // Pernik East (Apr 6)
-  2343,2342,
-  // Pernik Pazara (Apr 6)
-  2438,2393,2397,2388,2489,2435,2391,2390,2396,2466,2464,2470,2496,2497,2499,2495,2494,2491,2490,2439,2486,2398,2437,2434,2392,
-  // Breznik (Apr 6 + May 4)
-  2478,2395,2488,2467,2483,2473,2476,2354,2485,2480,2463,2399,2469,2356,2487,2492,2342,2481,2465,2474,2475,2477,2382,2340,2471,2484,2389,2482,2468,2493,2479,2358,2374,2350,2353,2357,2359,2472,2460,2369,2373,2374,2371,2372,2377,2375,2370,2376,2362,2363,2364,2367,2366,2365,2361,2378,2379,2222,2191,2221,
-  // Sredets (Apr 6)
-  8319,8322,8324,8323,8313,8327,8325,8328,8330,8106,8105,8107,8128,8129,8317,8340,8329,8344,8345,8347,8342,8343,8320,8331,8333,8332,8335,8341,8318,8334,8336,8316,8337,8338,8348,8314,
-  // Tsarevo (Apr 6)
-  8174,8357,8172,8364,8170,
-  // Yambol Kerkhanite (Apr 6)
-  8631,8638,8640,8671,8670,8625,8624,8642,8649,8639,8657,8630,8643,8644,8645,8660,
-  // Yambol (Apr 6)
-  8637,8629,8634,8635,
-  // Sozopol (Apr 17)
-  8142,8140,
-  // Tvarditsa (Apr 17)
-  6194,6193,6192,6190,8895,6199,8899,6196,6172,8893,6191,8890,6189,6197,6174,6173,
-  // Saedinenie (May 4)
-  4193,4196,4195,4194,4197,4199,4191,4198,4185,
-  // Stara Zagora Zheleznik (May 4)
-  6062,6013,6061,6064,6065,6063,6066,6060,6068,6067,6069,6011,6014,6015,
-  // Stara Zagora Mototekhnika (May 4)
-  6055,6052,6054,6050,6051,6056,6053,6057,6058,6059,
-  // Pleven San Stefano (May 4)
-  5811,5824,5812,5825,5813,5814,5826,
-  // Pleven Druzhba (May 4)
-  5821,5822,5819,5818,
-  // Vratsa (May 4)
-  3042,3044,3045,3043,3047,3048,3051,3053,3049,3050,3054,3064,3055,3061,3062,3056,3065,3063,3058,3066,3067,3068,3069,3060,3057,3052,3041,3040,3012,3046,3039,3038,
-  // Berkovitsa (May 4)
-  3531,3520,3521,3532,3514,3511,3523,3530,3512,3515,3517,3519,3518,3533,3513,3522,3516,3524,
-  // Dzhebel (Mar 16)
-  6845,6841,6843,6842,6844,6834,6833,6832,6837,6831,6836,6839,6840,6830,6838,6846,6847,6848,6851,6855,6853,6850,6854,6856,6857,6858,6859,6861,6860,6862,6863,6864,6865,6866,6867,6868,6869,6870,6871,6873,6872,6874,6875,6877,6876,6878,6879,6880,
-  // Ardino (May 4)
-  6758,6759,6761,6762,6768,6764,6763,6720,6734,6739,6754,6751,6753,6755,6752,6769,6756,6765,6760,6710,6713,6718,6767,6766,6757,6770,6722,6750,6712,6743,6740,6744,6742,6714,6741,6716,6715,6717,6711,6719,6721,6725,6773,6788,6789,6775,6776,6787,6783,6784,6782,6781,6786,6785,6772,6774,6771,6778,6777,6780,6749,6748,6747,6746,6745,6779,4940,4944,4941,4943,4949,4945,4948,4947,4934,4744,4946,4942,4954,4950,4953,4955,4952,4951,4956,4957,4958,
-  // Nessebar Kragovoto (May 4)
-  8210,8217,
-  // Devin Vasil Levski (May 4)
-  4811,
-  // Momchilgrad (May 4)
-  6885,6888,6894,
-  // Gabrovo Teatara (May 4)
-  5343,5334,5332,5333,5300,
-  // Kyustendil Batenberg (May 4)
-  2568,2569,2564,2554,2548,2558,2542,2553,2561,2551,2543,2557,2541,2552,2562,2567,2550,2563,2565,2544,2545,2546,2547,2549,2531,2532,2533,2534,2537,2538,2539,2540,2555,2559,2560,2566,2588,2591,2592,2593,2595,2596,
-  // Slivo Pole (May 4)
-  7055,7054,7053,7059,7058,7057,7051,7624,7052,
-  // Kubrat (May 4)
-  7337,7332,7333,7334,7335,7339,7338,7341,7342,7343,7344,7336,7345,7347,7348,7323,7330,7311,7312,7271,7272,7331,7040,
-  // Devnya (May 4)
-  9164,9167,9161,9209,9208,9207,9206,9205,9204,9203,9202,9201,
-  // Krumovgrad (May 4)
-  6944,6942,6943,6941,6945,6932,6931,6933,6930,6934,6935,6938,6939,6917,6912,6913,6908,6910,6960,6962,6959,6963,6958,6907,6914,6964,6957,6929,6381,6915,6953,6952,6924,6923,6920,6922,6968,6965,6966,6941,6940,6921,6969,6967,6936,6927,6928,6937,6946,6947,6948,6949,6955,6956,6954,6364,
-  // Bankya (May 4)
-  1329,1320,1321,8652,8645,8641,8654,8642,8661,8662,8648,8643,8647,8663,8640,8644,8649,8650,8651,
-  // Bistritsa (May 4)
-  1181,1475,
-  // Smolyan Raykovo (May 4)
-  4716,4717,4718,4719,4731,4732,4700,4701,4702,4703,4704,4705,
-  // Chepelare (May 4)
-  4750,4754,4704,4753,4705,4751,4703,4752,4702,4701,
-  // Rudozem (May 4)
-  4732,4736,4798,4799,4724,4733,4726,4730,4737,4739,4735,4731,4734,4749,4729,
-  // Kirkovo (May 4)
-  6870,6871,6872,6885,6888,6894,
-  // Troyan Lagat (May 4)
-  4734,4743,4747,
-  // Troyan Hristo Botev (May 4)
-  5664,5663,5641,5612,5600,5622,5611,5630,5620,5623,5621,5660,5662,5661,5644,5647,5668,5624,5667,5650,5651,5652,5654,
-  // Dimitrovgrad (May 4)
-  6415,6416,6417,6418,6419,6420,6421,6422,
-  // Dospat (May 4)
-  4821,4820,4832,4830,4831,4838,4836,4837,4822,4823,4824,4825,4827,4833,4835,4834,
-  // Balchik Levski (May 4)
-  9600,9620,9649,9648,9630,9631,9625,9623,9624,9359,9621,9363,
-  // Provadia (May 4)
-  9213,9212,9211,9210,9221,9223,9222,9224,9225,9227,9228,9226,9229,9231,9232,9233,9234,9236,9237,9217,9218,9216,9220,9215,9214,9219,9250,
-  // Svoge (manual)
-  2273
-]);
+// ODP_SUSPENDED — dinamično iz /econt-valid-zips (ZIP ki NI v Econt bazi = suspended)
+let ODP_SUSPENDED = new Set(); // začasno prazen, napolni se ob zagonu
+let ODP_VALID_ZIPS = new Set(); // vsi veljavni ZIP-i
+
+async function odpLoadValidZips() {
+  try {
+    const res = await fetch('/econt-valid-zips');
+    const ct = res.headers.get('content-type') || '';
+    if (!res.ok || !ct.includes('application/json')) {
+      console.warn('[odprema] Valid ZIPs endpoint not ready (not JSON), retry in 10s');
+      setTimeout(odpLoadValidZips, 10000);
+      return;
+    }
+    const data = await res.json();
+    if (data.ok && data.zips) {
+      ODP_VALID_ZIPS = new Set(data.zips.map(z => String(z)));
+      console.log(`[odprema] Econt valid ZIPs loaded: ${ODP_VALID_ZIPS.size}`);
+    }
+  } catch(e) {
+    console.warn('[odprema] Valid ZIPs load failed:', e.message);
+    setTimeout(odpLoadValidZips, 10000);
+  }
+}
+
+function isSuspendedZip(zip) {
+  if (!zip) return false;
+  const z = String(zip).replace(/\D/g, '');
+  if (!z) return false;
+  // Če je baza naložena — preveri ali ZIP je v njej
+  if (ODP_VALID_ZIPS.size > 0) return !ODP_VALID_ZIPS.has(z);
+  // Fallback na stari statični set če baza ni naložena
+  return ODP_SUSPENDED.has(parseInt(z) || 0);
+}
+
+// Naloži ob zagonu
+odpLoadValidZips();
 
 const ODP_ECONT_MAP = {
   // Petrich Monopola
@@ -6086,7 +6036,7 @@ function odpHandleFile(file) {
     // Takoj označi suspended ZIPe
     odpRows.forEach(r => {
       const zipInt = parseInt((r.recipientZip || '').replace(/\D/g, '')) || 0;
-      if (ODP_SUSPENDED.has(zipInt)) {
+      if (isSuspendedZip(zipInt)) {
         odpValidation[r.orderNumber] = {
           status: 'ECONT_DEPO', confidence: 0,
           note: `Pošlji na: ${ODP_ECONT_MAP[zipInt] || 'Najbližji Econt'} office`
@@ -6112,7 +6062,7 @@ async function odpStartValidation() {
   // 1. Resolve suspended ZIPs → pravi Econt office naslov
   const suspended = odpRows.filter(r => {
     const zipInt = parseInt((r.recipientZip || '').replace(/\D/g, '')) || 0;
-    return ODP_SUSPENDED.has(zipInt);
+    return isSuspendedZip(zipInt);
   });
 
   if (suspended.length > 0) {
@@ -6148,7 +6098,7 @@ async function odpStartValidation() {
   // 2. Validiraj ostale z Geoapify
   const toValidate = odpRows.filter(r => {
     const zipInt = parseInt((r.recipientZip || '').replace(/\D/g, '')) || 0;
-    return !ODP_SUSPENDED.has(zipInt);
+    return !isSuspendedZip(zipInt);
   });
 
   const batchSize = 20;
@@ -6194,7 +6144,7 @@ async function odpStartValidation() {
     const v = odpValidation[r.orderNumber];
     const fixZip = parseInt((v?.fix_zip || '').replace(/\D/g, '')) || 0;
     const origZip = parseInt((r.recipientZip || '').replace(/\D/g, '')) || 0;
-    if (ODP_SUSPENDED.has(fixZip) && (!v || v.status !== 'ECONT_DEPO')) {
+    if (isSuspendedZip(fixZip) && (!v || v.status !== 'ECONT_DEPO')) {
       odpValidation[r.orderNumber] = {
         status: 'ECONT_DEPO', confidence: 1.0,
         fix_zip: String(fixZip), fix_city: v?.fix_city || r.recipientCity,
@@ -6310,13 +6260,13 @@ function odpUpdateStats() {
   document.getElementById('odp-stat-partial').textContent = c.PARTIALLY_CONFIRMED;
   document.getElementById('odp-stat-bad').textContent = c.NOT_CONFIRMED;
   // Suspended ZIP — štej po ZIP listi, ne po statusu
-  const suspendedCount = odpRows.filter(r => ODP_SUSPENDED.has(parseInt((r.recipientZip||'').replace(/\D/g,''))||0)).length;
+  const suspendedCount = odpRows.filter(r => isSuspendedZip((r.recipientZip||'').replace(/D/g,''))).length;
   document.getElementById('odp-stat-depo').textContent = suspendedCount;
 
   // Pokaži email gumb če obstajajo DEPO pošiljke z emailom
   const depoWithEmail = odpRows.filter(r => {
     const zip = parseInt((r.recipientZip || '').replace(/\D/g,'')) || 0;
-    return ODP_SUSPENDED.has(zip) && r.recipientEmail && r.recipientEmail.includes('@');
+    return isSuspendedZip(zip) && r.recipientEmail && r.recipientEmail.includes('@');
   });
   const emailBtn = document.getElementById('odp-email-btn');
   if (emailBtn) {
@@ -6334,7 +6284,7 @@ async function odpSendEmails() {
   const depoShipments = odpRows
     .filter(r => {
       const zip = parseInt((r.recipientZip || '').replace(/\D/g,'')) || 0;
-      return ODP_SUSPENDED.has(zip) && r.recipientEmail && r.recipientEmail.includes('@');
+      return isSuspendedZip(zip) && r.recipientEmail && r.recipientEmail.includes('@');
     })
     .map(r => {
       const v = odpValidation[r.orderNumber];
@@ -6391,7 +6341,7 @@ function odpRenderTable() {
 
   let rows = odpFilter === 'all' ? odpRows
     : odpFilter === 'ALT_COURIER' ? odpRows.filter(r => odpAltCourier.has(r.orderNumber))
-    : odpFilter === 'SUSPENDED_ZIP' ? odpRows.filter(r => ODP_SUSPENDED.has(parseInt((r.recipientZip||'').replace(/\D/g,''))||0))
+    : odpFilter === 'SUSPENDED_ZIP' ? odpRows.filter(r => isSuspendedZip((r.recipientZip||'').replace(/D/g,'')))
     : odpRows.filter(r => (odpValidation[r.orderNumber]?.status || 'PENDING') === odpFilter);
 
   if (search) {
@@ -6565,7 +6515,7 @@ function odpUpdateBulkBar() {
   const suspendedChecked = [...odpAltCourier].filter(on => {
     const r = odpRows.find(r => r.orderNumber === on);
     if (!r) return false;
-    return ODP_SUSPENDED.has(parseInt((r.recipientZip||'').replace(/\D/g,''))||0);
+    return isSuspendedZip((r.recipientZip||'').replace(/D/g,''));
   }).length;
   if (econtBtn) {
     econtBtn.style.display = (odpFilter === 'SUSPENDED_ZIP' && suspendedChecked > 0) ? 'inline-block' : 'none';
@@ -6654,7 +6604,7 @@ async function odpBulkGoogle() {
 async function odpBulkEcont() {
   const orders = [...odpAltCourier].filter(on => {
     const r = odpRows.find(r => r.orderNumber === on);
-    return r && ODP_SUSPENDED.has(parseInt((r.recipientZip||'').replace(/\D/g,''))||0);
+    return r && isSuspendedZip((r.recipientZip||'').replace(/D/g,''));
   });
   if (!orders.length) return;
   const withEmail = orders.filter(on => {
