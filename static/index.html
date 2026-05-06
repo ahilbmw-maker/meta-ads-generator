@@ -5912,8 +5912,11 @@ function odpFixPhone(phone) {
   return { fixed: digits, changed, orig };
 }
 
+let odpCurrentFilename = '';
+
 function odpHandleFile(file) {
   if (!file) return;
+  odpCurrentFilename = file.name; // shrani ime datoteke
   const reader = new FileReader();
   reader.onload = e => {
     const text = e.target.result.replace(/^\uFEFF/, '');
@@ -6069,6 +6072,9 @@ async function odpStartValidation() {
   });
   odpUpdateAltBtn();
   odpLoadHistory();
+
+  // Shrani na disk
+  await odpSave();
 }
 
 async function odpSave() {
@@ -6080,7 +6086,7 @@ async function odpSave() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        filename: odpRows[0] ? (odpRows[0].carrierPickupDate || new Date().toISOString().slice(0,10)) : '',
+        filename: odpCurrentFilename || (odpRows[0] ? (odpRows[0].carrierPickupDate || new Date().toISOString().slice(0,10)) : ''),
         total: odpRows.length,
         rows: odpRows,
         validation: validationObj,
