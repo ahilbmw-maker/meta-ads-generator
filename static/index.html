@@ -4943,23 +4943,26 @@ function narcDvojnikiHandleFile(file) {
     const headers = allRows[0].map(h => h.trim());
     const nameIdx = headers.indexOf('Ime in priimek');
     if (nameIdx < 0) { alert('Stolpec "Ime in priimek" ni najden.'); return; }
+    const normalizeKey = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
     const rows = allRows.slice(1).map(vals => {
       const obj = {};
       headers.forEach((h,i) => obj[h] = (vals[i]||'').trim());
       return obj;
     }).filter(r => {
       const name = (r['Ime in priimek']||'').trim();
-      // Mora imeti vsaj 2 besedi z abecednimi znaki (pravo ime, ne "Sklopiva kutija...")
-      const words = name.split(/\s+/).filter(w => /^[a-zA-ZČčŠšŽžĐđćšžА-Яа-я]+$/i.test(w));
-      return words.length >= 2 && words.length <= 5;
+      if (name.length < 3) return false;
+      const words = name.split(/\s+/);
+      // Vsaj 2 besedi z vsaj eno unicode črko, max 6 besed
+      const validWords = words.filter(w => /\p{L}/u.test(w) && !/^\d+$/.test(w));
+      return validWords.length >= 2 && words.length <= 6;
     });
-    // Dvojniki — case insensitive
+    // Dvojniki — case + diakritika insensitive (Dárius = Darius, ZORAN = Zoran)
     const counts = {};
     rows.forEach(r => {
-      const key = (r['Ime in priimek']||'').trim().toLowerCase();
+      const key = normalizeKey(r['Ime in priimek']||'');
       counts[key] = (counts[key]||0) + 1;
     });
-    narcDvojnikiData = rows.filter(r => counts[(r['Ime in priimek']||'').trim().toLowerCase()] > 1);
+    narcDvojnikiData = rows.filter(r => counts[normalizeKey(r['Ime in priimek']||'')] > 1);
     narcDvojnikiRender();
   };
   reader.readAsText(file, 'UTF-8');
@@ -4994,39 +4997,27 @@ function narcDvojnikiRender() {
     return;
   }
 
-  // Preveri duplicate izdelkov znotraj iste osebe
-  // Normalizira izdelke za primerjavo
+  const normalizeKey = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
   const normalizeProducts = s => (s||'').toLowerCase().replace(/\s+/g,' ').trim();
-  // Zberi vse kombinacije ime -> [set izdelkov]
   const nameProducts = {};
   narcDvojnikiData.forEach(r => {
-    const key = (r['Ime in priimek']||'').trim().toLowerCase();
+    const key = normalizeKey(r['Ime in priimek']||'');
     const prod = normalizeProducts(r['Izdelki']);
     if (!nameProducts[key]) nameProducts[key] = [];
     nameProducts[key].push(prod);
   });
-  // Za vsako ime preveri ali se kateri izdelki ponavljajo
-  const nameHasDupProducts = {};
-  Object.entries(nameProducts).forEach(([name, prods]) => {
-    const seen = new Set();
-    let hasDup = false;
-    prods.forEach(p => { if (seen.has(p)) hasDup = true; seen.add(p); });
-    nameHasDupProducts[name] = hasDup;
-  });
-  // Za vsako vrstico preveri ali so njeni izdelki isti kot pri kaki drugi vrstici iste osebe
   const rowIsDupProduct = r => {
-    const key = (r['Ime in priimek']||'').trim().toLowerCase();
+    const key = normalizeKey(r['Ime in priimek']||'');
     const prod = normalizeProducts(r['Izdelki']);
     return narcDvojnikiData.filter(x =>
-      (x['Ime in priimek']||'').trim().toLowerCase() === key &&
+      normalizeKey(x['Ime in priimek']||'') === key &&
       normalizeProducts(x['Izdelki']) === prod
     ).length > 1;
   };
-
   let lastColor = false, lastName = '';
   tbody.innerHTML = filtered.map(r => {
-    const name = (r['Ime in priimek']||'').trim().toLowerCase();
-    if (name !== lastName) { lastColor = !lastColor; lastName = name; }
+    const nameKey = normalizeKey(r['Ime in priimek']||'');
+    if (nameKey !== lastName) { lastColor = !lastColor; lastName = nameKey; }
     const isDupProd = rowIsDupProduct(r);
     const bg = isDupProd
       ? 'background:rgba(220,38,38,0.08)' // rdeča — duplikat izdelkov
