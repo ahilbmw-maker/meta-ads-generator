@@ -6135,6 +6135,8 @@ KB_FILES = {
     "maaarket": DATA_DIR / "kb_maaarket.json",
 }
 
+MACROS_FILE = Path("macros_maaarket.json")
+
 def _kayako_build_url(path: str) -> str:
     """Zgradi popoln Kayako URL z auth - signature je quote_plus encoded."""
     from urllib.parse import quote_plus
@@ -6252,6 +6254,27 @@ def _tickets_to_kb(tickets_with_posts: list[dict]) -> dict:
             "count":    1,
         })
     return {"qa_pairs": qa_pairs, "updated": datetime.now(timezone.utc).isoformat()}
+
+# ─── MAKRI (KAYAKO MACROS) ────────────────────────────────────────────────────
+
+@app.get("/macros")
+async def get_macros():
+    """Vrne vse makre iz /data/macros_maaarket.json"""
+    if MACROS_FILE.exists():
+        try:
+            return json.loads(MACROS_FILE.read_text(encoding="utf-8"))
+        except:
+            pass
+    return {"macros": [], "updated": ""}
+
+@app.post("/macros-save")
+async def save_macros(data: dict):
+    """Shrani makre (za admin update)"""
+    try:
+        MACROS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"ok": True, "total": len(data.get("macros", []))}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 @app.get("/kayako-test")
 async def kayako_test(brand: str = "silux"):
