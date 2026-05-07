@@ -2377,6 +2377,17 @@ input[type="text"].error { border-color: var(--red) !important; }
         <div style="flex:1;overflow-y:auto;padding:12px 16px">
           <div id="sp-common-list" style="display:none"></div>
 
+          <!-- MAKRI PANEL -->
+          <div style="margin-top:12px;padding:14px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <span class="slabel">📋 MAKRI IZ KAYAKO</span>
+              <input id="sp-macro-search" type="text" placeholder="Išči makro..." oninput="spFilterMacros()"
+                style="padding:3px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:11px;font-family:inherit;width:120px">
+            </div>
+            <!-- Kategorije (tree) -->
+            <div id="sp-macro-tree" style="display:flex;flex-direction:column;gap:2px;max-height:320px;overflow-y:auto"></div>
+          </div>
+
           <!-- KAYAKO IMPORT PANEL -->
           <div style="margin-top:20px;padding:14px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -10335,6 +10346,7 @@ function spSetBrand(brand) {
   spLoadCommon();
   if (typeof spLoadKbStats === 'function') spLoadKbStats();
   if (typeof spLoadQuickReplies === 'function') spLoadQuickReplies();
+  if (typeof spLoadMacros === 'function') spLoadMacros();
 }
 
 async function spCallAI(prompt, maxTokens=800, model='claude-haiku-4-5-20251001') {
@@ -10595,6 +10607,79 @@ function spUseCommon(i) {
   document.getElementById('sp-agent-reply').value = a.reply_sl || '';
 }
 
+// ── MAKRI ──────────────────────────────────────────────────────
+let spMacros = [];
+let spMacroOpenCat = '';
+
+async function spLoadMacros() {
+  try {
+    const res = await fetch('/macros');
+    const data = await res.json();
+    spMacros = data.macros || [];
+    spRenderMacroTree();
+  } catch(e) {}
+}
+
+function spFilterMacros() {
+  spRenderMacroTree();
+}
+
+function spRenderMacroTree() {
+  const el = document.getElementById('sp-macro-tree');
+  if (!el) return;
+  const q = (document.getElementById('sp-macro-search')?.value || '').toLowerCase().trim();
+
+  // Grupiraj po kategoriji
+  const cats = {};
+  for (const m of spMacros) {
+    const cat = m.category || 'Ostalo';
+    if (!cats[cat]) cats[cat] = [];
+    if (!q || m.title.toLowerCase().includes(q) || m.content.toLowerCase().includes(q)) {
+      cats[cat].push(m);
+    }
+  }
+
+  let html = '';
+  for (const [cat, macros] of Object.entries(cats).sort()) {
+    if (!macros.length) continue;
+    const isOpen = spMacroOpenCat === cat || q;
+    html += `
+      <div>
+        <div onclick="spToggleMacroCat('${cat.replace(/'/g,"\\'")}'); event.stopPropagation()"
+          style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:var(--radius);cursor:pointer;background:var(--surface);border:1px solid var(--border);user-select:none"
+          onmouseover="this.style.background='rgba(83,74,183,0.08)'" onmouseout="this.style.background='var(--surface)'">
+          <span style="font-size:11px;color:var(--text-tertiary)">${isOpen ? '▾' : '▸'}</span>
+          <span style="font-size:12px;font-weight:600;color:var(--text)">📁 ${cat}</span>
+          <span style="font-size:11px;color:var(--text-tertiary);margin-left:auto">(${macros.length})</span>
+        </div>
+        ${isOpen ? `<div style="margin-left:14px;margin-top:2px;display:flex;flex-direction:column;gap:2px">
+          ${macros.map(m => `
+            <div onclick="spUseMacro('${m.id}')"
+              style="padding:5px 10px;border-radius:var(--radius);cursor:pointer;font-size:12px;color:var(--text);background:var(--surface2);border:1px solid transparent"
+              onmouseover="this.style.background='rgba(83,74,183,0.1)';this.style.borderColor='rgba(83,74,183,0.3)'"
+              onmouseout="this.style.background='var(--surface2)';this.style.borderColor='transparent'">
+              ${m.title}
+            </div>`).join('')}
+        </div>` : ''}
+      </div>`;
+  }
+  el.innerHTML = html || '<div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:10px">Ni rezultatov</div>';
+}
+
+function spToggleMacroCat(cat) {
+  spMacroOpenCat = spMacroOpenCat === cat ? '' : cat;
+  spRenderMacroTree();
+}
+
+function spUseMacro(id) {
+  const m = spMacros.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('sp-agent-reply').value = m.content || '';
+  // Skrij HR prevod ker makri so že v pravem jeziku
+  const hrEl = document.getElementById('sp-ai-hr-translation');
+  if (hrEl) hrEl.style.display = 'none';
+}
+// ── /MAKRI ─────────────────────────────────────────────────────
 // ── QUICK REPLIES (ročno dodani SLO/HR odgovori) ───────────────
 let spQuickReplies = [];
 
