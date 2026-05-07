@@ -471,6 +471,16 @@ input[type="text"].error { border-color: var(--red) !important; }
     cursor:pointer; white-space:nowrap;
   }
   .home-pill:hover { background:var(--accent) !important; color:#fff !important; border-color:var(--accent) !important; }
+/* ── SPOROČANJE ── */
+.sp-chip { font-size:12px;padding:5px 12px;border-radius:20px;border:1px solid rgba(83,74,183,0.35);color:#534AB7;background:rgba(83,74,183,0.08);cursor:pointer;white-space:nowrap }
+.sp-chip:hover { background:rgba(83,74,183,0.18) }
+.sp-common-item { padding:10px 12px;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;display:flex;flex-direction:column;gap:4px;transition:background 0.1s }
+.sp-common-item:hover { background:var(--surface2) }
+.sp-common-q { font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis }
+.sp-common-a { font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis }
+.sp-common-meta { display:flex;gap:6px;align-items:center }
+.sp-cnt { font-size:10px;padding:1px 7px;border-radius:20px;background:rgba(16,163,74,0.12);color:#0a6e31;font-weight:600 }
+.sp-lang-tag { font-size:10px;padding:1px 7px;border-radius:20px;background:rgba(83,74,183,0.12);color:#534AB7;font-weight:600 }
 </style>
 </head>
 <body>
@@ -594,6 +604,10 @@ input[type="text"].error { border-color: var(--red) !important; }
   <div class="nav-sub" id="navsub-narocilnice">
     <div class="nav-sub-item" onclick="switchPage('narocilnice');narcSwitchTab('razlike')">Negativne razlike</div>
     <div class="nav-sub-item" onclick="switchPage('narocilnice');narcSwitchTab('karantena')">Karantena</div>
+  </div>
+  <div class="nav-item nav-sporocanje" id="nav-sporocanje" onclick="switchPage('sporocanje')">
+    <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Sporočanje
   </div>
   <div class="nav-item nav-odprema" id="nav-odprema" onclick="switchPage('odprema')">
     <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
@@ -2183,6 +2197,102 @@ input[type="text"].error { border-color: var(--red) !important; }
   </div><!-- /page-zaloga -->
 
   <!-- ═══ ODPREMA PAGE ═══ -->
+  <!-- ═══ SPOROČANJE ═══ -->
+  <div class="page" id="page-sporocanje">
+    <div style="display:grid;grid-template-columns:60fr 40fr;gap:0;height:calc(100vh - 48px);overflow:hidden">
+
+      <!-- LEVO 60% — vnos + odgovor + prevod -->
+      <div style="display:flex;flex-direction:column;gap:0;padding:16px;overflow-y:auto;border-right:1px solid var(--border)">
+
+        <!-- Sporočilo stranke -->
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span class="slabel">SPOROČILO STRANKE</span>
+            <span id="sp-lang-pill" style="font-size:11px;padding:2px 10px;border-radius:20px;background:rgba(83,74,183,0.12);color:#534AB7;font-weight:600;display:none"></span>
+          </div>
+          <textarea id="sp-customer-msg" rows="5"
+            style="width:100%;resize:none;border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:14px;font-family:inherit;color:var(--text);background:var(--surface2);outline:none;line-height:1.6"
+            placeholder="Prilepite sporočilo stranke sem (katerikoli jezik)..."
+            oninput="spOnCustomerInput()"></textarea>
+          <div id="sp-translation" style="display:none;margin-top:8px;padding:9px 12px;background:var(--surface2);border-radius:var(--radius);border-left:3px solid #534AB7;font-size:13px;color:var(--text-secondary);line-height:1.6">
+            <span id="sp-translation-text"></span>
+          </div>
+        </div>
+
+        <!-- Vaš odgovor -->
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span class="slabel">VAŠ ODGOVOR</span>
+            <span style="font-size:11px;color:var(--text-tertiary)">SLO / HR / RS</span>
+          </div>
+          <textarea id="sp-agent-reply" rows="5"
+            style="width:100%;resize:none;border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:14px;font-family:inherit;color:var(--text);background:var(--surface2);outline:none;line-height:1.6"
+            placeholder="Napišite odgovor v slovenščini, hrvaščini ali srbščini..."
+            oninput="spOnReplyInput()"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap" id="sp-quick-chips"></div>
+        </div>
+
+        <!-- Prevedeni odgovor -->
+        <div class="card" id="sp-result-card" style="display:none;border:1px solid rgba(83,74,183,0.3)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span class="slabel">PREVOD ZA STRANKO</span>
+            <span id="sp-result-lang" style="font-size:11px;padding:2px 10px;border-radius:20px;background:rgba(83,74,183,0.12);color:#534AB7;font-weight:600"></span>
+          </div>
+          <div id="sp-result-text" style="font-size:14px;color:var(--text);line-height:1.7;padding:10px;background:var(--surface2);border-radius:var(--radius);min-height:60px"></div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <button onclick="spCopyResult()" style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">
+              📋 Kopiraj odgovor
+            </button>
+            <button onclick="spSaveAsCommon()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;cursor:pointer;font-family:inherit">
+              💾 Shrani kot pogosti odgovor
+            </button>
+          </div>
+        </div>
+
+        <!-- Gumb za prevod -->
+        <div style="margin-top:10px">
+          <button onclick="spTranslateReply()" id="sp-translate-btn"
+            style="width:100%;padding:10px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px">
+            🌐 Prevedi odgovor za stranko
+          </button>
+        </div>
+      </div>
+
+      <!-- DESNO 40% — predlogi + AI se uči -->
+      <div style="display:flex;flex-direction:column;gap:0;overflow:hidden">
+
+        <!-- Predlagani odgovori (čipi) -->
+        <div style="padding:16px 16px 8px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <span class="slabel">✨ PREDLAGANI ODGOVORI</span>
+            <span id="sp-common-count" style="font-size:11px;color:var(--text-tertiary)"></span>
+          </div>
+          <div id="sp-chips-container" style="display:flex;gap:6px;flex-wrap:wrap">
+            <span class="sp-chip" onclick="spUseChip(this)">Dostava 3–5 dni</span>
+            <span class="sp-chip" onclick="spUseChip(this)">Sledenje pošiljke</span>
+            <span class="sp-chip" onclick="spUseChip(this)">Zamuda pri dostavi</span>
+            <span class="sp-chip" onclick="spUseChip(this)">Vračilo izdelka</span>
+            <span class="sp-chip" onclick="spUseChip(this)">Kontaktirajte nas</span>
+            <span class="sp-chip" onclick="spUseChip(this)">Zalogo preverjamo</span>
+            <span class="sp-chip" onclick="spUseChip(this)">Naročilo potrjeno</span>
+            <span class="sp-chip" onclick="spUseChip(this)">Rabat ni mogoč</span>
+          </div>
+        </div>
+
+        <!-- AI se uči — pogosti odgovori -->
+        <div style="flex:1;overflow-y:auto;padding:12px 16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <span class="slabel">🤖 AI SE UČI — POGOSTI ODGOVORI</span>
+            <button onclick="spLoadCommon()" style="font-size:11px;padding:3px 8px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;color:var(--text-secondary);font-family:inherit">↺ Osveži</button>
+          </div>
+          <div id="sp-common-list" style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:20px">Še ni shranjenih odgovorov.<br>Ko odgovorite strankam in kliknete "Shrani", se bodo pojavili tukaj.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /page-sporocanje -->
+
   <div class="page" id="page-odprema">
     <div style="display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start;padding:14px">
 
@@ -5846,6 +5956,202 @@ async function invHistoryLoad(filename) {
   }
 }
 // ── /INVENTURA ────────────────────────────────────────────────
+
+// ── SPOROČANJE ────────────────────────────────────────────────
+
+const SP_LANGS = {
+  'sl':'Slovenščina','hr':'Hrvaščina','sr':'Srbščina','bg':'Bolgarščina',
+  'cs':'Češčina','sk':'Slovaščina','hu':'Madžarščina','pl':'Poljščina',
+  'ro':'Romunščina','el':'Grščina','de':'Nemščina','it':'Italijanščina'
+};
+const SP_LANG_NAMES = {
+  'sl':'slovenščino','hr':'hrvaščino','sr':'srbščino','bg':'bolgarščino',
+  'cs':'češčino','sk':'slovaščino','hu':'madžarščino','pl':'poljščino',
+  'ro':'romunščino','el':'grščino','de':'nemščino','it':'italijanščino'
+};
+
+let spDetectedLang = '';
+let spTranslateTimer = null;
+let spReplyTimer = null;
+let spCommonAnswers = [];
+
+async function spCallAI(prompt, maxTokens = 800) {
+  const res = await fetch('/ai-proxy', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ prompt, max_tokens: maxTokens })
+  });
+  const data = await res.json();
+  return (data.content?.[0]?.text || '').trim();
+}
+
+function spOnCustomerInput() {
+  clearTimeout(spTranslateTimer);
+  const msg = document.getElementById('sp-customer-msg').value.trim();
+  if (!msg || msg.length < 10) {
+    document.getElementById('sp-translation').style.display = 'none';
+    document.getElementById('sp-lang-pill').style.display = 'none';
+    return;
+  }
+  spTranslateTimer = setTimeout(() => spDetectAndTranslate(msg), 800);
+}
+
+async function spDetectAndTranslate(msg) {
+  const pill = document.getElementById('sp-lang-pill');
+  const transDiv = document.getElementById('sp-translation');
+  const transText = document.getElementById('sp-translation-text');
+  pill.textContent = '...';
+  pill.style.display = 'inline-block';
+  try {
+    const result = await spCallAI(
+      `Detect the language of this text and translate it to Slovenian. 
+Respond ONLY with JSON: {"lang":"ISO2code","name":"language name in Slovenian","translation":"translated text"}
+Text: "${msg.slice(0,500)}"`, 400);
+    const clean = result.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(clean);
+    spDetectedLang = parsed.lang || '';
+    pill.textContent = (SP_LANGS[spDetectedLang] || parsed.name || spDetectedLang).toUpperCase();
+    if (parsed.lang !== 'sl') {
+      transDiv.style.display = 'block';
+      transText.textContent = parsed.translation || '';
+    } else {
+      transDiv.style.display = 'none';
+    }
+    spLoadSuggestedCommon();
+  } catch(e) {
+    pill.textContent = '?';
+  }
+}
+
+function spOnReplyInput() {
+  clearTimeout(spReplyTimer);
+  spReplyTimer = setTimeout(() => spLoadSuggestedCommon(), 600);
+}
+
+async function spTranslateReply() {
+  const reply = document.getElementById('sp-agent-reply').value.trim();
+  if (!reply) { alert('Najprej napišite odgovor.'); return; }
+  if (!spDetectedLang) { alert('Najprej prilepite sporočilo stranke.'); return; }
+  const btn = document.getElementById('sp-translate-btn');
+  btn.textContent = '⏳ Prevajam...';
+  btn.disabled = true;
+  try {
+    const targetName = SP_LANG_NAMES[spDetectedLang] || spDetectedLang;
+    const translated = await spCallAI(
+      `Translate this customer service reply to ${targetName}. 
+Keep it professional and friendly. Return ONLY the translated text, nothing else.
+Text: "${reply}"`, 600);
+    document.getElementById('sp-result-text').textContent = translated;
+    document.getElementById('sp-result-lang').textContent = (SP_LANGS[spDetectedLang] || spDetectedLang).toUpperCase();
+    document.getElementById('sp-result-card').style.display = 'block';
+    btn.textContent = '✓ Prevedeno — prevedi znova';
+    btn.style.background = '#0a6e31';
+  } catch(e) {
+    btn.textContent = '⚠ Napaka — poskusi znova';
+  }
+  btn.disabled = false;
+}
+
+function spCopyResult() {
+  const text = document.getElementById('sp-result-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target.closest('button');
+    const orig = btn.textContent;
+    btn.textContent = '✓ Kopirano!';
+    btn.style.background = '#0a6e31';
+    setTimeout(() => { btn.textContent = orig; btn.style.background = '#534AB7'; }, 1800);
+  });
+}
+
+async function spSaveAsCommon() {
+  const question = document.getElementById('sp-customer-msg').value.trim().slice(0, 120);
+  const reply = document.getElementById('sp-agent-reply').value.trim();
+  const translated = document.getElementById('sp-result-text').textContent.trim();
+  if (!reply || !translated) { alert('Najprej prevedite odgovor.'); return; }
+  try {
+    await fetch('/sporocanje-save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ question, reply_sl: reply, reply_translated: translated, lang: spDetectedLang, ts: Date.now() })
+    });
+    spLoadCommon();
+    const btn = event.target.closest('button');
+    btn.textContent = '✓ Shranjeno!';
+    setTimeout(() => { btn.textContent = '💾 Shrani kot pogosti odgovor'; }, 2000);
+  } catch(e) { alert('Napaka pri shranjevanju.'); }
+}
+
+async function spLoadCommon() {
+  try {
+    const res = await fetch('/sporocanje-common');
+    const txt = await res.text();
+    if (txt.trim().startsWith('<')) return;
+    const data = JSON.parse(txt);
+    spCommonAnswers = data.answers || [];
+    spRenderCommon(spCommonAnswers);
+    document.getElementById('sp-common-count').textContent = spCommonAnswers.length + ' shranjenih';
+  } catch(e) {}
+}
+
+function spRenderCommon(answers) {
+  const el = document.getElementById('sp-common-list');
+  if (!answers.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:20px">Še ni shranjenih odgovorov.</div>';
+    return;
+  }
+  el.innerHTML = answers.slice(0, 30).map((a, i) => `
+    <div class="sp-common-item" onclick="spUseCommon(${i})">
+      <div class="sp-common-meta">
+        <span class="sp-lang-tag">${(SP_LANGS[a.lang] || a.lang || '?').slice(0,3).toUpperCase()}</span>
+        <span class="sp-cnt">${a.count || 1}x</span>
+        <span style="font-size:10px;color:var(--text-tertiary)">${a.ts ? new Date(a.ts).toLocaleDateString('sl-SI') : ''}</span>
+      </div>
+      <div class="sp-common-q">${a.question || '—'}</div>
+      <div class="sp-common-a">${a.reply_sl || ''}</div>
+    </div>`).join('');
+}
+
+function spUseCommon(i) {
+  const a = spCommonAnswers[i];
+  if (!a) return;
+  document.getElementById('sp-agent-reply').value = a.reply_sl || '';
+}
+
+async function spLoadSuggestedCommon() {
+  const msg = document.getElementById('sp-customer-msg').value.trim();
+  const reply = document.getElementById('sp-agent-reply').value.trim();
+  if (!msg || spCommonAnswers.length === 0) return;
+  const keywords = (msg + ' ' + reply).toLowerCase();
+  const scored = spCommonAnswers.map((a, i) => {
+    const hay = ((a.question || '') + ' ' + (a.reply_sl || '')).toLowerCase();
+    const score = keywords.split(' ').filter(w => w.length > 3 && hay.includes(w)).length;
+    return { score, i };
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
+  const chips = document.getElementById('sp-chips-container');
+  const existing = Array.from(chips.querySelectorAll('.sp-chip-ai'));
+  existing.forEach(e => e.remove());
+  scored.forEach(({ i }) => {
+    const a = spCommonAnswers[i];
+    const chip = document.createElement('span');
+    chip.className = 'sp-chip sp-chip-ai';
+    chip.style.background = 'rgba(16,163,74,0.1)';
+    chip.style.borderColor = 'rgba(16,163,74,0.4)';
+    chip.style.color = '#0a6e31';
+    chip.textContent = '✓ ' + (a.question || a.reply_sl || '').slice(0, 30);
+    chip.onclick = () => spUseCommon(i);
+    chips.appendChild(chip);
+  });
+}
+
+function spUseChip(el) {
+  const replyArea = document.getElementById('sp-agent-reply');
+  const text = el.textContent.replace(/^✓ /, '').trim();
+  replyArea.value = (replyArea.value ? replyArea.value + ' ' : '') + text;
+  replyArea.focus();
+}
+
+// Naloži pogostih ob zagonu strani
+document.addEventListener('DOMContentLoaded', () => spLoadCommon());
 
 // ── ODPREMA ───────────────────────────────────────────────────
 let odpRows = [];
