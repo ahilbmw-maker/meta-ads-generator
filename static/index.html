@@ -1483,8 +1483,10 @@ input[type="text"].error { border-color: var(--red) !important; }
           <div class="card" style="min-width:0;overflow:hidden">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
               <span class="slabel">DVOJNIKI — IME IN PRIIMEK</span>
-              <div style="display:flex;align-items:center;gap:8px">
-                <input type="text" id="narcDvojnikiSearch" placeholder="Išči ime, ID..." style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:13px;width:220px;font-family:'DM Sans',sans-serif" oninput="narcDvojnikiRender()">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="font-size:11px;display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:rgba(220,38,38,0.15);border-radius:2px;display:inline-block"></span> Isti izdelki ⚠ DUP</span>
+                <span style="font-size:11px;display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;background:rgba(83,74,183,0.1);border-radius:2px;display:inline-block"></span> Različni izdelki</span>
+                <input type="text" id="narcDvojnikiSearch" placeholder="Išči ime, ID..." style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:13px;width:200px;font-family:'DM Sans',sans-serif" oninput="narcDvojnikiRender()">
                 <span id="narcDvojnikiCount" style="font-size:11px;color:var(--text-tertiary)"></span>
               </div>
             </div>
@@ -1495,8 +1497,9 @@ input[type="text"].error { border-color: var(--red) !important; }
                   <th onclick="narcDvojnikiSort('Datum')" style="cursor:pointer">Datum <span id="narcDvojSort-Datum"></span></th>
                   <th onclick="narcDvojnikiSort('Ime in priimek')" style="cursor:pointer">Ime in priimek <span id="narcDvojSort-Ime in priimek">↑</span></th>
                   <th onclick="narcDvojnikiSort('Izdelki')" style="cursor:pointer">Izdelki <span id="narcDvojSort-Izdelki"></span></th>
+                  <th onclick="narcDvojnikiSort('Jezik')" style="cursor:pointer">Jezik <span id="narcDvojSort-Jezik"></span></th>
                 </tr></thead>
-                <tbody id="narcDvojnikiTbody"><tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:24px">Uvozite CSV datoteko.</td></tr></tbody>
+                <tbody id="narcDvojnikiTbody"><tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:24px">Uvozite CSV datoteko.</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -4863,6 +4866,17 @@ function narcSwitchTab(tab) {
   document.getElementById('narcTab-karantena').classList.toggle('active', tab === 'karantena');
 }
 
+function narcLangToFlag(lang) {
+  // Format: "ma-sk", "ma-rs", "sl", itd. — vzamemo zadnji del po "-"
+  const code = (lang||'').trim().toLowerCase().split('-').pop();
+  const flags = {
+    'sl':'🇸🇮','hr':'🇭🇷','rs':'🇷🇸','ba':'🇧🇦','hu':'🇭🇺','it':'🇮🇹',
+    'cz':'🇨🇿','sk':'🇸🇰','pl':'🇵🇱','at':'🇦🇹','de':'🇩🇪','el':'🇬🇷',
+    'ro':'🇷🇴','bg':'🇧🇬','en':'🇬🇧'
+  };
+  return flags[code] || lang;
+}
+
 // ── DVOJNIKI ──────────────────────────────────────────────────
 let narcDvojnikiData = [];
 let narcDvojnikiSortCol = 'Ime in priimek';
@@ -4939,28 +4953,65 @@ function narcDvojnikiRender() {
     return narcDvojnikiSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
   });
   // Sort indikatorji
-  ['ID','Datum','Ime in priimek','Izdelki'].forEach(col => {
+  ['ID','Datum','Ime in priimek','Izdelki','Jezik'].forEach(col => {
     const el = document.getElementById('narcDvojSort-'+col);
     if (el) el.textContent = narcDvojnikiSortCol===col ? (narcDvojnikiSortAsc?'↑':'↓') : '';
   });
   document.getElementById('narcDvojnikiCount').textContent = filtered.length + ' naročil';
   const tbody = document.getElementById('narcDvojnikiTbody');
   if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:24px">Ni dvojnikov ali uvozite CSV.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:24px">Ni dvojnikov ali uvozite CSV.</td></tr>';
     return;
   }
-  // Alternirajoče barvanje po skupinah enakih imen
+
+  // Preveri duplicate izdelkov znotraj iste osebe
+  // Normalizira izdelke za primerjavo
+  const normalizeProducts = s => (s||'').toLowerCase().replace(/\s+/g,' ').trim();
+  // Zberi vse kombinacije ime -> [set izdelkov]
+  const nameProducts = {};
+  narcDvojnikiData.forEach(r => {
+    const key = (r['Ime in priimek']||'').trim().toLowerCase();
+    const prod = normalizeProducts(r['Izdelki']);
+    if (!nameProducts[key]) nameProducts[key] = [];
+    nameProducts[key].push(prod);
+  });
+  // Za vsako ime preveri ali se kateri izdelki ponavljajo
+  const nameHasDupProducts = {};
+  Object.entries(nameProducts).forEach(([name, prods]) => {
+    const seen = new Set();
+    let hasDup = false;
+    prods.forEach(p => { if (seen.has(p)) hasDup = true; seen.add(p); });
+    nameHasDupProducts[name] = hasDup;
+  });
+  // Za vsako vrstico preveri ali so njeni izdelki isti kot pri kaki drugi vrstici iste osebe
+  const rowIsDupProduct = r => {
+    const key = (r['Ime in priimek']||'').trim().toLowerCase();
+    const prod = normalizeProducts(r['Izdelki']);
+    return narcDvojnikiData.filter(x =>
+      (x['Ime in priimek']||'').trim().toLowerCase() === key &&
+      normalizeProducts(x['Izdelki']) === prod
+    ).length > 1;
+  };
+
   let lastColor = false, lastName = '';
   tbody.innerHTML = filtered.map(r => {
     const name = (r['Ime in priimek']||'').trim().toLowerCase();
     if (name !== lastName) { lastColor = !lastColor; lastName = name; }
-    const bg = lastColor ? 'background:rgba(83,74,183,0.06)' : '';
+    const isDupProd = rowIsDupProduct(r);
+    const bg = isDupProd
+      ? 'background:rgba(220,38,38,0.08)' // rdeča — duplikat izdelkov
+      : lastColor ? 'background:rgba(83,74,183,0.06)' : ''; // vijolična alternirajoča
+    const badge = isDupProd
+      ? '<span style="font-size:10px;background:#dc2626;color:#fff;border-radius:4px;padding:1px 6px;margin-left:6px">⚠ DUP</span>'
+      : '';
     const izdelki = (r['Izdelki']||'').replace(/\n/g,'<br>');
+    const flag = narcLangToFlag(r['Jezik']||'');
     return `<tr style="${bg}">
       <td><a href="https://www.siluxar.si/narocilnice/${r['ID']||''}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;background:rgba(24,119,242,0.08);border:1px solid rgba(24,119,242,0.2);border-radius:4px;padding:2px 7px;display:inline-block">${r['ID']||''} ↗</a></td>
       <td style="font-size:12px;white-space:nowrap">${(r['Datum']||'').slice(0,10)}</td>
-      <td style="font-weight:600">${r['Ime in priimek']||''}</td>
+      <td style="font-weight:600">${r['Ime in priimek']||''}${badge}</td>
       <td style="font-size:12px;max-width:260px">${izdelki}</td>
+      <td style="text-align:center;font-size:20px" title="${r['Jezik']||''}">${flag}</td>
     </tr>`;
   }).join('');
 }
