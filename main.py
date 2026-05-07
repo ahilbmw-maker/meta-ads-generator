@@ -6106,23 +6106,27 @@ KB_FILES = {
     "maaarket": DATA_DIR / "kb_maaarket.json",
 }
 
-def _kayako_auth_params() -> dict:
-    """Generira auth parametre za Kayako Classic REST API."""
+def _kayako_build_url(path: str) -> str:
+    """Zgradi popoln Kayako URL z auth - signature je quote_plus encoded."""
+    from urllib.parse import quote_plus
     salt = str(random.randint(1000000000, 9999999999))
     raw_sig = hmac.new(
         key=KAYAKO_SECRET.encode("utf-8"),
         msg=salt.encode("utf-8"),
         digestmod=hashlib.sha256
     ).digest()
-    signature = base64.b64encode(raw_sig).decode("utf-8")
-    return {
-        "apikey": KAYAKO_API_KEY,
-        "salt": salt,
-        "signature": signature,
-    }
+    signature = quote_plus(base64.b64encode(raw_sig).decode("utf-8"))
+    return (
+        f"{KAYAKO_API_URL}"
+        f"?e={path}"
+        f"&apikey={KAYAKO_API_KEY}"
+        f"&salt={salt}"
+        f"&signature={signature}"
+    )
 
+# backwards compat
 def _kayako_url(path: str) -> str:
-    return f"{KAYAKO_API_URL}?e={path}"
+    return _kayako_build_url(path)
 
 def _xml_text(el, tag: str, default: str = "") -> str:
     node = el.find(tag)
@@ -6168,15 +6172,11 @@ def _parse_ticket_xml(xml_text: str) -> list[dict]:
 async def _fetch_tickets_batch(client_h: httpx.AsyncClient, dept_id: int, start: int, count: int = 50) -> list[dict]:
     """Potegne batch ticketov iz Kayako (samo header info, brez postov)."""
     path = f"/Tickets/Ticket/ListAll/{dept_id}/-1/-1/-1/{count}/{start}/ticketid/DESC"
-    params = _kayako_auth_params()
+    url = _kayako_build_url(path)
     try:
-        r = await client_h.get(
-            _kayako_url(path),
-            params=params,
-            timeout=30,
-        )
+        r = await client_h.get(url, timeout=30)
+        print(f"[kayako] ListAll HTTP {r.status_code} | {url[:80]}")
         if r.status_code != 200:
-            print(f"[kayako] ListAll HTTP {r.status_code}")
             return []
         return _parse_ticket_xml(r.text)
     except Exception as e:
@@ -6186,13 +6186,9 @@ async def _fetch_tickets_batch(client_h: httpx.AsyncClient, dept_id: int, start:
 async def _fetch_ticket_posts(client_h: httpx.AsyncClient, ticket_id: str) -> list[dict]:
     """Potegne posamezen ticket z vsemi posti."""
     path = f"/Tickets/Ticket/{ticket_id}"
-    params = _kayako_auth_params()
+    url = _kayako_build_url(path)
     try:
-        r = await client_h.get(
-            _kayako_url(path),
-            params=params,
-            timeout=20,
-        )
+        r = await client_h.get(url, timeout=20)
         if r.status_code != 200:
             return []
         tickets = _parse_ticket_xml(r.text)
@@ -6236,9 +6232,7 @@ async def kayako_test(brand: str = "silux"):
     dept_id = KAYAKO_DEPT.get(brand, 1)
     # Debug — pokaži točen URL ki ga kličemo
     path = f"/Tickets/Ticket/ListAll/{dept_id}/-1/-1/-1/3/0/ticketid/DESC"
-    params = _kayako_auth_params()
-    params_str = "&".join(f"{k}={v}" for k,v in params.items())
-    debug_url = f"{KAYAKO_API_URL}?e={path}&{params_str}"
+    debug_url = _kayako_build_url(path)
     print(f"[kayako] DEBUG URL: {debug_url}")
     async with httpx.AsyncClient() as h:
         tickets = await _fetch_tickets_batch(h, dept_id, start=0, count=3)
