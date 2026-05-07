@@ -10376,7 +10376,7 @@ async function spTranslateReply() {
   btn.textContent = '✍ Lektoriram...';
   let polished = reply;
   try {
-    const proofed = await spCallAI(`Ti si lektor za podporo strankam. Popravi spodnje besedilo da bo profesionalno, prijazno in brez napak. Ohrani pomen, dolžino in jezik (SLO/HR/RS). Vrni SAMO popravljeno besedilo, brez razlag.\nBesedilo: ${reply}`, 400);
+    const proofed = await spCallAI(`Popravi SAMO slovnične napake in neformalnosti v spodnjem besedilu. NE spreminjaj vsebine, pomena ali dolžine. NE dodajaj novih stavkov. Vrni SAMO popravljeno besedilo.\nBesedilo: ${reply}`, 400);
     if (proofed) { polished = proofed; document.getElementById('sp-agent-reply').value = polished; }
   } catch(e) {}
 
