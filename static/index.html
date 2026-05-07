@@ -4857,7 +4857,7 @@ function narcVecjaRender() {
     return;
   }
   tbody.innerHTML = filtered.map(r => `<tr>
-    <td style="font-family:monospace;font-size:12px">${r['ID naročila']||''}</td>
+    <td><a href="https://www.siluxar.si/narocilnice/${r['ID naročila']||''}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;background:rgba(24,119,242,0.08);border:1px solid rgba(24,119,242,0.2);border-radius:4px;padding:2px 7px;display:inline-block">${r['ID naročila']||''} ↗</a></td>
     <td><strong>${r['SKU']||''}</strong></td>
     <td style="font-size:12px">${r['Naziv']||''}</td>
     <td style="text-align:center"><span style="background:#534AB7;color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:13px">${r['Količina']||''}</span></td>
