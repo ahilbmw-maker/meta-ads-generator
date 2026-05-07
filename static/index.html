@@ -2241,6 +2241,7 @@ input[type="text"].error { border-color: var(--red) !important; }
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
             <button onclick="spCopyResult(this)" style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s ease">📋 Kopiraj odgovor</button>
             <button onclick="spSaveAsCommon()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;cursor:pointer;font-family:inherit">💾 Shrani kot pogosti odgovor</button>
+            <button onclick="spReset()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;cursor:pointer;font-family:inherit">↺ Resetiraj</button>
           </div>
         </div>
         <button onclick="spTranslateReply()" id="sp-translate-btn" style="width:100%;padding:10px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">🌐 Prevedi odgovor za stranko</button>
@@ -9917,6 +9918,22 @@ Text: "${msg.slice(0,500)}"`, 600);
   } catch(e) { pill.textContent = '?'; }
 }
 
+function spReset() {
+  document.getElementById('sp-customer-msg').value = '';
+  document.getElementById('sp-agent-reply').value = '';
+  document.getElementById('sp-result-card').style.display = 'none';
+  document.getElementById('sp-result-text').textContent = '';
+  document.getElementById('sp-translation').style.display = 'none';
+  document.getElementById('sp-translation-hr').style.display = 'none';
+  document.getElementById('sp-lang-pill').style.display = 'none';
+  const btn = document.getElementById('sp-translate-btn');
+  btn.textContent = '🌐 Prevedi odgovor za stranko';
+  btn.style.background = '#534AB7';
+  btn.disabled = false;
+  spDetectedLang = '';
+  document.getElementById('sp-customer-msg').focus();
+}
+
 function spOnReplyInput() {}
 
 async function spTranslateReply() {
@@ -9927,7 +9944,7 @@ async function spTranslateReply() {
   btn.textContent = '⏳ Prevajam...'; btn.disabled = true;
   try {
     const targetName = SP_LANG_NAMES[spDetectedLang] || spDetectedLang;
-    const translated = await spCallAI(`Translate this customer service reply to ${targetName}. Keep it professional and friendly. Return ONLY the translated text, nothing else.\nText: "${reply}"`, 600);
+    const translated = await spCallAI(`Translate this customer service reply to ${targetName}. Keep it professional and friendly. Return ONLY the translated text, no quotes, no explanations, nothing else.\nText: ${reply}`, 600);
     document.getElementById('sp-result-text').textContent = translated;
     document.getElementById('sp-result-lang').textContent = (SP_LANGS[spDetectedLang]||spDetectedLang).toUpperCase();
     document.getElementById('sp-result-card').style.display = 'block';
