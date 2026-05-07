@@ -726,7 +726,11 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div class="ht-name">Odprema</div>
             <div class="ht-desc">Geoapify validacija Econt BG</div>
           </div>
-        </div>
+          <div class="home-tile" style="border-left-color:#534AB7" onclick="switchPage('sporocanje')">
+            <div class="ht-icon">💬</div>
+            <div class="ht-name">Sporočanje</div>
+            <div class="ht-desc">Prevodi in pogosti odgovori</div>
+          </div>
       </div>
     </div>
   </div><!-- /page-home -->
@@ -2488,7 +2492,7 @@ function closeMenu(){
   document.querySelector('.sidebar').classList.remove('open');
   document.getElementById('overlay').classList.remove('open');
 }
-const PAGES = ['home','meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads','orodja','analiza','zaloga','odprema'];
+const PAGES = ['home','meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads','orodja','analiza','zaloga','sporocanje','odprema'];
 let currentIdx = 0;
 
 function switchCalcTab(tab) {
