@@ -6171,7 +6171,7 @@ def _parse_ticket_xml(xml_text: str) -> list[dict]:
 
 async def _fetch_tickets_batch(client_h: httpx.AsyncClient, dept_id: int, start: int, count: int = 50) -> list[dict]:
     """Potegne batch ticketov iz Kayako (samo header info, brez postov)."""
-    path = f"/Tickets/Ticket/ListAll/{dept_id}/-1/-1/-1/{count}/{start}/ticketid/DESC"
+    path = f"/Tickets/Ticket/ListAll/{dept_id}/3/-1/-1/{count}/{start}/ticketid/DESC"
     url = _kayako_build_url(path)
     try:
         r = await client_h.get(url, timeout=30)
@@ -6231,7 +6231,7 @@ async def kayako_test(brand: str = "silux"):
         return {"ok": False, "error": "KAYAKO_API_KEY ali KAYAKO_SECRET nista nastavljena!"}
     dept_id = KAYAKO_DEPT.get(brand, 1)
     # Debug — pokaži točen URL ki ga kličemo
-    path = f"/Tickets/Ticket/ListAll/{dept_id}/-1/-1/-1/3/0/ticketid/DESC"
+    path = f"/Tickets/Ticket/ListAll/{dept_id}/3/-1/-1/3/0/ticketid/DESC"
     debug_url = _kayako_build_url(path)
     print(f"[kayako] DEBUG URL: {debug_url}")
     async with httpx.AsyncClient() as h:
