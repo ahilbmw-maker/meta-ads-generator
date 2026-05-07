@@ -9975,8 +9975,13 @@ async function spSaveAsCommon() {
   if (!reply || !translated) { alert('Najprej prevedite odgovor.'); return; }
   const btn = event.target.closest('button');
   btn.textContent = '⏳ Shranjujem...';
+  // Pridobi tudi HR prevod odgovora
+  let reply_hr = '';
   try {
-    const res = await fetch('/sporocanje-save', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,reply_sl:reply,reply_translated:translated,lang:spDetectedLang,brand:spBrand,ts:Date.now()})});
+    reply_hr = await spCallAI(`Translate this text to Croatian. Return ONLY the translated text, no quotes.\nText: ${reply}`, 400);
+  } catch(e) {}
+  try {
+    const res = await fetch('/sporocanje-save', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,reply_sl:reply,reply_translated:translated,reply_hr,lang:spDetectedLang,brand:spBrand,ts:Date.now()})});
     const txt = await res.text();
     if (!txt.trim().startsWith('<')) { await spLoadCommon(); }
     btn.textContent = '✓ Shranjeno!';
@@ -10024,7 +10029,8 @@ function spRenderCommon(answers) {
         <span style="font-size:10px;color:var(--text-tertiary)">${a.ts?new Date(a.ts).toLocaleDateString('sl-SI'):''}</span>
       </div>
       <div class="sp-common-q">${a.question||'—'}</div>
-      <div class="sp-common-a">${a.reply_sl||''}</div>
+      <div class="sp-common-a" style="border-left:2px solid #534AB7;padding-left:6px;margin-top:2px"><span style="font-size:10px;font-weight:600;color:#534AB7">SLO </span>${a.reply_sl||''}</div>
+      ${a.reply_translated ? `<div class="sp-common-a" style="border-left:2px solid #378ADD;padding-left:6px;margin-top:3px"><span style="font-size:10px;font-weight:600;color:#378ADD">HR </span>${a.reply_hr||a.reply_translated||''}</div>` : ''}
     </div>`;
   }).join('');
 }
