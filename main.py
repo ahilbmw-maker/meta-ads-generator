@@ -876,10 +876,11 @@ async def ai_proxy(data: dict):
     """Proxy za AI klice iz frontenda (za Sporočanje)."""
     prompt = data.get("prompt", "")
     max_tokens = min(int(data.get("max_tokens", 500)), 800)
+    model = data.get("model", "claude-haiku-4-5-20251001")
     if not prompt:
         return {"content": [{"text": ""}]}
     msg = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model=model,
         max_tokens=max_tokens,
         messages=[{"role": "user", "content": prompt}]
     )
