@@ -2389,6 +2389,35 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div id="sp-kb-status" style="font-size:12px;color:var(--text-secondary);min-height:18px;line-height:1.5"></div>
             <div id="sp-kb-stats" style="margin-top:8px;display:none;padding:8px;background:var(--surface);border-radius:var(--radius);font-size:12px;color:var(--text-secondary)"></div>
           </div>
+
+          <!-- PRIROČNIK — ISKANJE NAROČIL -->
+          <div style="margin-top:12px;padding:14px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+            <div style="margin-bottom:10px">
+              <span class="slabel">🔍 ISKANJE NAROČIL</span>
+            </div>
+
+            <!-- Po ID naročila -->
+            <div style="margin-bottom:10px">
+              <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;font-weight:600">ID NAROČILA</div>
+              <div style="display:flex;gap:6px">
+                <input id="sp-order-id" type="text" placeholder="npr. 11227223"
+                  style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit"
+                  onkeydown="if(event.key==='Enter') spOpenOrder()">
+                <button onclick="spOpenOrder()" style="padding:6px 14px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Najdi →</button>
+              </div>
+            </div>
+
+            <!-- Po emailu -->
+            <div>
+              <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;font-weight:600">E-MAIL STRANKE</div>
+              <div style="display:flex;gap:6px">
+                <input id="sp-order-email" type="text" placeholder="npr. stranka@email.si"
+                  style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit"
+                  onkeydown="if(event.key==='Enter') spOpenEmail()">
+                <button onclick="spOpenEmail()" style="padding:6px 14px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Najdi →</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -10555,6 +10584,23 @@ function spUseCommon(i) {
   document.getElementById('sp-agent-reply').value = a.reply_sl || '';
 }
 
+// ── ISKANJE NAROČIL ────────────────────────────────────────────
+function spOpenOrder() {
+  const id = document.getElementById('sp-order-id').value.trim();
+  if (!id) return;
+  window.open('https://www.siluxar.si/narocilnice/' + encodeURIComponent(id), '_blank');
+}
+
+function spOpenEmail() {
+  const email = document.getElementById('sp-order-email').value.trim();
+  if (!email) return;
+  const encoded = email.replace('@', '%40');
+  const today = new Date().toISOString().slice(0,10);
+  const from = new Date(Date.now() - 60*24*60*60*1000).toISOString().slice(0,10); // 60 dni nazaj
+  const url = `https://www.siluxar.si/narocilnice?order_status_id=&order_shipping_id=&supplier=&author=&filter_buyer=${encoded}&filter_buyer_address=&filter_buyer_phone=&filter_product=&filter_orderid=&filter_comments=0&filter_cancellations=0&filter_notpaid=0&filter_isvip=0&filter_buyer_deferred=0&sent_to_erp=&payment_type=&order_tag=&filter_ids=&from=${from}&to=${today}&filter_lang_sl=1&filter_lang_hr=1&filter_lang_rs=1&filter_lang_at=1&filter_lang_de=1&filter_lang_fr=1&filter_lang_es=1&filter_lang_en=1&filter_lang_ba=1&filter_lang_hu=1&filter_lang_cs=1&filter_lang_sk=1&filter_lang_el=1&filter_lang_ma-sl=1&filter_lang_ma-hr=1&filter_lang_ma-rs=1&filter_lang_ma-ba=1&filter_lang_ma-hu=1&filter_lang_ma-it=1&filter_lang_ma-cz=1&filter_lang_ma-sk=1&filter_lang_ma-pl=1&filter_lang_ma-at=1&filter_lang_ma-de=1&filter_lang_ma-el=1&filter_lang_ma-ro=1&filter_lang_ro=1&filter_lang_ma-bg=1&filter_lang_it=1`;
+  window.open(url, '_blank');
+}
+// ── /ISKANJE NAROČIL ───────────────────────────────────────────
 // ── KAYAKO IMPORT ──────────────────────────────────────────────
 async function spKayakoTest() {
   const statusEl = document.getElementById('sp-kb-status');
