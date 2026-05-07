@@ -4868,7 +4868,24 @@ function narcSwitchTab(tab) {
 
 function narcLangToFlag(lang) {
   const code = (lang||'').trim().toLowerCase().split('-').pop().toUpperCase();
-  return `<span style="font-size:11px;font-weight:600;color:var(--text-secondary);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 6px">${code}</span>`;
+  const colors = {
+    'SL': {bg:'#16a34a',color:'#fff'},
+    'EL': {bg:'#1d4ed8',color:'#fff'},
+    'RS': {bg:'#dc2626',color:'#fff'},
+    'PL': {bg:'#f1f5f9',color:'#334155'},
+    'RO': {bg:'#ca8a04',color:'#fff'},
+    'BG': {bg:'#78350f',color:'#fff'},
+    'CZ': {bg:'#7c3aed',color:'#fff'},
+    'SK': {bg:'#64748b',color:'#fff'},
+    'HR': {bg:'#0891b2',color:'#fff'},
+    'HU': {bg:'#b91c1c',color:'#fff'},
+    'IT': {bg:'#15803d',color:'#fff'},
+    'AT': {bg:'#991b1b',color:'#fff'},
+    'DE': {bg:'#1c1917',color:'#fff'},
+    'BA': {bg:'#1e40af',color:'#fff'},
+  };
+  const c = colors[code] || {bg:'#e2e8f0',color:'#475569'};
+  return `<span style="font-size:11px;font-weight:600;color:${c.color};background:${c.bg};border-radius:4px;padding:2px 7px">${code}</span>`;
 }
 
 // ── DVOJNIKI ──────────────────────────────────────────────────
