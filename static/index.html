@@ -2611,7 +2611,7 @@ function switchPage(page) {
   if (page === 'narocilnice') { setTimeout(() => { narcVecjaInitDrop(); narcDvojnikiInitDrop(); }, 100); }
   if (page === 'odprema') { odpLoadHistory(); }
   else { const b = document.getElementById('odp-bulk-bar'); if(b) b.style.display='none'; }
-  try { localStorage.setItem('slx_active_page', page); } catch(e) {}
+  try { localStorage.setItem('slx_active_page', page); localStorage.removeItem('slx_active_subtab'); } catch(e) {}
 }
 
 function navToggleSub(key) {
@@ -4866,6 +4866,7 @@ function narcSwitchTab(tab) {
   document.getElementById('narcTab-vecja').classList.toggle('active', tab === 'vecja');
   document.getElementById('narcTab-dvojniki').classList.toggle('active', tab === 'dvojniki');
   document.getElementById('narcTab-karantena').classList.toggle('active', tab === 'karantena');
+  try { localStorage.setItem('slx_active_subtab', tab); } catch(e) {}
 }
 
 function narcLangToFlag(lang) {
@@ -9629,11 +9630,20 @@ document.addEventListener('DOMContentLoaded', () => {
     anLoadMetaFromServer();
   }, 100));
 
-  // Obnovi zadnji aktivni tab
+  // Obnovi zadnji aktivni tab + podtab
   try {
     const lastPage = localStorage.getItem('slx_active_page');
+    const lastSubTab = localStorage.getItem('slx_active_subtab');
     if (lastPage && PAGES.includes(lastPage)) {
       switchPage(lastPage);
+      // Obnovi podtab če obstaja
+      if (lastSubTab) {
+        if (lastPage === 'narocilnice' && typeof narcSwitchTab === 'function') {
+          setTimeout(() => narcSwitchTab(lastSubTab), 50);
+        } else if (lastPage === 'sporocanje' && typeof spSetBrand === 'function') {
+          setTimeout(() => spSetBrand(lastSubTab), 50);
+        }
+      }
     } else {
       switchPage('home');
     }
@@ -10229,6 +10239,7 @@ let spBrand = 'maaarket'; // 'maaarket' ali 'silux'
 
 function spSetBrand(brand) {
   spBrand = brand;
+  try { localStorage.setItem('slx_active_subtab', brand); } catch(e) {}
   // Posodobi zavihke
   const tm = document.getElementById('sp-tab-maaarket');
   const ts = document.getElementById('sp-tab-silux');
