@@ -2342,7 +2342,10 @@ input[type="text"].error { border-color: var(--red) !important; }
             <button onclick="spReset()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;cursor:pointer;font-family:inherit">↺ Resetiraj</button>
           </div>
         </div>
-        <button onclick="spTranslateReply()" id="sp-translate-btn" style="width:100%;padding:10px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">✍ Lektoriraj + 🌐 Prevedi za stranko</button>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button onclick="spAIReply(this)" style="flex:1;padding:10px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🤖 AI odgovor</button>
+          <button onclick="spTranslateReply()" id="sp-translate-btn" style="flex:2;padding:10px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">✍ Lektoriraj + 🌐 Prevedi za stranko</button>
+        </div>
       </div>
       <!-- DESNO -->
       <div style="display:flex;flex-direction:column;overflow:hidden">
@@ -10328,28 +10331,36 @@ function spReset() {
   document.getElementById('sp-customer-msg').focus();
 }
 
-async function spProofread(btn) {
-  const ta = document.getElementById('sp-agent-reply');
-  const text = ta.value.trim();
-  if (!text) { alert('Najprej napišite odgovor.'); return; }
-  btn.textContent = '⏳ Lektoriram...'; btn.disabled = true;
+async function spAIReply(btn) {
+  const customerMsg = document.getElementById('sp-customer-msg').value.trim();
+  if (!customerMsg) { alert('Najprej prilepite sporočilo stranke.'); return; }
+  btn.textContent = '⏳ Generiram...'; btn.disabled = true;
   try {
-    const result = await spCallAI(`Ti si lektor za podporo strankam. Popravi spodnje besedilo da bo profesionalno, prijazno in brez napak. Ohrani pomen, dolžino in jezik (SLO/HR/RS). Vrni SAMO popravljeno besedilo, brez razlag.\nBesedilo: ${text}`, 400);
+    // Zberi relevantne primere iz zgodovine (top 5 po podobnosti)
+    let examples = '';
+    if (spCommonAnswers.length > 0) {
+      const msgLower = customerMsg.toLowerCase();
+      const scored = spCommonAnswers.map(a => {
+        const hay = ((a.question||'') + ' ' + (a.reply_sl||'')).toLowerCase();
+        const score = msgLower.split(/\s+/).filter(w => w.length > 3 && hay.includes(w)).length;
+        return { score, a };
+      }).filter(x => x.score > 0).sort((a,b) => b.score - a.score).slice(0, 5);
+      if (scored.length > 0) {
+        examples = '\n\nPRIMERI IZ ZGODOVINE (upoštevaj ton in slog):\n' +
+          scored.map(({a}) => `Vprašanje: ${a.question||''}\nOdgovor: ${a.reply_sl||''}`).join('\n\n');
+      }
+    }
+    const sloMsg = document.getElementById('sp-translation-text').textContent || customerMsg;
+    const result = await spCallAI(
+      `Si agent podpore strankam za spletno trgovino. Napiši profesionalen, prijazen in kratek odgovor v slovenščini.${examples}\n\nSPOROČILO STRANKE (prevedeno): ${sloMsg}\n\nNapiši SAMO odgovor, brez uvoda ali razlag.`, 350);
     if (result) {
-      ta.value = result;
-      btn.textContent = '✓ Lektorirano';
+      document.getElementById('sp-agent-reply').value = result;
+      btn.textContent = '✓ Odgovor generiran';
       btn.style.color = '#16a34a';
       btn.style.borderColor = '#16a34a';
-      setTimeout(() => {
-        btn.textContent = '✍ Lektoriraj';
-        btn.style.color = '';
-        btn.style.borderColor = '';
-        btn.disabled = false;
-      }, 2000);
-    }
-  } catch(e) {
-    btn.textContent = '✍ Lektoriraj'; btn.disabled = false;
-  }
+      setTimeout(() => { btn.textContent = '🤖 AI odgovor'; btn.style.color = ''; btn.style.borderColor = ''; btn.disabled = false; }, 2000);
+    } else { btn.textContent = '🤖 AI odgovor'; btn.disabled = false; }
+  } catch(e) { btn.textContent = '🤖 AI odgovor'; btn.disabled = false; }
 }
 
 function spOnReplyInput() {}
