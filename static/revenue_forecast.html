@@ -407,8 +407,13 @@ let chart2=null;
 
 // Load from server, reset if new day
 function getTodayLJ(){
-  // Ljubljana timezone datum
-  return new Date().toLocaleDateString('sl-SI', {timeZone:'Europe/Ljubljana'});
+  // Ljubljana timezone datum — vedno YYYY-MM-DD format
+  const now = new Date();
+  const lj = new Date(now.toLocaleString('en-US', {timeZone:'Europe/Ljubljana'}));
+  const y = lj.getFullYear();
+  const m = String(lj.getMonth()+1).padStart(2,'0');
+  const d = String(lj.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
 }
 
 async function loadEntries(){
