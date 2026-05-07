@@ -37,6 +37,7 @@ META_HISTORY_FILE = DATA_DIR / "meta_history.json"
 KREATIVE_HISTORY_FILE = DATA_DIR / "kreative_history.json"
 FORECAST_ENTRIES_FILE = DATA_DIR / "forecast_entries.json"
 FORECAST_HISTORY_FILE = DATA_DIR / "forecast_history.json"
+SPOROCANJE_FILE = DATA_DIR / "sporocanje_common.json"
 
 # ─── ECONT GEO (cities / streets / quarters lookup) ──────────────────────────
 def _load_econt_geo():
@@ -820,6 +821,67 @@ async def save_meta_history(data: dict):
         return {"status": "ok", "count": len(history)}
     except Exception as e:
         return {"error": str(e)}
+
+@app.get("/sporocanje-common")
+async def sporocanje_get_common():
+    """Vrne seznam pogostih odgovorov."""
+    if SPOROCANJE_FILE.exists():
+        try:
+            data = json.loads(SPOROCANJE_FILE.read_text(encoding="utf-8"))
+            return {"ok": True, "answers": data.get("answers", [])}
+        except:
+            pass
+    return {"ok": True, "answers": []}
+
+@app.post("/sporocanje-save")
+async def sporocanje_save(data: dict):
+    """Shrani odgovor v pogosto bazo. Podobne združi in poveča counter."""
+    existing = {"answers": []}
+    if SPOROCANJE_FILE.exists():
+        try:
+            existing = json.loads(SPOROCANJE_FILE.read_text(encoding="utf-8"))
+        except:
+            pass
+    answers = existing.get("answers", [])
+    # Preveri duplikat (enako reply_sl)
+    reply_sl = (data.get("reply_sl") or "").strip().lower()
+    found = False
+    for a in answers:
+        if (a.get("reply_sl") or "").strip().lower() == reply_sl:
+            a["count"] = a.get("count", 1) + 1
+            a["ts"] = data.get("ts", a.get("ts"))
+            found = True
+            break
+    if not found:
+        answers.insert(0, {
+            "question": data.get("question", ""),
+            "reply_sl": data.get("reply_sl", ""),
+            "reply_translated": data.get("reply_translated", ""),
+            "lang": data.get("lang", ""),
+            "count": 1,
+            "ts": data.get("ts", 0),
+        })
+    # Sortiraj po count desc, max 200
+    answers.sort(key=lambda x: -x.get("count", 1))
+    answers = answers[:200]
+    existing["answers"] = answers
+    SPOROCANJE_FILE.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"ok": True, "total": len(answers)}
+
+@app.post("/ai-proxy")
+async def ai_proxy(data: dict):
+    """Proxy za AI klice iz frontenda (za Sporočanje)."""
+    prompt = data.get("prompt", "")
+    max_tokens = min(int(data.get("max_tokens", 800)), 1500)
+    if not prompt:
+        return {"content": [{"text": ""}]}
+    msg = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=max_tokens,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return {"content": [{"type": "text", "text": msg.content[0].text}]}
+
 
 @app.get("/forecast-entries")
 async def get_forecast_entries():
