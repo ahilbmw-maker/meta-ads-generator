@@ -1,0 +1,749 @@
+{
+  "macros": [
+    {
+      "id": "81",
+      "title": "BA - Kinezi kašnjenje, 1 korak",
+      "category": "Maaarket RS&BA",
+      "content": "Poštovani,\n\npotražnja za XXXXXX nas je iznenadila. Zalihe su rasprodate mnogo brže, nego što smo očekivali. Trudimo se, da ih dobijete što prije i već u sljedećim danima očekujemo novu pošiljku. \n\nIzvinjavamo se zbog nastale situacije.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "82",
+      "title": "BA - Kinezi kašnjenje, 2. Korak",
+      "category": "Maaarket RS&BA",
+      "content": "Poštovani,\n\nzaista se trudimo, da što prije dobijete svoj paket. U sljedećim danima očekujemo novu pošiljku. \n\nKako bi se izvinili zbog nastale situacije, nudimo vam 7% popusta.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "83",
+      "title": "BA- narudžba",
+      "category": "Maaarket RS&BA",
+      "content": "Poštovani,\n\nVaša narudžba (broj XYYX) sadrži XYYX i YXYY. Ekspresna dostava iznosi: XX KM.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "57",
+      "title": "Bosna - NAŠA NAPAKA",
+      "category": "Maaarket RS&BA",
+      "content": "Poštovani,\n\nako želite zamijeniti proizvod, pošaljite nam ga natrag. \n\nPrvo ispunite obrazac na poleđini računa.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "58",
+      "title": "Bosna- NI NAŠA NAPAKA",
+      "category": "Maaarket RS&BA",
+      "content": "Poštovani,\n\nako želite zamijeniti proizvod, pošaljite nam ga natrag. \n\nPrvo ispunite obrazac na poleđini računa. Pošaljite nam ga na adresu: SILUX B, Put srpske vojske 164a, 78400 Gradiška",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "65",
+      "title": "BREZ VRAČANJA ITALIJA",
+      "category": "Maaarket IT",
+      "content": "Egregi,\nPer un reclamo/garanzia, sarà sufficiente inviarci: foto/video che mostra danni, foto della confezione, foto della fattura.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "89",
+      "title": "čas dostave",
+      "category": "CZ Maaarket",
+      "content": "Vaši objednávku jsme obdrželi a dnes ji odesíláme. Můžete to očekávat za 4-6 pracovních dnů.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "125",
+      "title": "denar bomo vrnili",
+      "category": "PL Maaarket",
+      "content": "Dobry dzień. Przekazałem Twoje dane współpracownikom, którzy zwrócą Ci pieniądze w ciągu 14 dni.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "101",
+      "title": "dobavni rok?",
+      "category": "SK Maaarket",
+      "content": "Doručenie môžete očakávať 4-6 pracovných dní od objednania.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "70",
+      "title": "Dostava HR",
+      "category": "Povpraševanje",
+      "content": "Poštovani,\n\nPošaljite nam podatke za dostavu:\n➡️ Ime i prezime:\n➡️ Adresa:\n➡️ Poštanski broj:\n➡️ Grad:\n➡️ Br. telefona:",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "69",
+      "title": "Dostava SLO",
+      "category": "Povpraševanje",
+      "content": "Pozdravljeni,\n\nProsimo vas če nam lahko zaupate še naslednje podatke za dostavo:\n➡️ Ime in Priimek:\n➡️ Naslov:\n➡️ Poštna Številka:\n➡️ Kraj:\n➡️ Telefonska številka:",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "28",
+      "title": "Google ocena (HR)",
+      "category": "Ocena - popust",
+      "content": "Poštovani,\n\nhvala na komentaru na Google stranici. Šaljemo vam kod kupona SILUXPOPUST10 (10% popusta).",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "27",
+      "title": "Google ocena (SI)",
+      "category": "Ocena - popust",
+      "content": "Pozdravljeni,\n\nHvala za vaš komentar na Google strani. V zahvalo vam pošiljamo kodo kupona SILUX13 (13% popust).",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "174",
+      "title": "HR AMIO /BOTTARI",
+      "category": "AMIO BOTTARI",
+      "content": "Poštovani\n\nnaručili ste proizvod XXX, ima taj proizvod duži rok isporuke.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "74",
+      "title": "HR Odobreno – drugi proizvod",
+      "category": "Maaarket HR",
+      "content": "Poštovani,\n\nreklamaciju smo odobrili. Trenutno nemamo ovaj proizvod na zalihi. Predlažemo zamjenu s drugim proizvodom. Nema potrebe za vraćanjem - odložite ga u elektroničku kantu za otpad.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "62",
+      "title": "HR odobreno – isti proizvod",
+      "category": "Maaarket HR",
+      "content": "Poštovani,\n\nreklamaciju smo odobrili. Poslat ćemo vam novi proizvod. Nema potrebe za vraćanjem - odložite ga u elektroničku kantu za otpad.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "53",
+      "title": "HR reklamacija kitajci - brez vračanja",
+      "category": "Maaarket HR",
+      "content": "Pozdrav,\n\nŽao nam je. Vaš slučaj ćemo tretirati kao reklamaciju online. Trebamo: broj narudžbe, opis greške, fotografiju embalaže i fotografiju/video greške.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "54",
+      "title": "HR reklamacija kitajci - Povrat proizvoda kurirom",
+      "category": "Maaarket HR",
+      "content": "Poštovani,\n\nako želite zamijeniti proizvod, pošaljite nam ga natrag s obrascem. Dogovaramo preuzimanje s kurirskom službom Overseas.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "172",
+      "title": "HU - sledilna številka",
+      "category": "SILUX HU",
+      "content": "Tisztelt Cím!\n\nA csomagot elküldtük, a csomag nyomkövetési száma: XXX, a GLS kézbesíti.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "173",
+      "title": "HU- amio in bottari",
+      "category": "SILUX HU",
+      "content": "Tisztelt Cím!\n\nAz xxx gyártó termékét rendelte meg, ennek a terméknek hosszabb a szállítási ideje.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "95",
+      "title": "IBAN CZ",
+      "category": "CZ Maaarket",
+      "content": "Peníze můžeme vrátit pouze v případě, že máme číslo účtu IBAN. Formát: CZ5508000000001234567899.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "153",
+      "title": "IBAN RO",
+      "category": "Ro Maaarket",
+      "content": "Bună ziua,\n\nAm primit pachetul dvs. Vom emite o rambursare. Vă rugăm să trimiteți IBAN-ul contului bancar.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "139",
+      "title": "IBAN- dobili paket/vračamo denar",
+      "category": "Maaarket SLO",
+      "content": "Dober dan,\n\nPrejeli smo vaš paket. Za vrnjene izdelke bomo vrnili denar. Prosimo za IBAN računa.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "67",
+      "title": "ita zamuda",
+      "category": "Maaarket IT",
+      "content": "Egregi, siamo appena finiti il prodotto, li riavremo tra pochi giorni. Ci scusiamo per il ritardo.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "100",
+      "title": "kdaj pride paket? SK",
+      "category": "SK Maaarket",
+      "content": "Dobrý deň. Balík sme odoslali. Informujte sa u doručovacej služby na info@packeta.com.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "115",
+      "title": "Kej je paket? PL",
+      "category": "PL Maaarket",
+      "content": "Dzień dobry. Paczka została wysłana. Aby sprawdzić szczegóły z firmą kurierską: info@packeta.com.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "59",
+      "title": "Kinezi kašnjenja hr, 1. Korak",
+      "category": "Maaarket HR",
+      "content": "Poštovani,\n\npotražnja nas je iznenadila. Zalihe su rasprodate brže nego smo očekivali. U sljedećim danima očekujemo novu pošiljku.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "73",
+      "title": "Kinezi kašnjenje hr, 2. Korak",
+      "category": "Maaarket HR",
+      "content": "Poštovani,\n\nu sljedećim danima očekujemo novu pošiljku. Nudimo vam 7% popusta na iznos ove kupnje.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "60",
+      "title": "kitajci zamuda slo, 1. korak",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\npovpraševanje za XX nas je presenetilo. Zaloga je pošla hitreje kot smo pričakovali. V naslednjem tednu pričakujemo novo pošiljko.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "71",
+      "title": "Kitajci zamuda slo, 2. Korak",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nv opravičilo za nastalo situacijo vam ponujamo 7% popust na znesek tega nakupa.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "170",
+      "title": "Kje je moj paket? DE",
+      "category": "DE/AT Maaarket",
+      "content": "Guten Tag,\n\nWir haben Ihr Paket verschickt. Wenden Sie sich an den GLS-Lieferservice: IDPAKETA.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "88",
+      "title": "kje je paket? CZ",
+      "category": "CZ Maaarket",
+      "content": "Vaši objednávku jsme obdrželi a balíček byl odeslán. Kontaktujte doručovací službu: info@packeta.com.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "148",
+      "title": "kje je paket? RO",
+      "category": "Ro Maaarket",
+      "content": "Bună ziua. Pachetul a fost trimis. Numărul pachetului: https://eushipments.com/en/",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "92",
+      "title": "kje je račun CZ",
+      "category": "CZ Maaarket",
+      "content": "Fakturu naleznete na obalu v průhledné obálce. Na něm je nálepka doručovací služby.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "120",
+      "title": "napaka pakiranja CZ",
+      "category": "CZ Maaarket",
+      "content": "Dobrý den. Omlouvám se za chybu v balení. Můžete mi poslat fotku všech položek, které jste v balíčku dostali?",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "176",
+      "title": "napaka pakiranja SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nres mi je žal, da je prišlo do napake pakiranja. Prosim za številko naročila in fotografijo izdelkov.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "78",
+      "title": "Naročilo SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nZa vas smo oddali naročilo (številka XYYX). Naročene izdelke lahko pričakujete v 24-48 urah. Dan pred dostavo vas bomo obvestili z SMS.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "79",
+      "title": "naročilo- ni na zalogi",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nNaročene izdelke lahko predvideno pričakujete v 10 dneh. Dan pred dostavo vas bomo obvestili z SMS.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "38",
+      "title": "naša HR",
+      "category": "Maaarket HR",
+      "content": "Poštovani,\n\nako želite zamijeniti ili vratiti proizvod, ispunite obrazac. Paket će preuzeti Overseas u našem trošku.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "183",
+      "title": "NAŠA NAPAKA RS",
+      "category": "Maaarket RS&BA",
+      "content": "Poštovani,\n\nmoguće je vraćanje uz povrat novca ili zamena. Popunite obrazac. Kurir CityExpress preuzima paket.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "43",
+      "title": "naša SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nče želite izdelek zamenjati ali vrniti, izpolnite obrazec. Prevzem uredi GLS na naše stroške.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "140",
+      "title": "ni izdelka SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nNa žalost izdelka nimamo na zalogi. Naročilo bomo preklicali. Bi vas zanimala menjava?",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "37",
+      "title": "ni naša HR",
+      "category": "Maaarket HR",
+      "content": "Poštovani,\n\nako želite zamijeniti ili vratiti proizvod, pošaljite na adresu: SUBAN d.o.o., Kazarje 3, 6230 Postojna, Slovenija.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "66",
+      "title": "ni naša IT",
+      "category": "Maaarket IT",
+      "content": "Egregi,\nSe desidera restituire il prodotto, invii con modulo compilato a: SUBAN d.o.o., Via tambarin 12, Ronchi dei legionari.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "182",
+      "title": "Ni naša napaka RS",
+      "category": "Maaarket RS&BA",
+      "content": "Poštovani,\n\nmogućnost vraćanja uz povrat novca ili zamena. Pošaljite na: Silux d.o.o., Bulevar Revolucije 45, Kaluđerica.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "42",
+      "title": "ni naša SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nče želite izdelek zamenjati ali vrniti, pošljite na naslov: Suban d.o.o., Kazarje 3, 6320 Postojna.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "13",
+      "title": "nimamo ANG",
+      "category": "Povpraševanje",
+      "content": "Hello,\n\nUnfortunately, we do not have this product in our sales program. Sorry.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "5",
+      "title": "nimamo hr",
+      "category": "Povpraševanje",
+      "content": "Poštovani,\n\nnažalost, u prodajnom programu nemamo proizvoda kojega tražite.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "36",
+      "title": "nimamo slo",
+      "category": "Povpraševanje",
+      "content": "Pozdravljeni,\n\nna žalost dela, ki ga potrebujete, nimamo v prodajnem programu.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "127",
+      "title": "PL-rabimo IBAN",
+      "category": "PL Maaarket",
+      "content": "Dobry dzień,\n\nOtrzymaliśmy Twoją paczkę. Jak podałeś w formularzu, zwrócimy Ci pieniądze. Podaj IBAN (format: PL 31 1200...).",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "111",
+      "title": "pošiljanje videa CZ",
+      "category": "CZ Maaarket",
+      "content": "Dobrý den. Pokud je video příliš velké, použijte WeTransfer nebo GooglePhotos a pošlete nám odkaz.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "143",
+      "title": "potrebujemo IBAN IT",
+      "category": "Maaarket IT",
+      "content": "Buona giornata,\n\nAbbiamo ricevuto il tuo pacco. Rimborseremo i soldi. Inviaci le informazioni sul conto IBAN.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "177",
+      "title": "Povrat na njihov strošak RO",
+      "category": "Ro Maaarket",
+      "content": "Bună ziua!\n\nPuteți returna produsul. Trimiteți la: SUBAN d.o.o., Kazarje 3, 6230 Postojna, Slovenia. Completați formularul.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "99",
+      "title": "povzetek nakupa CZ",
+      "category": "CZ Maaarket",
+      "content": "Dobrý den,\n\nVaše objednávka obsahuje XYYX. Expresní doručení: XX Kč. Celková hodnota: XXX Kč. Doručení 4-6 pracovních dnů.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "131",
+      "title": "preklic SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nŽal nam je, da ste se odločili za preklic naročila. Vašo željo smo upoštevali in naročilo preklicali.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "150",
+      "title": "preklic RO",
+      "category": "Ro Maaarket",
+      "content": "Bună ziua. Am anulat comanda dvs. așa cum ați solicitat. Dacă vă răzgândiți, suntem bucuroși să vă ajutăm.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "187",
+      "title": "Preklic HR",
+      "category": "Maaarket HR",
+      "content": "Poštovani! Žao nam je što želite otkazati narudžbu. Narudžba je otkazana prema vašem zahtjevu.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "90",
+      "title": "preklic naročila CZ",
+      "category": "CZ Maaarket",
+      "content": "Dobrý den. Je nám líto. Vaši objednávku jsme zrušili, jak jste si přáli.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "91",
+      "title": "preklic ni mogoč CZ",
+      "category": "CZ Maaarket",
+      "content": "Dobrý den. Je nám líto, vaši objednávku nemůžeme zrušit. Váš balíček jsme již odeslali.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "147",
+      "title": "preklic ni mogoč RO",
+      "category": "Ro Maaarket",
+      "content": "Buna ziua. Ne pare rău, nu vă putem anula comanda. V-am expediat deja pachetul.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "84",
+      "title": "Q12 - reset SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljen,\n\nPredlagam reset ure: odklenite zaslon, večkrat pritisnite gumb dok se ne izpiše 'Auto test', 4x pritisnite, počakajte, pritisnite OK.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "85",
+      "title": "Q12 - reset HR",
+      "category": "Maaarket HR",
+      "content": "Pozdrav,\n\npredlažem reset sata: Otključajte zaslon, pritisnite gumb dok se ne pojavi 'Auto test', 4x pritisnite, pričekajte, pritisnite OK.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "167",
+      "title": "rabimo IBAN DE",
+      "category": "DE/AT Maaarket",
+      "content": "Schönen Tag,\n\nWir haben Ihr Paket erhalten. Bitte senden Sie uns die IBAN-Kontodaten für die Rückerstattung.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "94",
+      "title": "reklamacija - kaj pošljejo CZ",
+      "category": "CZ Maaarket",
+      "content": "Dobrý den. Můžeme reklamaci vyřešit online. Potřebuji číslo objednávky a video/fotografii problému.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "128",
+      "title": "reklamacija - kaj pošljejo SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nTo bomo obravnavali kot reklamacijo online. Potrebujemo video, kjer bo napaka razvidna, in številko naročila.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "155",
+      "title": "reklamacija - kaj pošljejo DE",
+      "category": "DE/AT Maaarket",
+      "content": "Hallo,\n\nWir behandeln dies als Beschwerde online. Wir benötigen ein Video mit dem Fehler und Ihre Bestellnummer.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "72",
+      "title": "reklamacija - Odobreno SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nVašo reklamacijo smo odobrili. Kupnino za izdelek vam bomo vrnili. Prosimo za IBAN bančnega računa.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "98",
+      "title": "reklamacija - odobreno CZ",
+      "category": "CZ Maaarket",
+      "content": "Dobrý den. Reklamaci schválilo. Peníze vám vrátíme na IBAN. Formát: CZ5508000000001234567899.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "157",
+      "title": "reklamacija - odobreno RO",
+      "category": "Ro Maaarket",
+      "content": "Buna ziua,\n\nAm aprobat reclamația. Vom rambursa prețul. Vă cerem IBAN-ul contului bancar.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "168",
+      "title": "reklamacija - odobreno DE",
+      "category": "DE/AT Maaarket",
+      "content": "Hallo,\n\nWir haben Ihrer Beschwerde stattgegeben. Wir erstatten den Kaufpreis. Wir benötigen die IBAN.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "64",
+      "title": "reklamacija HU brez vračanja",
+      "category": "Maaarket HU",
+      "content": "Tisztelt Címzett,\n\npanasz benyújtásához küldje el: kép/videó a hibáról, csomagolás képe, számla vagy rendelési szám.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "51",
+      "title": "reklamacija kitajci SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nče želite izdelek zamenjati, pošljite z obrazcem. Prevzem uredi GLS.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "52",
+      "title": "reklamacija kitajci SLO brez vračanja",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nProsimo pošljite: številko naročila, opis napake, fotografijo/video nepravilnega delovanja.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "25",
+      "title": "Reklamacija HR",
+      "category": "Maaarket HR",
+      "content": "Poštovani,\n\nza reklamaciju, zapakirajte proizvod s obrascem i pošaljite. Odgovor dobivate u roku 45 dana.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "22",
+      "title": "Reklamacija SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nza reklamacijo/garancijo, nam izdelek z izpolnjenim obrazcem pripravite na prevzem. Odgovor prejmete v 45 dneh.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "80",
+      "title": "RS - Porudžbina",
+      "category": "Maaarket RS&BA",
+      "content": "Pozdrav,\n\nVaša porudžbina (broj XYYX) sadrži XYYX. Dostava 4-5 radnih dana. Dan pre isporuke SMS obaveštenje.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "30",
+      "title": "šasija HR",
+      "category": "Povpraševanje",
+      "content": "Poštovani,\n\nmolim vas pošaljite broj šasije (VIN) za preciznu potragu dijela.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "1",
+      "title": "šasija slo",
+      "category": "Povpraševanje",
+      "content": "Pozdravljeni,\n\nProsimo vas za VIN številko vozila za bolj natančno poizvedbo.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "46",
+      "title": "Servis HR",
+      "category": "Povpraševanje",
+      "content": "Poštovani, podatke upišite ovdje: https://www.silux.hr/sve-za-auto-servis",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "47",
+      "title": "Servis SLO",
+      "category": "Povpraševanje",
+      "content": "Spoštovani, podatke vpišite tukaj: https://www.silux.si/servisni-material",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "175",
+      "title": "SLO AMIO BOTTARI",
+      "category": "AMIO BOTTARI",
+      "content": "Spoštovani,\n\nnaročili ste izdelek XXX, ki ima daljši dobavni rok.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "61",
+      "title": "SLO Odobreno – isti izdelek",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nreklamacijo smo odobrili. Poslali vam bomo nov izdelek. Reklamiranega izdelka ni potrebno vračati.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "181",
+      "title": "št. naročila HR",
+      "category": "Povpraševanje",
+      "content": "Zdravo. Molim broj narudžbe. Hvala vam.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "180",
+      "title": "Št. naročila SLO",
+      "category": "Povpraševanje",
+      "content": "Pozdravljeni! Prosim, če nam lahko pošljete številko naročila. Hvala vam.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "48",
+      "title": "STORNO HR",
+      "category": "Maaarket HR",
+      "content": "Poštovani,\n\nOtkazali smo vašu narudžbu. Ako vam je potrebna pomoć, stojimo vam na raspolaganju.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "41",
+      "title": "Storno SLO",
+      "category": "Maaarket SLO",
+      "content": "Spoštovani,\n\nVaše naročilo smo preklicali. Če potrebujete pomoč pri izbiri pravega artikla, smo vam na razpolago.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "76",
+      "title": "Vračilo - pošljejo sami SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nIzdelek lahko vrnete. Pošljite z obrazcem na: Suban d.o.o., Kazarje 3, 6230 Postojna.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "77",
+      "title": "Vračilo - pošljejo sami HR",
+      "category": "Maaarket HR",
+      "content": "Poštovani,\n\nPošaljite na adresu: Pick&pack d.o.o / SUBAN, Ulica Grada Gospića 1a, 10000 Zagreb.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "75",
+      "title": "Vračilo denarja SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni,\n\nDenar vam bomo vrnili na vaš TRR račun. Posredujte številko računa.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "129",
+      "title": "vrnili bomo denar SLO",
+      "category": "Maaarket SLO",
+      "content": "Pozdravljeni.\n\nHvala za informacijo. Sem jo že posredovala sodelavcem, ki vam bodo najkasneje v 14 dneh vrnili denar.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "149",
+      "title": "vrnili bomo denar HR",
+      "category": "Maaarket HR",
+      "content": "Zdravo.\n\nHvala na informaciji. Kolegama sam proslijedio. Vraćamo novac u roku 14 dana.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "162",
+      "title": "vrnili bomo denar DE",
+      "category": "DE/AT Maaarket",
+      "content": "Hallo. Ich habe es an meine Kollegen weitergeleitet. Sie erstatten das Geld innerhalb von 14 Tagen.",
+      "slo": "",
+      "hr": ""
+    },
+    {
+      "id": "63",
+      "title": "zamuda HU",
+      "category": "Maaarket HU",
+      "content": "Tisztelt Cím,\n\nElnézést a késedelemért. Nagy érdeklődés miatt termék hiány lett. A héten kapjuk meg és küldjük.",
+      "slo": "",
+      "hr": ""
+    }
+  ],
+  "updated": "2026-05-07"
+}
