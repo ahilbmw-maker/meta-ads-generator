@@ -6234,10 +6234,21 @@ async def kayako_test(brand: str = "silux"):
     if not KAYAKO_API_KEY or not KAYAKO_SECRET:
         return {"ok": False, "error": "KAYAKO_API_KEY ali KAYAKO_SECRET nista nastavljena!"}
     dept_id = KAYAKO_DEPT.get(brand, 1)
+    # Debug — pokaži točen URL ki ga kličemo
+    path = f"/Tickets/Ticket/ListAll/{dept_id}/-1/-1/-1/3/0/ticketid/DESC"
+    params = _kayako_auth_params()
+    params_str = "&".join(f"{k}={v}" for k,v in params.items())
+    debug_url = f"{KAYAKO_API_URL}?e={path}&{params_str}"
+    print(f"[kayako] DEBUG URL: {debug_url}")
     async with httpx.AsyncClient() as h:
         tickets = await _fetch_tickets_batch(h, dept_id, start=0, count=3)
     if not tickets:
-        return {"ok": False, "error": "Ni ticketov ali napaka pri povezavi"}
+        return {
+            "ok": False,
+            "error": "Ni ticketov ali napaka pri povezavi",
+            "debug_url_base": f"{KAYAKO_API_URL}?e={path}",
+            "kayako_api_url_env": KAYAKO_API_URL,
+        }
     return {
         "ok": True,
         "brand": brand,
