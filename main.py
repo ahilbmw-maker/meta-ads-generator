@@ -875,7 +875,7 @@ async def sporocanje_save(data: dict):
 async def ai_proxy(data: dict):
     """Proxy za AI klice iz frontenda (za Sporočanje)."""
     prompt = data.get("prompt", "")
-    max_tokens = min(int(data.get("max_tokens", 800)), 1500)
+    max_tokens = min(int(data.get("max_tokens", 500)), 800)
     if not prompt:
         return {"content": [{"text": ""}]}
     msg = client.messages.create(
