@@ -10297,9 +10297,9 @@ function spSetBrand(brand) {
   if (typeof spLoadKbStats === 'function') spLoadKbStats();
 }
 
-async function spCallAI(prompt, maxTokens=800) {
+async function spCallAI(prompt, maxTokens=800, model='claude-haiku-4-5-20251001') {
   try {
-    const res = await fetch('/ai-proxy', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,max_tokens:maxTokens})});
+    const res = await fetch('/ai-proxy', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,max_tokens:maxTokens,model})});
     const data = await res.json();
     return (data.content?.[0]?.text||'').trim();
   } catch(e) { return ''; }
@@ -10392,6 +10392,7 @@ async function spAIReply(btn) {
       `Si agent podpore strankam za spletno trgovino. Napiši profesionalen, prijazen in kratek odgovor.
 
 PRAVILA (strogo upoštevaj):
+- Odgovor v slovenščini mora biti IZKLJUČNO v slovenščini — brez nemških, hrvaških ali drugih tujih besed
 - NIKOLI ne ponujaj povračila denarja, kompenzacije ali brezplačne dostave
 - NIKOLI ne obljubljaj rokov dostave ali garancij
 - NIKOLI ne prevzemaj krivde v imenu podjetja
@@ -10401,7 +10402,7 @@ PRAVILA (strogo upoštevaj):
 SPOROČILO STRANKE (prevedeno): ${sloMsg}
 
 Vrni SAMO JSON brez razlag:
-{"slo": "odgovor v slovenščini", "hr": "odgovor v hrvaščini (latinica, za kolege iz HR/BA/RS)"}`, 500);
+{"slo": "odgovor v slovenščini", "hr": "odgovor v hrvaščini (latinica, za kolege iz HR/BA/RS)"}`, 500, 'claude-sonnet-4-6');
 
     if (result) {
       let slo = result, hr = '';
