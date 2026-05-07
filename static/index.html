@@ -10279,7 +10279,7 @@ async function spDetectAndTranslate(msg) {
   try {
     const result = await spCallAI(`Detect the language of this text and translate it to both Slovenian and Croatian.
 Respond ONLY with JSON: {"lang":"ISO2code","name":"language name in Slovenian","translation_sl":"slovenian translation","translation_hr":"croatian translation"}
-Text: "${msg.slice(0,500)}"`, 600);
+Text: "${msg.slice(0,300)}"`, 500);
     const parsed = JSON.parse(result.replace(/```json|```/g,'').trim());
     spDetectedLang = parsed.lang || '';
     pill.textContent = (SP_LANGS[spDetectedLang] || parsed.name || spDetectedLang).toUpperCase();
@@ -10321,7 +10321,7 @@ async function spTranslateReply() {
   btn.textContent = '⏳ Prevajam...'; btn.disabled = true;
   try {
     const targetName = SP_LANG_NAMES[spDetectedLang] || spDetectedLang;
-    const translated = await spCallAI(`Translate this customer service reply to ${targetName}. Keep it professional and friendly. Return ONLY the translated text, no quotes, no explanations, nothing else.\nText: ${reply}`, 600);
+    const translated = await spCallAI(`Translate this customer service reply to ${targetName}. Keep it professional and friendly. Return ONLY the translated text, no quotes, no explanations, nothing else.\nText: ${reply.slice(0,400)}`, 400);
     document.getElementById('sp-result-text').textContent = translated;
     document.getElementById('sp-result-lang').textContent = (SP_LANGS[spDetectedLang]||spDetectedLang).toUpperCase();
     document.getElementById('sp-result-card').style.display = 'block';
@@ -10355,7 +10355,7 @@ async function spSaveAsCommon() {
   // Pridobi tudi HR prevod odgovora
   let reply_hr = '';
   try {
-    reply_hr = await spCallAI(`Translate this text to Croatian. Return ONLY the translated text, no quotes.\nText: ${reply}`, 400);
+    reply_hr = await spCallAI(`Translate this text to Croatian. Return ONLY the translated text, no quotes.\nText: ${reply.slice(0,400)}`, 300);
   } catch(e) {}
   try {
     const res = await fetch('/sporocanje-save', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,reply_sl:reply,reply_translated:translated,reply_hr,lang:spDetectedLang,brand:spBrand,ts:Date.now()})});
