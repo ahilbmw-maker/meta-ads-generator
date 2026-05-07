@@ -6084,3 +6084,281 @@ async def odprema_send_emails(data: dict):
         "sent_list": sent,
         "failed_list": failed,
     }
+
+
+# ─── KAYAKO CLASSIC REST API — KB IMPORT ─────────────────────────────────────
+import hashlib
+import hmac
+import base64
+import random
+
+KAYAKO_API_URL = os.environ.get("KAYAKO_API_URL", "https://support.silux.si/api/index.php")
+KAYAKO_API_KEY = os.environ.get("KAYAKO_API_KEY", "")
+KAYAKO_SECRET  = os.environ.get("KAYAKO_SECRET", "")
+
+KAYAKO_DEPT = {
+    "silux":    1,
+    "maaarket": 27,
+}
+
+KB_FILES = {
+    "silux":    DATA_DIR / "kb_silux.json",
+    "maaarket": DATA_DIR / "kb_maaarket.json",
+}
+
+def _kayako_auth_params() -> dict:
+    """Generira auth parametre za Kayako Classic REST API."""
+    salt = str(random.randint(1000000000, 9999999999))
+    raw_sig = hmac.new(
+        key=KAYAKO_SECRET.encode("utf-8"),
+        msg=salt.encode("utf-8"),
+        digestmod=hashlib.sha256
+    ).digest()
+    signature = base64.b64encode(raw_sig).decode("utf-8")
+    return {
+        "apikey": KAYAKO_API_KEY,
+        "salt": salt,
+        "signature": signature,
+    }
+
+def _kayako_url(path: str) -> str:
+    return f"{KAYAKO_API_URL}?e={path}"
+
+def _xml_text(el, tag: str, default: str = "") -> str:
+    node = el.find(tag)
+    return (node.text or default).strip() if node is not None and node.text else default
+
+def _parse_ticket_xml(xml_text: str) -> list[dict]:
+    """Razčleni XML odgovor za ticket/tickete → lista dict."""
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError:
+        return []
+    tickets = []
+    for t in root.findall("ticket"):
+        ticket_id  = t.get("id", "")
+        subject    = _xml_text(t, "subject")
+        dept_id    = _xml_text(t, "departmentid")
+        status_id  = _xml_text(t, "statusid")
+        created    = _xml_text(t, "creationtime")
+        # posti (konverzacija)
+        posts = []
+        for p in t.findall(".//post"):
+            creator   = p.get("creator", _xml_text(p, "creator", "2"))
+            staff_id  = _xml_text(p, "staffid", "0")
+            fullname  = _xml_text(p, "fullname")
+            contents_node = p.find("contents")
+            contents = ""
+            if contents_node is not None:
+                contents = (contents_node.text or "").strip()
+            # creator=1 = staff, creator=2 = user/stranka
+            role = "staff" if (staff_id != "0" or str(creator) == "1") else "customer"
+            if contents:
+                posts.append({"role": role, "name": fullname, "text": contents})
+        tickets.append({
+            "id": ticket_id,
+            "subject": subject,
+            "dept_id": dept_id,
+            "status_id": status_id,
+            "created": created,
+            "posts": posts,
+        })
+    return tickets
+
+async def _fetch_tickets_batch(client_h: httpx.AsyncClient, dept_id: int, start: int, count: int = 50) -> list[dict]:
+    """Potegne batch ticketov iz Kayako (samo header info, brez postov)."""
+    path = f"/Tickets/Ticket/ListAll/{dept_id}/-1/-1/-1/{count}/{start}/ticketid/DESC"
+    params = _kayako_auth_params()
+    try:
+        r = await client_h.get(
+            _kayako_url(path),
+            params=params,
+            timeout=30,
+        )
+        if r.status_code != 200:
+            print(f"[kayako] ListAll HTTP {r.status_code}")
+            return []
+        return _parse_ticket_xml(r.text)
+    except Exception as e:
+        print(f"[kayako] ListAll error: {e}")
+        return []
+
+async def _fetch_ticket_posts(client_h: httpx.AsyncClient, ticket_id: str) -> list[dict]:
+    """Potegne posamezen ticket z vsemi posti."""
+    path = f"/Tickets/Ticket/{ticket_id}"
+    params = _kayako_auth_params()
+    try:
+        r = await client_h.get(
+            _kayako_url(path),
+            params=params,
+            timeout=20,
+        )
+        if r.status_code != 200:
+            return []
+        tickets = _parse_ticket_xml(r.text)
+        return tickets[0]["posts"] if tickets else []
+    except Exception as e:
+        print(f"[kayako] Ticket {ticket_id} error: {e}")
+        return []
+
+def _tickets_to_kb(tickets_with_posts: list[dict]) -> dict:
+    """
+    Pretvori surove tickete v knowledge base format.
+    Shrani samo tickete ki imajo vsaj 1 staff odgovor.
+    Format: { "qa_pairs": [ {subject, question, answer, count:1} ] }
+    """
+    qa_pairs = []
+    for t in tickets_with_posts:
+        subject = t.get("subject", "")
+        posts   = t.get("posts", [])
+        if not posts:
+            continue
+        # Združi customer posti v eno vprašanje, staff posti v en odgovor
+        customer_texts = [p["text"] for p in posts if p["role"] == "customer"]
+        staff_texts    = [p["text"] for p in posts if p["role"] == "staff"]
+        if not customer_texts or not staff_texts:
+            continue
+        question = " | ".join(customer_texts[:3])[:800]   # max 800 znakov
+        answer   = staff_texts[-1][:800]                   # zadnji staff odgovor, max 800
+        qa_pairs.append({
+            "subject":  subject[:150],
+            "question": question,
+            "answer":   answer,
+            "count":    1,
+        })
+    return {"qa_pairs": qa_pairs, "updated": datetime.now(timezone.utc).isoformat()}
+
+@app.get("/kayako-test")
+async def kayako_test(brand: str = "silux"):
+    """Test Kayako povezave — potegne samo 3 tickete da preverimo auth."""
+    if not KAYAKO_API_KEY or not KAYAKO_SECRET:
+        return {"ok": False, "error": "KAYAKO_API_KEY ali KAYAKO_SECRET nista nastavljena!"}
+    dept_id = KAYAKO_DEPT.get(brand, 1)
+    async with httpx.AsyncClient() as h:
+        tickets = await _fetch_tickets_batch(h, dept_id, start=0, count=3)
+    if not tickets:
+        return {"ok": False, "error": "Ni ticketov ali napaka pri povezavi"}
+    return {
+        "ok": True,
+        "brand": brand,
+        "dept_id": dept_id,
+        "tickets_found": len(tickets),
+        "sample": [{"id": t["id"], "subject": t["subject"], "posts_count": len(t["posts"])} for t in tickets],
+    }
+
+@app.get("/kayako-import")
+async def kayako_import(
+    brand: str = "maaarket",
+    max_tickets: int = 500,
+    batch_size: int = 50,
+):
+    """
+    Importa tickete iz Kayako → shrani v /data/kb_{brand}.json
+    Parametri:
+      brand       = maaarket | silux
+      max_tickets = koliko ticketov max (default 500)
+      batch_size  = po koliko naenkrat (default 50, max 100)
+    """
+    if not KAYAKO_API_KEY or not KAYAKO_SECRET:
+        return {"ok": False, "error": "KAYAKO_API_KEY ali KAYAKO_SECRET nista nastavljena v Render env vars!"}
+    if brand not in KAYAKO_DEPT:
+        return {"ok": False, "error": f"Neznan brand: {brand}"}
+
+    dept_id    = KAYAKO_DEPT[brand]
+    kb_file    = KB_FILES[brand]
+    batch_size = min(batch_size, 100)
+
+    # Naloži obstoječo KB če obstaja
+    existing_kb = {"qa_pairs": [], "updated": ""}
+    if kb_file.exists():
+        try:
+            existing_kb = json.loads(kb_file.read_text(encoding="utf-8"))
+        except:
+            pass
+    existing_ids = {qa.get("ticket_id", "") for qa in existing_kb.get("qa_pairs", [])}
+
+    all_tickets = []
+    start = 0
+    print(f"[kayako] Začenjam import za {brand} (dept={dept_id}, max={max_tickets})")
+
+    async with httpx.AsyncClient() as h:
+        # Faza 1: potegni liste ticketov
+        while start < max_tickets:
+            batch = await _fetch_tickets_batch(h, dept_id, start=start, count=batch_size)
+            if not batch:
+                break
+            all_tickets.extend(batch)
+            print(f"[kayako] ListAll: {start}–{start+len(batch)} ({len(batch)} ticketov)")
+            if len(batch) < batch_size:
+                break  # zadnja stran
+            start += batch_size
+            await asyncio.sleep(0.2)  # rate limit
+
+        # Faza 2: za vsak ticket potegni posti (samo novi)
+        new_count = 0
+        for t in all_tickets:
+            tid = t["id"]
+            if tid in existing_ids:
+                continue  # že imamo
+            posts = await _fetch_ticket_posts(h, tid)
+            t["posts"] = posts
+            await asyncio.sleep(0.1)  # rate limit
+            new_count += 1
+            if new_count % 50 == 0:
+                print(f"[kayako] Posti: {new_count}/{len(all_tickets)}")
+
+    # Faza 3: pretvori v KB format
+    new_qa = _tickets_to_kb([t for t in all_tickets if t["id"] not in existing_ids])
+
+    # Dodaj ticket_id za deduplication
+    for i, qa in enumerate(new_qa["qa_pairs"]):
+        if i < len(all_tickets):
+            qa["ticket_id"] = all_tickets[i]["id"]
+
+    # Združi z obstoječim
+    merged = existing_kb.get("qa_pairs", []) + new_qa["qa_pairs"]
+    # Dedupliciraj po subject+question
+    seen = set()
+    deduped = []
+    for qa in merged:
+        key = qa["subject"] + "|" + qa["question"][:100]
+        if key not in seen:
+            seen.add(key)
+            deduped.append(qa)
+
+    final_kb = {
+        "qa_pairs":   deduped,
+        "updated":    datetime.now(timezone.utc).isoformat(),
+        "brand":      brand,
+        "total":      len(deduped),
+    }
+    kb_file.write_text(json.dumps(final_kb, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    print(f"[kayako] Import končan: {len(new_qa['qa_pairs'])} novih, {len(deduped)} skupaj")
+    return {
+        "ok":         True,
+        "brand":      brand,
+        "new":        len(new_qa["qa_pairs"]),
+        "total":      len(deduped),
+        "skipped":    len(all_tickets) - new_count,
+        "kb_file":    str(kb_file),
+    }
+
+@app.get("/kayako-kb-stats")
+async def kayako_kb_stats(brand: str = "maaarket"):
+    """Vrne statistiko knowledge base za brand."""
+    kb_file = KB_FILES.get(brand)
+    if not kb_file or not kb_file.exists():
+        return {"ok": True, "brand": brand, "total": 0, "updated": None, "sample": []}
+    try:
+        kb = json.loads(kb_file.read_text(encoding="utf-8"))
+        pairs = kb.get("qa_pairs", [])
+        return {
+            "ok":      True,
+            "brand":   brand,
+            "total":   len(pairs),
+            "updated": kb.get("updated"),
+            "sample":  pairs[:5],
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
