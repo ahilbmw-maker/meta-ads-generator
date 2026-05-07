@@ -10629,9 +10629,17 @@ function spRenderMacroTree() {
   if (!el) return;
   const q = (document.getElementById('sp-macro-search')?.value || '').toLowerCase().trim();
 
+  // Filtriraj po brandu
+  const brandFiltered = spMacros.filter(m => {
+    const cat = (m.category || '').toLowerCase();
+    if (spBrand === 'maaarket') return cat.includes('maaarket') || (!cat.includes('maaarket') && !cat.includes('silux'));
+    if (spBrand === 'silux')    return cat.includes('silux')    || (!cat.includes('maaarket') && !cat.includes('silux'));
+    return true;
+  });
+
   // Grupiraj po kategoriji
   const cats = {};
-  for (const m of spMacros) {
+  for (const m of brandFiltered) {
     const cat = m.category || 'Ostalo';
     if (!cats[cat]) cats[cat] = [];
     if (!q || m.title.toLowerCase().includes(q) || m.content.toLowerCase().includes(q)) {
