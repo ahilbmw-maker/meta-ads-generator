@@ -885,6 +885,34 @@ async def ai_proxy(data: dict):
     )
     return {"content": [{"type": "text", "text": msg.content[0].text}]}
 
+@app.post("/kayako-kb-search")
+async def kayako_kb_search(data: dict):
+    """Poišče top N relevantnih Q&A parov iz KB za dano vprašanje."""
+    brand   = data.get("brand", "maaarket")
+    query   = data.get("query", "").lower().strip()
+    top_n   = min(int(data.get("top_n", 8)), 20)
+    if not query:
+        return {"ok": True, "results": []}
+    kb_file = KB_FILES.get(brand)
+    if not kb_file or not kb_file.exists():
+        return {"ok": True, "results": []}
+    try:
+        kb = json.loads(kb_file.read_text(encoding="utf-8"))
+        pairs = kb.get("qa_pairs", [])
+    except:
+        return {"ok": True, "results": []}
+    # Keyword scoring
+    words = [w for w in query.split() if len(w) > 3]
+    scored = []
+    for p in pairs:
+        hay = (p.get("subject","") + " " + p.get("question","") + " " + p.get("answer","")).lower()
+        score = sum(1 for w in words if w in hay)
+        if score > 0:
+            scored.append((score, p))
+    scored.sort(key=lambda x: -x[0])
+    results = [p for _, p in scored[:top_n]]
+    return {"ok": True, "results": results, "total_kb": len(pairs)}
+
 
 @app.get("/forecast-entries")
 async def get_forecast_entries():
