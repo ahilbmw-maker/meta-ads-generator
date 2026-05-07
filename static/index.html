@@ -2581,6 +2581,7 @@ function switchCalcTab(tab) {
       if (frame) frame.style.display = 'none';
     }
   });
+  try { localStorage.setItem('slx_active_subtab', tab); } catch(e) {}
 }
 
 function switchPage(page) {
@@ -6061,6 +6062,7 @@ function switchOrodjaTab(tab) {
   if (tab === 'hsuvoz') { hsuvozLoadStock(); hsuvozLoadHistory(); hsuvozLoadCurrent(); hsuvozLoadOrderPanel(); }
   if (tab === 'zdrnarocila') znLoad();
   if (tab === 'inventura') { invLoadHistory(); invLoadCurrent(); }
+  try { localStorage.setItem('slx_active_subtab', tab); } catch(e) {}
 }
 
 // ── INVENTURA ─────────────────────────────────────────────────
@@ -7307,6 +7309,7 @@ function krSwitchTab(tab) {
     active.style.color = 'white';
     active.style.border = 'none';
   }
+  try { localStorage.setItem('slx_active_subtab', tab); } catch(e) {}
 }
 
 const HF_BASE = 'https://api.maaarket.si';
@@ -7889,6 +7892,7 @@ function switchAnalizaTab(tab) {
   if (tab === 'meta') { anLoadStock(); anLoadMetaFromServer(); }
   if (tab === 'obrat14tt') { tt14LoadData(); }
   if (tab === 'ttkreative') { ttKrLoadData(); }
+  try { localStorage.setItem('slx_active_subtab', tab); } catch(e) {}
 }
 
 // ─── TIKTOK KREATIVE ──────────────────────────────────────────────────────────
@@ -9636,13 +9640,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const lastSubTab = localStorage.getItem('slx_active_subtab');
     if (lastPage && PAGES.includes(lastPage)) {
       switchPage(lastPage);
-      // Obnovi podtab če obstaja
       if (lastSubTab) {
-        if (lastPage === 'narocilnice' && typeof narcSwitchTab === 'function') {
-          setTimeout(() => narcSwitchTab(lastSubTab), 50);
-        } else if (lastPage === 'sporocanje' && typeof spSetBrand === 'function') {
-          setTimeout(() => spSetBrand(lastSubTab), 50);
-        }
+        setTimeout(() => {
+          if (lastPage === 'narocilnice' && typeof narcSwitchTab === 'function') narcSwitchTab(lastSubTab);
+          else if (lastPage === 'calc' && typeof switchCalcTab === 'function') switchCalcTab(lastSubTab);
+          else if (lastPage === 'orodja' && typeof switchOrodjaTab === 'function') switchOrodjaTab(lastSubTab);
+          else if (lastPage === 'kreative' && typeof krSwitchTab === 'function') krSwitchTab(lastSubTab);
+          else if (lastPage === 'analiza' && typeof switchAnalizaTab === 'function') switchAnalizaTab(lastSubTab);
+          else if (lastPage === 'sporocanje' && typeof spSetBrand === 'function') spSetBrand(lastSubTab);
+        }, 100);
       }
     } else {
       switchPage('home');
