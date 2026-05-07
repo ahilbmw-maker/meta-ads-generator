@@ -2342,7 +2342,7 @@ input[type="text"].error { border-color: var(--red) !important; }
             <button onclick="spReset()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;cursor:pointer;font-family:inherit">↺ Resetiraj</button>
           </div>
         </div>
-        <button onclick="spTranslateReply()" id="sp-translate-btn" style="width:100%;padding:10px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">🌐 Prevedi odgovor za stranko</button>
+        <button onclick="spTranslateReply()" id="sp-translate-btn" style="width:100%;padding:10px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">✍ Lektoriraj + 🌐 Prevedi za stranko</button>
       </div>
       <!-- DESNO -->
       <div style="display:flex;flex-direction:column;overflow:hidden">
@@ -10328,6 +10328,30 @@ function spReset() {
   document.getElementById('sp-customer-msg').focus();
 }
 
+async function spProofread(btn) {
+  const ta = document.getElementById('sp-agent-reply');
+  const text = ta.value.trim();
+  if (!text) { alert('Najprej napišite odgovor.'); return; }
+  btn.textContent = '⏳ Lektoriram...'; btn.disabled = true;
+  try {
+    const result = await spCallAI(`Ti si lektor za podporo strankam. Popravi spodnje besedilo da bo profesionalno, prijazno in brez napak. Ohrani pomen, dolžino in jezik (SLO/HR/RS). Vrni SAMO popravljeno besedilo, brez razlag.\nBesedilo: ${text}`, 400);
+    if (result) {
+      ta.value = result;
+      btn.textContent = '✓ Lektorirano';
+      btn.style.color = '#16a34a';
+      btn.style.borderColor = '#16a34a';
+      setTimeout(() => {
+        btn.textContent = '✍ Lektoriraj';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+        btn.disabled = false;
+      }, 2000);
+    }
+  } catch(e) {
+    btn.textContent = '✍ Lektoriraj'; btn.disabled = false;
+  }
+}
+
 function spOnReplyInput() {}
 
 async function spTranslateReply() {
@@ -10335,13 +10359,25 @@ async function spTranslateReply() {
   if (!reply) { alert('Najprej napišite odgovor.'); return; }
   if (!spDetectedLang) { alert('Najprej prilepite sporočilo stranke.'); return; }
   const btn = document.getElementById('sp-translate-btn');
-  btn.textContent = '⏳ Prevajam...'; btn.disabled = true;
+  btn.disabled = true;
+
+  // KORAK 1: Lektoriraj
+  btn.textContent = '✍ Lektoriram...';
+  let polished = reply;
+  try {
+    const proofed = await spCallAI(`Ti si lektor za podporo strankam. Popravi spodnje besedilo da bo profesionalno, prijazno in brez napak. Ohrani pomen, dolžino in jezik (SLO/HR/RS). Vrni SAMO popravljeno besedilo, brez razlag.\nBesedilo: ${reply}`, 400);
+    if (proofed) { polished = proofed; document.getElementById('sp-agent-reply').value = polished; }
+  } catch(e) {}
+
+  // KORAK 2: Prevedi
+  btn.textContent = '🌐 Prevajam...';
   try {
     const targetName = SP_LANG_NAMES[spDetectedLang] || spDetectedLang;
-    const translated = await spCallAI(`Translate this customer service reply to ${targetName}. Keep it professional and friendly. Return ONLY the translated text, no quotes, no explanations, nothing else.\nText: ${reply}`, 400);    document.getElementById('sp-result-text').textContent = translated;
+    const translated = await spCallAI(`Translate this customer service reply to ${targetName}. Keep it professional and friendly. Return ONLY the translated text, no quotes, no explanations, nothing else.\nText: ${polished}`, 400);
+    document.getElementById('sp-result-text').textContent = translated;
     document.getElementById('sp-result-lang').textContent = (SP_LANGS[spDetectedLang]||spDetectedLang).toUpperCase();
     document.getElementById('sp-result-card').style.display = 'block';
-    btn.textContent = '✓ Prevedeno — prevedi znova';
+    btn.textContent = '✓ Lektorirano + prevedeno — ponovi';
     btn.style.background = '#0a6e31';
   } catch(e) { btn.textContent = '⚠ Napaka — poskusi znova'; }
   btn.disabled = false;
