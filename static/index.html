@@ -1429,7 +1429,7 @@ input[type="text"].error { border-color: var(--red) !important; }
           <div class="card" style="padding:10px 14px">
             <span class="slabel" style="display:block;margin-bottom:6px">FILTER KOLIČINA</span>
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:13px;color:var(--text-secondary)">Količina ≥</span>
+              <span style="font-size:13px;color:var(--text-secondary)">Količina &gt;</span>
               <input type="number" id="narcVecjaMin" value="3" min="1" style="width:60px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--surface2);color:var(--text);font-family:inherit" oninput="narcVecjaRender()">
             </div>
           </div>
@@ -4825,12 +4825,24 @@ function narcVecjaHandleFile(file) {
   reader.onload = e => {
     const text = e.target.result;
     const lines = text.split(/\r?\n/).filter(l => l.trim());
-    const sep = lines[0].includes(';') ? ';' : ',';
-    const headers = lines[0].split(sep).map(h => h.replace(/^["']|["']$/g,'').trim());
+    // Parser ki upošteva narekovaje (polja z vejicami znotraj)
+    function parseLine(line) {
+      const result = [];
+      let cur = '', inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') { inQ = !inQ; }
+        else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+        else { cur += c; }
+      }
+      result.push(cur.trim());
+      return result;
+    }
+    const headers = parseLine(lines[0]).map(h => h.replace(/^"|"$/g,''));
     narcVecjaData = lines.slice(1).map(line => {
-      const vals = line.split(sep).map(v => v.replace(/^["']|["']$/g,'').trim());
+      const vals = parseLine(line);
       const obj = {};
-      headers.forEach((h,i) => obj[h] = vals[i]||'');
+      headers.forEach((h,i) => obj[h] = (vals[i]||'').replace(/^"|"$/g,''));
       return obj;
     }).filter(r => Object.values(r).some(v => v));
     narcVecjaRender();
@@ -4843,7 +4855,7 @@ function narcVecjaRender() {
   const search = (document.getElementById('narcVecjaSearch')?.value||'').toLowerCase();
   const filtered = narcVecjaData.filter(r => {
     const qty = parseInt(r['Količina']||'0');
-    if (qty < min) return false;
+    if (qty <= min) return false;
     if (search && !Object.values(r).some(v => v.toLowerCase().includes(search))) return false;
     return true;
   });
