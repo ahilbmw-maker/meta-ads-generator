@@ -2240,7 +2240,7 @@ input[type="text"].error { border-color: var(--red) !important; }
           </div>
           <div id="sp-result-text" style="font-size:14px;color:var(--text);line-height:1.7;padding:10px;background:var(--surface2);border-radius:var(--radius);min-height:60px"></div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <button onclick="spCopyResult()" style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">
+            <button onclick="spCopyResult(this)" style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s ease">
               📋 Kopiraj odgovor
             </button>
             <button onclick="spSaveAsCommon()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;cursor:pointer;font-family:inherit">
@@ -6057,14 +6057,26 @@ Text: "${reply}"`, 600);
   btn.disabled = false;
 }
 
-function spCopyResult() {
+function spCopyResult(btn) {
   const text = document.getElementById('sp-result-text').textContent;
   navigator.clipboard.writeText(text).then(() => {
-    const btn = event.target.closest('button');
-    const orig = btn.textContent;
-    btn.textContent = '✓ Kopirano!';
-    btn.style.background = '#0a6e31';
-    setTimeout(() => { btn.textContent = orig; btn.style.background = '#534AB7'; }, 1800);
+    btn.innerHTML = '✓ Kopirano!';
+    btn.style.background = '#16a34a';
+    btn.style.transform = 'scale(1.05)';
+    btn.style.transition = 'all 0.15s ease';
+    setTimeout(() => { btn.style.transform = 'scale(1)'; }, 150);
+    setTimeout(() => {
+      btn.innerHTML = '📋 Kopiraj odgovor';
+      btn.style.background = '#534AB7';
+    }, 2000);
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.innerHTML = '✓ Kopirano!';
+    btn.style.background = '#16a34a';
+    setTimeout(() => { btn.innerHTML = '📋 Kopiraj odgovor'; btn.style.background = '#534AB7'; }, 2000);
   });
 }
 
