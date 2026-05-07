@@ -9973,14 +9973,17 @@ async function spSaveAsCommon() {
   const reply = document.getElementById('sp-agent-reply').value.trim();
   const translated = document.getElementById('sp-result-text').textContent.trim();
   if (!reply || !translated) { alert('Najprej prevedite odgovor.'); return; }
+  const btn = event.target.closest('button');
+  btn.textContent = '⏳ Shranjujem...';
   try {
     const res = await fetch('/sporocanje-save', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,reply_sl:reply,reply_translated:translated,lang:spDetectedLang,brand:spBrand,ts:Date.now()})});
     const txt = await res.text();
     if (!txt.trim().startsWith('<')) { await spLoadCommon(); }
-    const btn = event.target.closest('button');
     btn.textContent = '✓ Shranjeno!';
     setTimeout(() => { btn.textContent = '💾 Shrani kot pogosti odgovor'; }, 2000);
-  } catch(e) { alert('Napaka pri shranjevanju.'); }
+  } catch(e) {
+    btn.textContent = '💾 Shrani kot pogosti odgovor';
+  }
 }
 
 async function spLoadCommon() {
