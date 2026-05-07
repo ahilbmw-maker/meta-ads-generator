@@ -6475,25 +6475,15 @@ function odpExportCSV(withNr = true) {
   const corrected = odpRows.map(r => {
     const v = odpValidation[r.orderNumber];
     const out = { ...r };
-    if (v) {
-      if (v.status === 'ECONT_DEPO') {
-        if (v.fix_city) out.recipientCity = v.fix_city;
-        if (v.fix_street) out.recipientStreet = v.fix_street;
-        if (v.fix_zip) out.recipientZip = v.fix_zip;
-        if (withNr) {
-          if (v.fix_nr) out.recipientStreetNumber = v.fix_nr;
-        } else {
-          out.recipientStreetNumber = 'nn';
-        }
-      } else if (v.status === 'PARTIALLY_CONFIRMED' || v.status === 'NOT_CONFIRMED' || v.status === 'CONFIRMED') {
-        if (v.fix_zip) out.recipientZip = v.fix_zip;
-        if (v.fix_city) out.recipientCity = v.fix_city;
-        if (v.fix_street) out.recipientStreet = v.fix_street;
-        if (withNr) {
-          if (v.fix_nr && v.fix_nr !== 'nn') out.recipientStreetNumber = v.fix_nr;
-        } else {
-          out.recipientStreetNumber = 'nn';
-        }
+    if (v && v.fix_street !== undefined) {
+      // Apliciraj VSE popravke ne glede na status
+      if (v.fix_city) out.recipientCity = v.fix_city;
+      if (v.fix_street) out.recipientStreet = v.fix_street;
+      if (v.fix_zip) out.recipientZip = v.fix_zip;
+      if (withNr) {
+        if (v.fix_nr && v.fix_nr.toLowerCase() !== 'nn') out.recipientStreetNumber = v.fix_nr;
+      } else {
+        out.recipientStreetNumber = 'nn';
       }
     }
     return out;
