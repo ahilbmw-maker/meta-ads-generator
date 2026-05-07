@@ -603,6 +603,7 @@ input[type="text"].error { border-color: var(--red) !important; }
   </div>
   <div class="nav-sub" id="navsub-narocilnice">
     <div class="nav-sub-item" onclick="switchPage('narocilnice');narcSwitchTab('razlike')">Negativne razlike</div>
+    <div class="nav-sub-item" onclick="switchPage('narocilnice');narcSwitchTab('vecja')">Večja naročila (&gt;3)</div>
     <div class="nav-sub-item" onclick="switchPage('narocilnice');narcSwitchTab('karantena')">Karantena</div>
   </div>
   <div class="nav-item nav-sporocanje" id="nav-sporocanje" onclick="switchPage('sporocanje')">
@@ -1327,6 +1328,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     <!-- TAB BAR -->
     <div class="narc-tab-bar">
       <button class="narc-tab active" id="narcTab-razlike" onclick="narcSwitchTab('razlike')">Negativne razlike</button>
+      <button class="narc-tab" id="narcTab-vecja" onclick="narcSwitchTab('vecja')">📦 Večja naročila (&gt;3)</button>
       <button class="narc-tab" id="narcTab-karantena" onclick="narcSwitchTab('karantena')">Karantena</button>
     </div>
 
@@ -1410,6 +1412,56 @@ input[type="text"].error { border-color: var(--red) !important; }
       </div>
     </div>
     </div><!-- /panel razlike -->
+
+    <!-- TAB: VEČJA NAROČILA -->
+    <div id="narcPanel-vecja" style="display:none">
+      <div style="display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start">
+        <!-- LEVO: Upload -->
+        <div>
+          <div class="card" style="margin-bottom:12px">
+            <span class="slabel">UVOZI CSV</span>
+            <div class="k-dropzone" style="margin-top:8px" onclick="document.getElementById('narcVecjaFileInput').click()">
+              <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span style="font-size:12px">Klikni ali povleci CSV sem</span>
+            </div>
+            <input type="file" id="narcVecjaFileInput" accept=".csv" style="display:none" onchange="narcVecjaHandleFile(this.files[0])">
+          </div>
+          <div class="card" style="padding:10px 14px">
+            <span class="slabel" style="display:block;margin-bottom:6px">FILTER KOLIČINA</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:13px;color:var(--text-secondary)">Količina &gt;</span>
+              <input type="number" id="narcVecjaMin" value="3" min="1" style="width:60px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--surface2);color:var(--text);font-family:inherit" oninput="narcVecjaRender()">
+            </div>
+          </div>
+        </div>
+        <!-- DESNO: Tabela -->
+        <div>
+          <div class="card" style="min-width:0;overflow:hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+              <span class="slabel">NAROČILA Z VEČJO KOLIČINO</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="text" id="narcVecjaSearch" placeholder="Išči SKU, naziv, ID..." style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:13px;width:240px;font-family:'DM Sans',sans-serif" oninput="narcVecjaRender()">
+                <span id="narcVecjaCount" style="font-size:11px;color:var(--text-tertiary)"></span>
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="narc-table">
+                <thead><tr>
+                  <th>ID naročila</th>
+                  <th>SKU</th>
+                  <th>Naziv</th>
+                  <th>Količina</th>
+                  <th>Pozicija SL</th>
+                  <th>Zaloga SL</th>
+                  <th>Opomba</th>
+                </tr></thead>
+                <tbody id="narcVecjaTbody"><tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:24px">Uvozite CSV datoteko.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- TAB: KARANTENA -->
     <div id="narcPanel-karantena" style="display:none">
@@ -4760,10 +4812,61 @@ async function narcLoadFromHistory(idx) {
 
 function narcSwitchTab(tab) {
   document.getElementById('narcPanel-razlike').style.display = tab === 'razlike' ? 'block' : 'none';
+  document.getElementById('narcPanel-vecja').style.display = tab === 'vecja' ? 'block' : 'none';
   document.getElementById('narcPanel-karantena').style.display = tab === 'karantena' ? 'block' : 'none';
   document.getElementById('narcTab-razlike').classList.toggle('active', tab === 'razlike');
+  document.getElementById('narcTab-vecja').classList.toggle('active', tab === 'vecja');
   document.getElementById('narcTab-karantena').classList.toggle('active', tab === 'karantena');
 }
+
+// ── VEČJA NAROČILA ────────────────────────────────────────────
+let narcVecjaData = [];
+
+function narcVecjaHandleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    const sep = lines[0].includes(';') ? ';' : ',';
+    const headers = lines[0].split(sep).map(h => h.replace(/^["']|["']$/g,'').trim());
+    narcVecjaData = lines.slice(1).map(line => {
+      const vals = line.split(sep).map(v => v.replace(/^["']|["']$/g,'').trim());
+      const obj = {};
+      headers.forEach((h,i) => obj[h] = vals[i]||'');
+      return obj;
+    }).filter(r => Object.values(r).some(v => v));
+    narcVecjaRender();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function narcVecjaRender() {
+  const min = parseInt(document.getElementById('narcVecjaMin')?.value||'3');
+  const search = (document.getElementById('narcVecjaSearch')?.value||'').toLowerCase();
+  const filtered = narcVecjaData.filter(r => {
+    const qty = parseInt(r['Količina']||'0');
+    if (qty <= min) return false;
+    if (search && !Object.values(r).some(v => v.toLowerCase().includes(search))) return false;
+    return true;
+  });
+  document.getElementById('narcVecjaCount').textContent = filtered.length + ' naročil';
+  const tbody = document.getElementById('narcVecjaTbody');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:24px">Ni naročil z količino &gt; ${min}.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(r => `<tr>
+    <td style="font-family:monospace;font-size:12px">${r['ID naročila']||''}</td>
+    <td><strong>${r['SKU']||''}</strong></td>
+    <td style="font-size:12px">${r['Naziv']||''}</td>
+    <td style="text-align:center"><span style="background:#534AB7;color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:13px">${r['Količina']||''}</span></td>
+    <td style="font-size:12px">${r['Pozicija SL']||'—'}</td>
+    <td style="font-size:12px">${r['Zaloga SL']||'—'}</td>
+    <td style="font-size:12px;color:${r['Opomba']?'#dc2626':'var(--text-tertiary)'}">${r['Opomba']||'—'}</td>
+  </tr>`).join('');
+}
+// ── /VEČJA NAROČILA ───────────────────────────────────────────
 
 let karanData = [];
 let karanSortCol = 'sku';
