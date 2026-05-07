@@ -5604,14 +5604,19 @@ Vrni SAMO JSON, brez razlag:
             fix_nr_out = street_nr
             is_placeholder = street_nr.lower().strip() in ("nn", "n/a", "")
             if is_placeholder and fix_street_raw:
-                # Poišči hišno številko na koncu naslova (npr. "ul. Vasil Levski 36b" → "36b")
-                # Ne velja za Econt office naslove
                 if not re.search(r'econt\s*office', fix_street_raw, re.IGNORECASE):
                     nr_match = re.search(r'^(.*?)[\s,]+(\d+[A-Za-z]?(?:\s+\d+[A-Za-z]?)?)$', fix_street_raw.strip())
                     if nr_match:
                         fix_nr_out = nr_match.group(2).strip()
-                        # Odstrani hišno številko iz fix_street (Econt želi ločena polja)
                         fix_street_raw = nr_match.group(1).strip().rstrip(',')
+
+            # Fallback: če fix_nr še vedno nn, poišči številko v ORIGINALNEM naslovu
+            # (AI jo je morda pozabil prenesti v fix_street)
+            if fix_nr_out.lower().strip() in ("nn", "n/a", "") and street:
+                if not re.search(r'econt\s*office', fix_street_raw, re.IGNORECASE):
+                    nr_fallback = re.search(r'\b(\d+[A-Za-z]?)\s*$', street.strip())
+                    if nr_fallback:
+                        fix_nr_out = nr_fallback.group(1)
 
             return {
                 "order": order,
