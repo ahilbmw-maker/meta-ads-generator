@@ -823,11 +823,12 @@ async def save_meta_history(data: dict):
         return {"error": str(e)}
 
 @app.get("/sporocanje-common")
-async def sporocanje_get_common():
-    """Vrne seznam pogostih odgovorov."""
-    if SPOROCANJE_FILE.exists():
+async def sporocanje_get_common(brand: str = "maaarket"):
+    """Vrne seznam pogostih odgovorov za določen brand."""
+    file = DATA_DIR / f"sporocanje_{brand}.json"
+    if file.exists():
         try:
-            data = json.loads(SPOROCANJE_FILE.read_text(encoding="utf-8"))
+            data = json.loads(file.read_text(encoding="utf-8"))
             return {"ok": True, "answers": data.get("answers", [])}
         except:
             pass
@@ -835,15 +836,16 @@ async def sporocanje_get_common():
 
 @app.post("/sporocanje-save")
 async def sporocanje_save(data: dict):
-    """Shrani odgovor v pogosto bazo. Podobne združi in poveča counter."""
+    """Shrani odgovor v pogosto bazo za določen brand."""
+    brand = data.get("brand", "maaarket")
+    file = DATA_DIR / f"sporocanje_{brand}.json"
     existing = {"answers": []}
-    if SPOROCANJE_FILE.exists():
+    if file.exists():
         try:
-            existing = json.loads(SPOROCANJE_FILE.read_text(encoding="utf-8"))
+            existing = json.loads(file.read_text(encoding="utf-8"))
         except:
             pass
     answers = existing.get("answers", [])
-    # Preveri duplikat (enako reply_sl)
     reply_sl = (data.get("reply_sl") or "").strip().lower()
     found = False
     for a in answers:
@@ -858,14 +860,14 @@ async def sporocanje_save(data: dict):
             "reply_sl": data.get("reply_sl", ""),
             "reply_translated": data.get("reply_translated", ""),
             "lang": data.get("lang", ""),
+            "brand": brand,
             "count": 1,
             "ts": data.get("ts", 0),
         })
-    # Sortiraj po count desc, max 200
     answers.sort(key=lambda x: -x.get("count", 1))
     answers = answers[:200]
     existing["answers"] = answers
-    SPOROCANJE_FILE.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
+    file.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
     return {"ok": True, "total": len(answers)}
 
 @app.post("/ai-proxy")
