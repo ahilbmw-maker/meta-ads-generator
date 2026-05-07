@@ -4909,21 +4909,39 @@ function narcDvojnikiHandleFile(file) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    const lines = e.target.result.split(/\r?\n/).filter(l => l.trim());
-    const headers = narcDvojnikiParseLine(lines[0]);
-    const nameCol = headers.indexOf('Ime in priimek');
-    if (nameCol < 0) { alert('Stolpec "Ime in priimek" ni najden v CSV.'); return; }
-    const rows = lines.slice(1).map(line => {
-      const vals = narcDvojnikiParseLine(line);
+    const text = e.target.result;
+    // Popoln CSV parser — upošteva narekovaje in večvrstične vrednosti
+    const allRows = []; let cur = [], field = '', inQ = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (c === '"') {
+        if (inQ && text[i+1] === '"') { field += '"'; i++; }
+        else inQ = !inQ;
+      } else if (c === ',' && !inQ) {
+        cur.push(field); field = '';
+      } else if ((c === '\n' || c === '\r') && !inQ) {
+        if (c === '\r' && text[i+1] === '\n') i++;
+        cur.push(field); field = '';
+        if (cur.some(v => v.trim())) allRows.push(cur);
+        cur = [];
+      } else { field += c; }
+    }
+    if (field || cur.length) { cur.push(field); if (cur.some(v => v.trim())) allRows.push(cur); }
+    if (!allRows.length) return;
+    const headers = allRows[0].map(h => h.trim());
+    const nameIdx = headers.indexOf('Ime in priimek');
+    if (nameIdx < 0) { alert('Stolpec "Ime in priimek" ni najden.'); return; }
+    const rows = allRows.slice(1).map(vals => {
       const obj = {};
-      headers.forEach((h,i) => obj[h] = vals[i]||'');
+      headers.forEach((h,i) => obj[h] = (vals[i]||'').trim());
       return obj;
     }).filter(r => {
-      // Preveri da je vrednost v nameCol res ime (ne prazno, ne samo številke)
       const name = (r['Ime in priimek']||'').trim();
-      return name.length > 1 && /[a-zA-ZČčŠšŽžĐđćčšžАаБбВвГгДдЕеЖжЗзИиЈјКкЛлМмНнОоПпРрСсТтУуФфХхЦцЧчШшЉљЊњЋћЏџ]/.test(name);
+      // Mora imeti vsaj 2 besedi z abecednimi znaki (pravo ime, ne "Sklopiva kutija...")
+      const words = name.split(/\s+/).filter(w => /^[a-zA-ZČčŠšŽžĐđćšžА-Яа-я]+$/i.test(w));
+      return words.length >= 2 && words.length <= 5;
     });
-    // Poišči dvojnike — case insensitive
+    // Dvojniki — case insensitive
     const counts = {};
     rows.forEach(r => {
       const key = (r['Ime in priimek']||'').trim().toLowerCase();
