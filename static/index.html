@@ -6017,6 +6017,11 @@ Text: "${msg.slice(0,500)}"`, 400);
     } else {
       transDiv.style.display = 'none';
     }
+    // Osveži prikaz pogostih odgovorov filtrirano po novem jeziku
+    const langFiltered = spCommonAnswers.filter(a => a.lang === spDetectedLang);
+    spRenderCommon(langFiltered);
+    document.getElementById('sp-common-count').textContent =
+      langFiltered.length + ` shranjenih (${(SP_LANGS[spDetectedLang] || spDetectedLang).toUpperCase()})`;
     spLoadSuggestedCommon();
   } catch(e) {
     pill.textContent = '?';
@@ -6074,9 +6079,11 @@ async function spSaveAsCommon() {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ question, reply_sl: reply, reply_translated: translated, lang: spDetectedLang, ts: Date.now() })
     });
-    spLoadCommon();
+    await spLoadCommon();
+    // Takoj vstavi v polje odgovora
+    document.getElementById('sp-agent-reply').value = reply;
     const btn = event.target.closest('button');
-    btn.textContent = '✓ Shranjeno!';
+    btn.textContent = '✓ Shranjeno in pripravljeno!';
     setTimeout(() => { btn.textContent = '💾 Shrani kot pogosti odgovor'; }, 2000);
   } catch(e) { alert('Napaka pri shranjevanju.'); }
 }
@@ -6088,19 +6095,27 @@ async function spLoadCommon() {
     if (txt.trim().startsWith('<')) return;
     const data = JSON.parse(txt);
     spCommonAnswers = data.answers || [];
-    spRenderCommon(spCommonAnswers);
-    document.getElementById('sp-common-count').textContent = spCommonAnswers.length + ' shranjenih';
+    // Prikaži filtrirano po jeziku ali vse
+    spRenderCommon(spDetectedLang ? spCommonAnswers.filter(a => a.lang === spDetectedLang) : spCommonAnswers);
+    const filtered = spDetectedLang ? spCommonAnswers.filter(a => a.lang === spDetectedLang) : spCommonAnswers;
+    document.getElementById('sp-common-count').textContent =
+      filtered.length + ' shranjenih' + (spDetectedLang ? ` (${(SP_LANGS[spDetectedLang] || spDetectedLang).toUpperCase()})` : '');
   } catch(e) {}
 }
 
 function spRenderCommon(answers) {
   const el = document.getElementById('sp-common-list');
   if (!answers.length) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:20px">Še ni shranjenih odgovorov.</div>';
+    el.innerHTML = `<div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:20px">
+      ${spDetectedLang ? `Ni shranjenih odgovorov za ${SP_LANGS[spDetectedLang] || spDetectedLang}.<br>` : ''}
+      Ko odgovorite strankam in kliknete "Shrani", se bodo pojavili tukaj.</div>`;
     return;
   }
-  el.innerHTML = answers.slice(0, 30).map((a, i) => `
-    <div class="sp-common-item" onclick="spUseCommon(${i})">
+  // Najdi indeks v globalnem spCommonAnswers za vsak prikazani odgovor
+  el.innerHTML = answers.slice(0, 30).map((a) => {
+    const globalIdx = spCommonAnswers.indexOf(a);
+    return `
+    <div class="sp-common-item" onclick="spUseCommon(${globalIdx})">
       <div class="sp-common-meta">
         <span class="sp-lang-tag">${(SP_LANGS[a.lang] || a.lang || '?').slice(0,3).toUpperCase()}</span>
         <span class="sp-cnt">${a.count || 1}x</span>
@@ -6108,37 +6123,47 @@ function spRenderCommon(answers) {
       </div>
       <div class="sp-common-q">${a.question || '—'}</div>
       <div class="sp-common-a">${a.reply_sl || ''}</div>
-    </div>`).join('');
+    </div>`}).join('');
 }
 
 function spUseCommon(i) {
   const a = spCommonAnswers[i];
   if (!a) return;
+  // Vstavi odgovor v polje in takoj sproži prevod
   document.getElementById('sp-agent-reply').value = a.reply_sl || '';
+  document.getElementById('sp-agent-reply').focus();
 }
 
 async function spLoadSuggestedCommon() {
   const msg = document.getElementById('sp-customer-msg').value.trim();
   const reply = document.getElementById('sp-agent-reply').value.trim();
   if (!msg || spCommonAnswers.length === 0) return;
+
+  // Filtriraj SAMO po zaznanem jeziku
+  const langFiltered = spDetectedLang
+    ? spCommonAnswers.filter(a => a.lang === spDetectedLang)
+    : spCommonAnswers;
+
   const keywords = (msg + ' ' + reply).toLowerCase();
-  const scored = spCommonAnswers.map((a, i) => {
+  const scored = langFiltered.map((a) => {
+    const globalIdx = spCommonAnswers.indexOf(a);
     const hay = ((a.question || '') + ' ' + (a.reply_sl || '')).toLowerCase();
     const score = keywords.split(' ').filter(w => w.length > 3 && hay.includes(w)).length;
-    return { score, i };
+    return { score, globalIdx };
   }).filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
+
   const chips = document.getElementById('sp-chips-container');
   const existing = Array.from(chips.querySelectorAll('.sp-chip-ai'));
   existing.forEach(e => e.remove());
-  scored.forEach(({ i }) => {
-    const a = spCommonAnswers[i];
+  scored.forEach(({ globalIdx }) => {
+    const a = spCommonAnswers[globalIdx];
     const chip = document.createElement('span');
     chip.className = 'sp-chip sp-chip-ai';
     chip.style.background = 'rgba(16,163,74,0.1)';
     chip.style.borderColor = 'rgba(16,163,74,0.4)';
     chip.style.color = '#0a6e31';
     chip.textContent = '✓ ' + (a.question || a.reply_sl || '').slice(0, 30);
-    chip.onclick = () => spUseCommon(i);
+    chip.onclick = () => spUseCommon(globalIdx);
     chips.appendChild(chip);
   });
 }
