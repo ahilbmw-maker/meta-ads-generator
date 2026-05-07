@@ -2521,7 +2521,7 @@ function switchPage(page) {
   // Wide layout
   const mainEl = document.querySelector('.main');
   if(mainEl) {
-    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative' || page==='lokalizacija' || page==='narocilnice' || page==='videoads' || page==='orodja' || page==='analiza' || page==='zaloga' || page==='odprema') {
+    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative' || page==='lokalizacija' || page==='narocilnice' || page==='videoads' || page==='orodja' || page==='analiza' || page==='zaloga' || page==='odprema' || page==='sporocanje') {
       mainEl.classList.add('wide');
     } else if(page==='meta') {
       const formVisible = document.getElementById('metaFormSection').style.display !== 'none';
@@ -2533,6 +2533,7 @@ function switchPage(page) {
   closeMenu();
   if (page === 'tiktok') { ttLoadSkus(); }
   if (page === 'zaloga') { zalogaLoad(); }
+  if (page === 'sporocanje') { spLoadCommon(); }
   if (page === 'odprema') { odpLoadHistory(); }
   else { const b = document.getElementById('odp-bulk-bar'); if(b) b.style.display='none'; }
   try { localStorage.setItem('slx_active_page', page); } catch(e) {}
