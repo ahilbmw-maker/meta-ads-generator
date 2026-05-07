@@ -2352,10 +2352,26 @@ input[type="text"].error { border-color: var(--red) !important; }
         <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border)">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
             <span class="slabel">✨ PREDLAGANI ODGOVORI</span>
-            <span id="sp-common-count" style="font-size:11px;color:var(--text-tertiary)"></span>
+            <button onclick="spShowAddQuick()" style="font-size:11px;padding:3px 10px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit;font-weight:600">+ NOVO</button>
           </div>
           <div id="sp-chips-container" style="display:flex;gap:6px;flex-wrap:wrap;min-height:28px">
-            <span style="font-size:12px;color:var(--text-tertiary);font-style:italic">Shranite prve odgovore — pojavili se bodo tukaj.</span>
+            <span style="font-size:12px;color:var(--text-tertiary);font-style:italic">Dodajte prve odgovore s + NOVO.</span>
+          </div>
+          <!-- Form za dodajanje -->
+          <div id="sp-add-quick-form" style="display:none;margin-top:10px;padding:10px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px">SLO — naziv gumba (kratko)</div>
+            <input id="sp-quick-label" type="text" placeholder="npr. Hvala za naročilo" maxlength="40"
+              style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;margin-bottom:6px;box-sizing:border-box">
+            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px">SLO — polni odgovor</div>
+            <textarea id="sp-quick-slo" rows="3" placeholder="Odgovor v slovenščini..."
+              style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;resize:none;margin-bottom:6px;box-sizing:border-box"></textarea>
+            <div style="font-size:11px;font-weight:600;color:#378ADD;margin-bottom:4px">HR/RS/BA — polni odgovor</div>
+            <textarea id="sp-quick-hr" rows="3" placeholder="Odgovor v hrvaščini..."
+              style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;resize:none;margin-bottom:8px;box-sizing:border-box"></textarea>
+            <div style="display:flex;gap:6px">
+              <button onclick="spSaveQuick()" style="flex:1;padding:6px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">💾 Shrani</button>
+              <button onclick="spHideAddQuick()" style="padding:6px 12px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:inherit">✕</button>
+            </div>
           </div>
         </div>
         <div style="flex:1;overflow-y:auto;padding:12px 16px">
@@ -10318,6 +10334,7 @@ function spSetBrand(brand) {
   spDetectedLang = '';
   spLoadCommon();
   if (typeof spLoadKbStats === 'function') spLoadKbStats();
+  if (typeof spLoadQuickReplies === 'function') spLoadQuickReplies();
 }
 
 async function spCallAI(prompt, maxTokens=800, model='claude-haiku-4-5-20251001') {
@@ -10578,6 +10595,84 @@ function spUseCommon(i) {
   document.getElementById('sp-agent-reply').value = a.reply_sl || '';
 }
 
+// ── QUICK REPLIES (ročno dodani SLO/HR odgovori) ───────────────
+let spQuickReplies = [];
+
+function spLoadQuickReplies() {
+  try {
+    const saved = localStorage.getItem('slx_quick_replies_' + spBrand);
+    spQuickReplies = saved ? JSON.parse(saved) : [];
+  } catch(e) { spQuickReplies = []; }
+  spRenderChips();
+}
+
+function spSaveQuickReplies() {
+  try { localStorage.setItem('slx_quick_replies_' + spBrand, JSON.stringify(spQuickReplies)); } catch(e) {}
+}
+
+function spRenderChips() {
+  const el = document.getElementById('sp-chips-container');
+  if (!el) return;
+  if (!spQuickReplies.length) {
+    el.innerHTML = '<span style="font-size:12px;color:var(--text-tertiary);font-style:italic">Dodajte prve odgovore s + NOVO.</span>';
+    return;
+  }
+  el.innerHTML = spQuickReplies.map((r,i) =>
+    `<span class="sp-chip" style="position:relative" title="${r.slo||''}"
+      onclick="spUseQuick(${i})">${r.label||r.slo.slice(0,25)}
+      <span onclick="event.stopPropagation();spDeleteQuick(${i})" style="margin-left:5px;opacity:0.5;font-size:10px">✕</span>
+    </span>`
+  ).join('');
+}
+
+function spUseQuick(i) {
+  const r = spQuickReplies[i];
+  if (!r) return;
+  document.getElementById('sp-agent-reply').value = r.slo || '';
+  // Prikaži HR pod odgovorom
+  let hrEl = document.getElementById('sp-ai-hr-translation');
+  if (!hrEl) {
+    hrEl = document.createElement('div');
+    hrEl.id = 'sp-ai-hr-translation';
+    hrEl.style.cssText = 'margin-top:6px;padding:9px 12px;background:var(--surface2);border-radius:var(--radius);border-left:3px solid #378ADD;font-size:13px;color:var(--text-secondary);line-height:1.6';
+    document.getElementById('sp-agent-reply').parentNode.appendChild(hrEl);
+  }
+  if (r.hr) {
+    hrEl.style.display = 'block';
+    hrEl.innerHTML = `<span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#378ADD">HR/RS/BA </span>${r.hr}`;
+  } else { hrEl.style.display = 'none'; }
+}
+
+function spDeleteQuick(i) {
+  if (!confirm('Izbriši ta odgovor?')) return;
+  spQuickReplies.splice(i, 1);
+  spSaveQuickReplies();
+  spRenderChips();
+}
+
+function spShowAddQuick() {
+  document.getElementById('sp-add-quick-form').style.display = 'block';
+  document.getElementById('sp-quick-label').focus();
+}
+
+function spHideAddQuick() {
+  document.getElementById('sp-add-quick-form').style.display = 'none';
+  document.getElementById('sp-quick-label').value = '';
+  document.getElementById('sp-quick-slo').value = '';
+  document.getElementById('sp-quick-hr').value = '';
+}
+
+function spSaveQuick() {
+  const label = document.getElementById('sp-quick-label').value.trim();
+  const slo   = document.getElementById('sp-quick-slo').value.trim();
+  const hr    = document.getElementById('sp-quick-hr').value.trim();
+  if (!slo) { alert('Vpiši vsaj SLO odgovor!'); return; }
+  spQuickReplies.push({ label: label || slo.slice(0,25), slo, hr });
+  spSaveQuickReplies();
+  spRenderChips();
+  spHideAddQuick();
+}
+// ── /QUICK REPLIES ─────────────────────────────────────────────
 // ── ISKANJE NAROČIL ────────────────────────────────────────────
 function spOpenOrder() {
   const id = document.getElementById('sp-order-id').value.trim();
