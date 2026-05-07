@@ -859,6 +859,7 @@ async def sporocanje_save(data: dict):
             "question": data.get("question", ""),
             "reply_sl": data.get("reply_sl", ""),
             "reply_translated": data.get("reply_translated", ""),
+            "reply_hr": data.get("reply_hr", ""),
             "lang": data.get("lang", ""),
             "brand": brand,
             "count": 1,
