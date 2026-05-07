@@ -10375,10 +10375,47 @@ async function spAIReply(btn) {
       }
     }
     const sloMsg = document.getElementById('sp-translation-text').textContent || customerMsg;
+
+    // Poišči relevantne pare iz Kayako KB
+    let kbExamples = '';
+    try {
+      const kbRes = await fetch('/kayako-kb-search', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brand:spBrand,query:sloMsg||customerMsg,top_n:8})});
+      const kbData = await kbRes.json();
+      if (kbData.results && kbData.results.length > 0) {
+        kbExamples = '\n\nPRIMERI IZ KAYAKO ZGODOVINE (upoštevaj ton, slog in vsebino odgovorov):\n' +
+          kbData.results.map(r => `Vprašanje: ${(r.question||r.subject||'').slice(0,200)}\nOdgovor: ${(r.answer||'').slice(0,300)}`).join('\n\n');
+      }
+    } catch(e) {}
+
+    // Generiraj SLO + HR hkrati v enem AI klicu
     const result = await spCallAI(
-      `Si agent podpore strankam za spletno trgovino. Napiši profesionalen, prijazen in kratek odgovor v slovenščini.${examples}\n\nSPOROČILO STRANKE (prevedeno): ${sloMsg}\n\nNapiši SAMO odgovor, brez uvoda ali razlag.`, 350);
+      `Si agent podpore strankam za spletno trgovino. Napiši profesionalen, prijazen in kratek odgovor.${examples}${kbExamples}\n\nSPOROČILO STRANKE (prevedeno): ${sloMsg}\n\nVrni SAMO JSON brez razlag:\n{"slo": "odgovor v slovenščini", "hr": "odgovor v hrvaščini (latinica, za kolege iz HR/BA/RS)"}`, 500);
+
     if (result) {
-      document.getElementById('sp-agent-reply').value = result;
+      let slo = result, hr = '';
+      try {
+        const parsed = JSON.parse(result.replace(/```json|```/g, '').trim());
+        slo = parsed.slo || result;
+        hr  = parsed.hr  || '';
+      } catch(e) { slo = result; }
+
+      document.getElementById('sp-agent-reply').value = slo;
+
+      // Prikaži HR prevod pod odgovorom
+      let hrEl = document.getElementById('sp-ai-hr-translation');
+      if (!hrEl) {
+        hrEl = document.createElement('div');
+        hrEl.id = 'sp-ai-hr-translation';
+        hrEl.style.cssText = 'margin-top:6px;padding:9px 12px;background:var(--surface2);border-radius:var(--radius);border-left:3px solid #378ADD;font-size:13px;color:var(--text-secondary);line-height:1.6';
+        document.getElementById('sp-agent-reply').parentNode.appendChild(hrEl);
+      }
+      if (hr) {
+        hrEl.style.display = 'block';
+        hrEl.innerHTML = `<span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#378ADD">HR/RS/BA </span>${hr}`;
+      } else {
+        hrEl.style.display = 'none';
+      }
+
       btn.textContent = '✓ Odgovor generiran';
       btn.style.color = '#16a34a';
       btn.style.borderColor = '#16a34a';
