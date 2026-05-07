@@ -2366,6 +2366,29 @@ input[type="text"].error { border-color: var(--red) !important; }
           <div id="sp-common-list" style="display:flex;flex-direction:column;gap:8px">
             <div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:20px">Še ni shranjenih odgovorov.<br>Ko odgovorite strankam in kliknete "Shrani", se bodo pojavili tukaj.</div>
           </div>
+
+          <!-- KAYAKO IMPORT PANEL -->
+          <div style="margin-top:20px;padding:14px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <span class="slabel">📥 KAYAKO UVOZ ZGODOVINE</span>
+              <span id="sp-kb-badge" style="font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(83,74,183,0.12);color:#534AB7;font-weight:600;display:none"></span>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5">
+              Uvozi tickete iz <strong>support.silux.si</strong> da AI spozna vzorce odgovorov.
+            </div>
+            <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+              <select id="sp-kb-max" style="padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit">
+                <option value="100">100 ticketov</option>
+                <option value="500" selected>500 ticketov</option>
+                <option value="1000">1000 ticketov</option>
+                <option value="2000">2000 ticketov</option>
+              </select>
+              <button onclick="spKayakoTest()" style="padding:5px 12px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:inherit">🔌 Test</button>
+              <button onclick="spKayakoImport()" id="sp-kb-import-btn" style="padding:5px 14px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📥 Uvozi</button>
+            </div>
+            <div id="sp-kb-status" style="font-size:12px;color:var(--text-secondary);min-height:18px;line-height:1.5"></div>
+            <div id="sp-kb-stats" style="margin-top:8px;display:none;padding:8px;background:var(--surface);border-radius:var(--radius);font-size:12px;color:var(--text-secondary)"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -10271,6 +10294,7 @@ function spSetBrand(brand) {
   btn.style.background = '#534AB7';
   spDetectedLang = '';
   spLoadCommon();
+  if (typeof spLoadKbStats === 'function') spLoadKbStats();
 }
 
 async function spCallAI(prompt, maxTokens=800) {
@@ -10480,6 +10504,65 @@ function spUseCommon(i) {
   if (!a) return;
   document.getElementById('sp-agent-reply').value = a.reply_sl || '';
 }
+
+// ── KAYAKO IMPORT ──────────────────────────────────────────────
+async function spKayakoTest() {
+  const statusEl = document.getElementById('sp-kb-status');
+  statusEl.textContent = '🔌 Testiram povezavo...';
+  try {
+    const res = await fetch('/kayako-test?brand=' + spBrand);
+    const data = await res.json();
+    if (data.ok) {
+      statusEl.innerHTML = `✅ Povezava OK — dept ${data.dept_id}, najdenih ${data.tickets_found} ticketov.<br><small style="color:var(--text-tertiary)">${data.sample.map(t=>t.subject).join(' · ')}</small>`;
+    } else {
+      statusEl.textContent = '❌ ' + (data.error || 'Napaka pri povezavi');
+    }
+  } catch(e) {
+    statusEl.textContent = '❌ Napaka: ' + e.message;
+  }
+}
+
+async function spKayakoImport() {
+  const btn = document.getElementById('sp-kb-import-btn');
+  const statusEl = document.getElementById('sp-kb-status');
+  const statsEl = document.getElementById('sp-kb-stats');
+  const maxTickets = document.getElementById('sp-kb-max').value;
+  btn.disabled = true;
+  btn.textContent = '⏳ Uvažam...';
+  statusEl.textContent = `📥 Uvažam do ${maxTickets} ticketov za ${spBrand}... (to traja nekaj minut)`;
+  statsEl.style.display = 'none';
+  try {
+    const res = await fetch(`/kayako-import?brand=${spBrand}&max_tickets=${maxTickets}&batch_size=50`);
+    const data = await res.json();
+    if (data.ok) {
+      statusEl.innerHTML = `✅ Uvoz končan! <strong>${data.new}</strong> novih, <strong>${data.total}</strong> skupaj v bazi.`;
+      statsEl.style.display = 'block';
+      statsEl.innerHTML = `📊 KB: ${data.total} parov vprašanje/odgovor · ${data.skipped} preskočenih (že v bazi)`;
+      const badge = document.getElementById('sp-kb-badge');
+      badge.textContent = data.total + ' ticketov';
+      badge.style.display = 'inline';
+    } else {
+      statusEl.textContent = '❌ ' + (data.error || 'Napaka pri uvozu');
+    }
+  } catch(e) {
+    statusEl.textContent = '❌ Napaka: ' + e.message;
+  }
+  btn.disabled = false;
+  btn.textContent = '📥 Uvozi';
+}
+
+async function spLoadKbStats() {
+  try {
+    const res = await fetch('/kayako-kb-stats?brand=' + spBrand);
+    const data = await res.json();
+    const badge = document.getElementById('sp-kb-badge');
+    if (badge && data.total > 0) {
+      badge.textContent = data.total + ' ticketov';
+      badge.style.display = 'inline';
+    }
+  } catch(e) {}
+}
+// ── /KAYAKO IMPORT ─────────────────────────────────────────────
 // ── /SPOROČANJE ────────────────────────────────────────────────
 </script>
 <div class="k-hover-preview" id="kHoverPreview">
