@@ -1420,7 +1420,7 @@ input[type="text"].error { border-color: var(--red) !important; }
         <div>
           <div class="card" style="margin-bottom:12px">
             <span class="slabel">UVOZI CSV</span>
-            <div class="k-dropzone" style="margin-top:8px" onclick="document.getElementById('narcVecjaFileInput').click()">
+            <div class="k-dropzone" id="narcVecjaDropZone" style="margin-top:8px" onclick="document.getElementById('narcVecjaFileInput').click()">
               <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               <span style="font-size:12px">Klikni ali povleci CSV sem</span>
             </div>
@@ -1447,10 +1447,10 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div style="overflow-x:auto">
               <table class="narc-table">
                 <thead><tr>
-                  <th>ID naročila</th>
-                  <th>SKU</th>
-                  <th>Naziv</th>
-                  <th>Količina</th>
+                  <th onclick="narcVecjaSort('ID naročila')" style="cursor:pointer">ID naročila <span id="narcVecjaSort-ID naročila"></span></th>
+                  <th onclick="narcVecjaSort('SKU')" style="cursor:pointer">SKU <span id="narcVecjaSort-SKU"></span></th>
+                  <th onclick="narcVecjaSort('Naziv')" style="cursor:pointer">Naziv <span id="narcVecjaSort-Naziv"></span></th>
+                  <th onclick="narcVecjaSort('Količina')" style="cursor:pointer">Količina <span id="narcVecjaSort-Količina">↓</span></th>
                 </tr></thead>
                 <tbody id="narcVecjaTbody"><tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:24px">Uvozite CSV datoteko.</td></tr></tbody>
               </table>
@@ -2559,6 +2559,7 @@ function switchPage(page) {
   if (page === 'tiktok') { ttLoadSkus(); }
   if (page === 'zaloga') { zalogaLoad(); }
   if (page === 'sporocanje') { if(typeof spLoadCommon==='function') spLoadCommon(); }
+  if (page === 'narocilnice') { setTimeout(narcVecjaInitDrop, 100); }
   if (page === 'odprema') { odpLoadHistory(); }
   else { const b = document.getElementById('odp-bulk-bar'); if(b) b.style.display='none'; }
   try { localStorage.setItem('slx_active_page', page); } catch(e) {}
@@ -4818,6 +4819,20 @@ function narcSwitchTab(tab) {
 
 // ── VEČJA NAROČILA ────────────────────────────────────────────
 let narcVecjaData = [];
+let narcVecjaSortCol = 'Količina';
+let narcVecjaSortAsc = false;
+
+function narcVecjaInitDrop() {
+  const dz = document.getElementById('narcVecjaDropZone');
+  if (!dz) return;
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) narcVecjaHandleFile(file);
+  });
+}
 
 function narcVecjaHandleFile(file) {
   if (!file) return;
@@ -4850,19 +4865,37 @@ function narcVecjaHandleFile(file) {
   reader.readAsText(file, 'UTF-8');
 }
 
+function narcVecjaSort(col) {
+  if (narcVecjaSortCol === col) { narcVecjaSortAsc = !narcVecjaSortAsc; }
+  else { narcVecjaSortCol = col; narcVecjaSortAsc = col !== 'Količina'; }
+  narcVecjaRender();
+}
+
 function narcVecjaRender() {
   const min = parseInt(document.getElementById('narcVecjaMin')?.value||'3');
   const search = (document.getElementById('narcVecjaSearch')?.value||'').toLowerCase();
-  const filtered = narcVecjaData.filter(r => {
+  let filtered = narcVecjaData.filter(r => {
     const qty = parseInt(r['Količina']||'0');
     if (qty <= min) return false;
     if (search && !Object.values(r).some(v => v.toLowerCase().includes(search))) return false;
     return true;
   });
+  filtered.sort((a, b) => {
+    let va = a[narcVecjaSortCol]||'', vb = b[narcVecjaSortCol]||'';
+    if (narcVecjaSortCol === 'Količina' || narcVecjaSortCol === 'ID naročila') {
+      va = parseInt(va)||0; vb = parseInt(vb)||0;
+      return narcVecjaSortAsc ? va-vb : vb-va;
+    }
+    return narcVecjaSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+  ['ID naročila','SKU','Naziv','Količina'].forEach(col => {
+    const el = document.getElementById('narcVecjaSort-' + col);
+    if (el) el.textContent = narcVecjaSortCol === col ? (narcVecjaSortAsc ? '↑' : '↓') : '';
+  });
   document.getElementById('narcVecjaCount').textContent = filtered.length + ' naročil';
   const tbody = document.getElementById('narcVecjaTbody');
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:24px">Ni naročil z količino ≥ ${min}.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:24px">Ni naročil z količino &gt; ${min}.</td></tr>`;
     return;
   }
   tbody.innerHTML = filtered.map(r => `<tr>
