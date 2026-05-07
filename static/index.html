@@ -2199,9 +2199,9 @@ input[type="text"].error { border-color: var(--red) !important; }
   <!-- ═══ ODPREMA PAGE ═══ -->
   <!-- ═══ SPOROČANJE ═══ -->
   <div class="page" id="page-sporocanje">
-    <div style="display:grid;grid-template-columns:60fr 40fr;gap:0;height:calc(100vh - 48px);overflow:hidden">
+    <div style="display:grid;grid-template-columns:55fr 45fr;gap:0;height:calc(100vh - 48px);overflow:hidden">
 
-      <!-- LEVO 60% — vnos + odgovor + prevod -->
+      <!-- LEVO 55% — vnos + odgovor + prevod -->
       <div style="display:flex;flex-direction:column;gap:0;padding:16px;overflow-y:auto;border-right:1px solid var(--border)">
 
         <!-- Sporočilo stranke -->
@@ -2210,12 +2210,17 @@ input[type="text"].error { border-color: var(--red) !important; }
             <span class="slabel">SPOROČILO STRANKE</span>
             <span id="sp-lang-pill" style="font-size:11px;padding:2px 10px;border-radius:20px;background:rgba(83,74,183,0.12);color:#534AB7;font-weight:600;display:none"></span>
           </div>
-          <textarea id="sp-customer-msg" rows="5"
+          <textarea id="sp-customer-msg" rows="8"
             style="width:100%;resize:none;border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:14px;font-family:inherit;color:var(--text);background:var(--surface2);outline:none;line-height:1.6"
             placeholder="Prilepite sporočilo stranke sem (katerikoli jezik)..."
             oninput="spOnCustomerInput()"></textarea>
           <div id="sp-translation" style="display:none;margin-top:8px;padding:9px 12px;background:var(--surface2);border-radius:var(--radius);border-left:3px solid #534AB7;font-size:13px;color:var(--text-secondary);line-height:1.6">
+            <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#534AB7">SLO</span>
             <span id="sp-translation-text"></span>
+          </div>
+          <div id="sp-translation-hr" style="display:none;margin-top:6px;padding:9px 12px;background:var(--surface2);border-radius:var(--radius);border-left:3px solid #378ADD;font-size:13px;color:var(--text-secondary);line-height:1.6">
+            <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#378ADD">HR</span>
+            <span id="sp-translation-hr-text"></span>
           </div>
         </div>
 
@@ -2225,11 +2230,10 @@ input[type="text"].error { border-color: var(--red) !important; }
             <span class="slabel">VAŠ ODGOVOR</span>
             <span style="font-size:11px;color:var(--text-tertiary)">SLO / HR / RS</span>
           </div>
-          <textarea id="sp-agent-reply" rows="5"
+          <textarea id="sp-agent-reply" rows="8"
             style="width:100%;resize:none;border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:14px;font-family:inherit;color:var(--text);background:var(--surface2);outline:none;line-height:1.6"
             placeholder="Napišite odgovor v slovenščini, hrvaščini ali srbščini..."
             oninput="spOnReplyInput()"></textarea>
-          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap" id="sp-quick-chips"></div>
         </div>
 
         <!-- Prevedeni odgovor -->
@@ -2238,7 +2242,7 @@ input[type="text"].error { border-color: var(--red) !important; }
             <span class="slabel">PREVOD ZA STRANKO</span>
             <span id="sp-result-lang" style="font-size:11px;padding:2px 10px;border-radius:20px;background:rgba(83,74,183,0.12);color:#534AB7;font-weight:600"></span>
           </div>
-          <div id="sp-result-text" style="font-size:14px;color:var(--text);line-height:1.7;padding:10px;background:var(--surface2);border-radius:var(--radius);min-height:60px"></div>
+          <div id="sp-result-text" style="font-size:14px;color:var(--text);line-height:1.7;padding:10px;background:var(--surface2);border-radius:var(--radius);min-height:80px"></div>
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
             <button onclick="spCopyResult(this)" style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#534AB7;color:#fff;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s ease">
               📋 Kopiraj odgovor
@@ -2258,24 +2262,17 @@ input[type="text"].error { border-color: var(--red) !important; }
         </div>
       </div>
 
-      <!-- DESNO 40% — predlogi + AI se uči -->
+      <!-- DESNO 45% — AI predlogi + pogosti odgovori -->
       <div style="display:flex;flex-direction:column;gap:0;overflow:hidden">
 
-        <!-- Predlagani odgovori (čipi) -->
-        <div style="padding:16px 16px 8px;border-bottom:1px solid var(--border)">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <!-- AI predlogi iz shranjenih (dinamični) -->
+        <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
             <span class="slabel">✨ PREDLAGANI ODGOVORI</span>
             <span id="sp-common-count" style="font-size:11px;color:var(--text-tertiary)"></span>
           </div>
-          <div id="sp-chips-container" style="display:flex;gap:6px;flex-wrap:wrap">
-            <span class="sp-chip" onclick="spUseChip(this)">Dostava 3–5 dni</span>
-            <span class="sp-chip" onclick="spUseChip(this)">Sledenje pošiljke</span>
-            <span class="sp-chip" onclick="spUseChip(this)">Zamuda pri dostavi</span>
-            <span class="sp-chip" onclick="spUseChip(this)">Vračilo izdelka</span>
-            <span class="sp-chip" onclick="spUseChip(this)">Kontaktirajte nas</span>
-            <span class="sp-chip" onclick="spUseChip(this)">Zalogo preverjamo</span>
-            <span class="sp-chip" onclick="spUseChip(this)">Naročilo potrjeno</span>
-            <span class="sp-chip" onclick="spUseChip(this)">Rabat ni mogoč</span>
+          <div id="sp-chips-container" style="display:flex;gap:6px;flex-wrap:wrap;min-height:28px">
+            <span style="font-size:12px;color:var(--text-tertiary);font-style:italic">Shranite prve odgovore — pojavili se bodo tukaj kot predlogi.</span>
           </div>
         </div>
 
@@ -6000,22 +5997,32 @@ async function spDetectAndTranslate(msg) {
   const pill = document.getElementById('sp-lang-pill');
   const transDiv = document.getElementById('sp-translation');
   const transText = document.getElementById('sp-translation-text');
+  const transDivHr = document.getElementById('sp-translation-hr');
+  const transTextHr = document.getElementById('sp-translation-hr-text');
   pill.textContent = '...';
   pill.style.display = 'inline-block';
   try {
     const result = await spCallAI(
-      `Detect the language of this text and translate it to Slovenian. 
-Respond ONLY with JSON: {"lang":"ISO2code","name":"language name in Slovenian","translation":"translated text"}
-Text: "${msg.slice(0,500)}"`, 400);
+      `Detect the language of this text and translate it to both Slovenian and Croatian.
+Respond ONLY with JSON: {"lang":"ISO2code","name":"language name in Slovenian","translation_sl":"slovenian translation","translation_hr":"croatian translation"}
+Text: "${msg.slice(0,500)}"`, 600);
     const clean = result.replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(clean);
     spDetectedLang = parsed.lang || '';
     pill.textContent = (SP_LANGS[spDetectedLang] || parsed.name || spDetectedLang).toUpperCase();
-    if (parsed.lang !== 'sl') {
+    const notSl = parsed.lang !== 'sl';
+    const notHr = parsed.lang !== 'hr' && parsed.lang !== 'sr';
+    if (notSl) {
       transDiv.style.display = 'block';
-      transText.textContent = parsed.translation || '';
+      transText.textContent = ' ' + (parsed.translation_sl || '');
     } else {
       transDiv.style.display = 'none';
+    }
+    if (notHr) {
+      transDivHr.style.display = 'block';
+      transTextHr.textContent = ' ' + (parsed.translation_hr || '');
+    } else {
+      transDivHr.style.display = 'none';
     }
     // Osveži prikaz pogostih odgovorov filtrirano po novem jeziku
     const langFiltered = spCommonAnswers.filter(a => a.lang === spDetectedLang);
@@ -6117,13 +6124,23 @@ async function spLoadCommon() {
 
 function spRenderCommon(answers) {
   const el = document.getElementById('sp-common-list');
+  // Posodobi čipe iz shranjenih odgovorov
+  const chips = document.getElementById('sp-chips-container');
+  if (answers.length > 0) {
+    chips.innerHTML = answers.slice(0, 8).map((a, idx) => {
+      const globalIdx = spCommonAnswers.indexOf(a);
+      const label = (a.question || a.reply_sl || '').slice(0, 28);
+      return `<span class="sp-chip" onclick="spUseCommon(${globalIdx})">${label}</span>`;
+    }).join('');
+  } else {
+    chips.innerHTML = '<span style="font-size:12px;color:var(--text-tertiary);font-style:italic">Shranite prve odgovore — pojavili se bodo tukaj kot predlogi.</span>';
+  }
   if (!answers.length) {
     el.innerHTML = `<div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:20px">
       ${spDetectedLang ? `Ni shranjenih odgovorov za ${SP_LANGS[spDetectedLang] || spDetectedLang}.<br>` : ''}
       Ko odgovorite strankam in kliknete "Shrani", se bodo pojavili tukaj.</div>`;
     return;
   }
-  // Najdi indeks v globalnem spCommonAnswers za vsak prikazani odgovor
   el.innerHTML = answers.slice(0, 30).map((a) => {
     const globalIdx = spCommonAnswers.indexOf(a);
     return `
