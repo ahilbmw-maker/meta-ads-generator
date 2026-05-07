@@ -2204,6 +2204,11 @@ input[type="text"].error { border-color: var(--red) !important; }
   <!-- ═══ ODPREMA PAGE ═══ -->
   <!-- ═══ SPOROČANJE ═══ -->
   <div class="page" id="page-sporocanje">
+    <!-- ZAVIHKI -->
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);padding:0 16px;background:var(--surface)">
+      <button id="sp-tab-maaarket" onclick="spSetBrand('maaarket')" style="padding:10px 20px;border:none;background:transparent;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:#534AB7;border-bottom:2px solid #534AB7;margin-bottom:-2px">🛍 Maaarket strani</button>
+      <button id="sp-tab-silux" onclick="spSetBrand('silux')" style="padding:10px 20px;border:none;background:transparent;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text-secondary);border-bottom:2px solid transparent;margin-bottom:-2px">🔧 Silux strani</button>
+    </div>
     <div style="display:grid;grid-template-columns:55% 45%;gap:0;min-height:600px">
       <!-- LEVO -->
       <div style="padding:16px;overflow-y:auto;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:12px">
@@ -9842,6 +9847,33 @@ const SP_LANG_NAMES = {'sl':'slovenščino','hr':'hrvaščino','sr':'srbščino'
 let spDetectedLang = '';
 let spTranslateTimer = null;
 let spCommonAnswers = [];
+let spBrand = 'maaarket'; // 'maaarket' ali 'silux'
+
+function spSetBrand(brand) {
+  spBrand = brand;
+  // Posodobi zavihke
+  const tm = document.getElementById('sp-tab-maaarket');
+  const ts = document.getElementById('sp-tab-silux');
+  if (brand === 'maaarket') {
+    tm.style.color = '#534AB7'; tm.style.borderBottom = '2px solid #534AB7';
+    ts.style.color = 'var(--text-secondary)'; ts.style.borderBottom = '2px solid transparent';
+  } else {
+    ts.style.color = '#534AB7'; ts.style.borderBottom = '2px solid #534AB7';
+    tm.style.color = 'var(--text-secondary)'; tm.style.borderBottom = '2px solid transparent';
+  }
+  // Počisti polja in naloži pogosta za ta brand
+  document.getElementById('sp-customer-msg').value = '';
+  document.getElementById('sp-agent-reply').value = '';
+  document.getElementById('sp-result-card').style.display = 'none';
+  document.getElementById('sp-translation').style.display = 'none';
+  document.getElementById('sp-translation-hr').style.display = 'none';
+  document.getElementById('sp-lang-pill').style.display = 'none';
+  const btn = document.getElementById('sp-translate-btn');
+  btn.textContent = '🌐 Prevedi odgovor za stranko';
+  btn.style.background = '#534AB7';
+  spDetectedLang = '';
+  spLoadCommon();
+}
 
 async function spCallAI(prompt, maxTokens=800) {
   try {
@@ -9925,7 +9957,7 @@ async function spSaveAsCommon() {
   const translated = document.getElementById('sp-result-text').textContent.trim();
   if (!reply || !translated) { alert('Najprej prevedite odgovor.'); return; }
   try {
-    const res = await fetch('/sporocanje-save', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,reply_sl:reply,reply_translated:translated,lang:spDetectedLang,ts:Date.now()})});
+    const res = await fetch('/sporocanje-save', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,reply_sl:reply,reply_translated:translated,lang:spDetectedLang,brand:spBrand,ts:Date.now()})});
     const txt = await res.text();
     if (!txt.trim().startsWith('<')) { await spLoadCommon(); }
     const btn = event.target.closest('button');
@@ -9936,7 +9968,7 @@ async function spSaveAsCommon() {
 
 async function spLoadCommon() {
   try {
-    const res = await fetch('/sporocanje-common');
+    const res = await fetch('/sporocanje-common?brand=' + spBrand);
     const txt = await res.text();
     if (txt.trim().startsWith('<')) { return; }
     const data = JSON.parse(txt);
