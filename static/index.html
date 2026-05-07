@@ -604,6 +604,7 @@ input[type="text"].error { border-color: var(--red) !important; }
   <div class="nav-sub" id="navsub-narocilnice">
     <div class="nav-sub-item" onclick="switchPage('narocilnice');narcSwitchTab('razlike')">Negativne razlike</div>
     <div class="nav-sub-item" onclick="switchPage('narocilnice');narcSwitchTab('vecja')">Večja naročila (&gt;3)</div>
+    <div class="nav-sub-item" onclick="switchPage('narocilnice');narcSwitchTab('dvojniki')">Dvojniki</div>
     <div class="nav-sub-item" onclick="switchPage('narocilnice');narcSwitchTab('karantena')">Karantena</div>
   </div>
   <div class="nav-item nav-sporocanje" id="nav-sporocanje" onclick="switchPage('sporocanje')">
@@ -1329,6 +1330,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div class="narc-tab-bar">
       <button class="narc-tab active" id="narcTab-razlike" onclick="narcSwitchTab('razlike')">Negativne razlike</button>
       <button class="narc-tab" id="narcTab-vecja" onclick="narcSwitchTab('vecja')">📦 Večja naročila (&gt;3)</button>
+      <button class="narc-tab" id="narcTab-dvojniki" onclick="narcSwitchTab('dvojniki')">👥 Dvojniki</button>
       <button class="narc-tab" id="narcTab-karantena" onclick="narcSwitchTab('karantena')">Karantena</button>
     </div>
 
@@ -1453,6 +1455,51 @@ input[type="text"].error { border-color: var(--red) !important; }
                   <th onclick="narcVecjaSort('Količina')" style="cursor:pointer">Količina <span id="narcVecjaSort-Količina">↓</span></th>
                 </tr></thead>
                 <tbody id="narcVecjaTbody"><tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:24px">Uvozite CSV datoteko.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: DVOJNIKI -->
+    <div id="narcPanel-dvojniki" style="display:none">
+      <div style="display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start">
+        <div>
+          <div class="card" style="margin-bottom:12px">
+            <span class="slabel">UVOZI CSV</span>
+            <div class="k-dropzone" id="narcDvojnikiDropZone" style="margin-top:8px" onclick="document.getElementById('narcDvojnikiFileInput').click()">
+              <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--text-tertiary);fill:none;stroke-width:1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span style="font-size:12px">Klikni ali povleci CSV sem</span>
+            </div>
+            <input type="file" id="narcDvojnikiFileInput" accept=".csv" style="display:none" onchange="narcDvojnikiHandleFile(this.files[0])">
+          </div>
+          <div class="card" style="padding:10px 14px">
+            <span class="slabel" style="display:block;margin-bottom:4px">INFO</span>
+            <span style="font-size:12px;color:var(--text-secondary)">Prikaže naročila kjer se <strong>Ime in priimek</strong> pojavi večkrat.</span>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="min-width:0;overflow:hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+              <span class="slabel">DVOJNIKI — IME IN PRIIMEK</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="text" id="narcDvojnikiSearch" placeholder="Išči ime, ID..." style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:13px;width:220px;font-family:'DM Sans',sans-serif" oninput="narcDvojnikiRender()">
+                <span id="narcDvojnikiCount" style="font-size:11px;color:var(--text-tertiary)"></span>
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="narc-table">
+                <thead><tr>
+                  <th>ID naročila</th>
+                  <th>Datum</th>
+                  <th>Ime in priimek</th>
+                  <th>Izdelki</th>
+                  <th>Cena</th>
+                  <th>Status</th>
+                  <th>Jezik</th>
+                </tr></thead>
+                <tbody id="narcDvojnikiTbody"><tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:24px">Uvozite CSV datoteko.</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -2559,7 +2606,7 @@ function switchPage(page) {
   if (page === 'tiktok') { ttLoadSkus(); }
   if (page === 'zaloga') { zalogaLoad(); }
   if (page === 'sporocanje') { if(typeof spLoadCommon==='function') spLoadCommon(); }
-  if (page === 'narocilnice') { setTimeout(narcVecjaInitDrop, 100); }
+  if (page === 'narocilnice') { setTimeout(() => { narcVecjaInitDrop(); narcDvojnikiInitDrop(); }, 100); }
   if (page === 'odprema') { odpLoadHistory(); }
   else { const b = document.getElementById('odp-bulk-bar'); if(b) b.style.display='none'; }
   try { localStorage.setItem('slx_active_page', page); } catch(e) {}
@@ -4811,11 +4858,97 @@ async function narcLoadFromHistory(idx) {
 function narcSwitchTab(tab) {
   document.getElementById('narcPanel-razlike').style.display = tab === 'razlike' ? 'block' : 'none';
   document.getElementById('narcPanel-vecja').style.display = tab === 'vecja' ? 'block' : 'none';
+  document.getElementById('narcPanel-dvojniki').style.display = tab === 'dvojniki' ? 'block' : 'none';
   document.getElementById('narcPanel-karantena').style.display = tab === 'karantena' ? 'block' : 'none';
   document.getElementById('narcTab-razlike').classList.toggle('active', tab === 'razlike');
   document.getElementById('narcTab-vecja').classList.toggle('active', tab === 'vecja');
+  document.getElementById('narcTab-dvojniki').classList.toggle('active', tab === 'dvojniki');
   document.getElementById('narcTab-karantena').classList.toggle('active', tab === 'karantena');
 }
+
+// ── DVOJNIKI ──────────────────────────────────────────────────
+let narcDvojnikiData = [];
+
+function narcDvojnikiInitDrop() {
+  const dz = document.getElementById('narcDvojnikiDropZone');
+  if (!dz) return;
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) narcDvojnikiHandleFile(e.dataTransfer.files[0]);
+  });
+}
+
+function narcDvojnikiHandleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    function parseLine(line) {
+      const result = []; let cur = '', inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') { inQ = !inQ; }
+        else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+        else { cur += c; }
+      }
+      result.push(cur.trim());
+      return result;
+    }
+    const headers = parseLine(lines[0]).map(h => h.replace(/^"|"$/g,''));
+    const rows = lines.slice(1).map(line => {
+      const vals = parseLine(line);
+      const obj = {};
+      headers.forEach((h,i) => obj[h] = (vals[i]||'').replace(/^"|"$/g,''));
+      return obj;
+    }).filter(r => Object.values(r).some(v => v));
+    // Poišči dvojnike po "Ime in priimek"
+    const counts = {};
+    rows.forEach(r => {
+      const name = (r['Ime in priimek']||'').trim();
+      if (name) counts[name] = (counts[name]||0) + 1;
+    });
+    // Obdrži samo vrstice kjer se ime pojavi večkrat
+    narcDvojnikiData = rows.filter(r => counts[(r['Ime in priimek']||'').trim()] > 1);
+    // Sortiraj po imenu da so skupaj
+    narcDvojnikiData.sort((a,b) => (a['Ime in priimek']||'').localeCompare(b['Ime in priimek']||''));
+    narcDvojnikiRender();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function narcDvojnikiRender() {
+  const search = (document.getElementById('narcDvojnikiSearch')?.value||'').toLowerCase();
+  let filtered = narcDvojnikiData.filter(r =>
+    !search || Object.values(r).some(v => v.toLowerCase().includes(search))
+  );
+  document.getElementById('narcDvojnikiCount').textContent = filtered.length + ' naročil';
+  const tbody = document.getElementById('narcDvojnikiTbody');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:24px">Ni dvojnikov ali uvozite CSV.</td></tr>';
+    return;
+  }
+  // Barvaj vrstice alternirajoče po skupinah istega imena
+  let lastColor = false; let lastName = '';
+  tbody.innerHTML = filtered.map(r => {
+    const name = (r['Ime in priimek']||'').trim();
+    if (name !== lastName) { lastColor = !lastColor; lastName = name; }
+    const bg = lastColor ? 'background:rgba(83,74,183,0.05)' : '';
+    const izdelki = (r['Izdelki']||'').replace(/\n/g,'<br>');
+    return `<tr style="${bg}">
+      <td><a href="https://www.siluxar.si/narocilnice/${r['ID']||''}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;background:rgba(24,119,242,0.08);border:1px solid rgba(24,119,242,0.2);border-radius:4px;padding:2px 7px;display:inline-block">${r['ID']||''} ↗</a></td>
+      <td style="font-size:11px;color:var(--text-secondary);white-space:nowrap">${(r['Datum']||'').slice(0,10)}</td>
+      <td style="font-weight:600">${name}</td>
+      <td style="font-size:12px;max-width:220px">${izdelki}</td>
+      <td style="white-space:nowrap;font-weight:600">${r['Cena z DDV']||''} €</td>
+      <td style="font-size:12px">${r['Status']||''}</td>
+      <td style="font-size:11px;color:var(--text-tertiary)">${r['Jezik']||''}</td>
+    </tr>`;
+  }).join('');
+}
+// ── /DVOJNIKI ─────────────────────────────────────────────────
 
 // ── VEČJA NAROČILA ────────────────────────────────────────────
 let narcVecjaData = [];
