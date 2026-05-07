@@ -1429,7 +1429,7 @@ input[type="text"].error { border-color: var(--red) !important; }
           <div class="card" style="padding:10px 14px">
             <span class="slabel" style="display:block;margin-bottom:6px">FILTER KOLIČINA</span>
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:13px;color:var(--text-secondary)">Količina &gt;</span>
+              <span style="font-size:13px;color:var(--text-secondary)">Količina ≥</span>
               <input type="number" id="narcVecjaMin" value="3" min="1" style="width:60px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--surface2);color:var(--text);font-family:inherit" oninput="narcVecjaRender()">
             </div>
           </div>
@@ -1451,11 +1451,8 @@ input[type="text"].error { border-color: var(--red) !important; }
                   <th>SKU</th>
                   <th>Naziv</th>
                   <th>Količina</th>
-                  <th>Pozicija SL</th>
-                  <th>Zaloga SL</th>
-                  <th>Opomba</th>
                 </tr></thead>
-                <tbody id="narcVecjaTbody"><tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:24px">Uvozite CSV datoteko.</td></tr></tbody>
+                <tbody id="narcVecjaTbody"><tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:24px">Uvozite CSV datoteko.</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -4846,24 +4843,21 @@ function narcVecjaRender() {
   const search = (document.getElementById('narcVecjaSearch')?.value||'').toLowerCase();
   const filtered = narcVecjaData.filter(r => {
     const qty = parseInt(r['Količina']||'0');
-    if (qty <= min) return false;
+    if (qty < min) return false;
     if (search && !Object.values(r).some(v => v.toLowerCase().includes(search))) return false;
     return true;
   });
   document.getElementById('narcVecjaCount').textContent = filtered.length + ' naročil';
   const tbody = document.getElementById('narcVecjaTbody');
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:24px">Ni naročil z količino &gt; ${min}.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:24px">Ni naročil z količino ≥ ${min}.</td></tr>`;
     return;
   }
   tbody.innerHTML = filtered.map(r => `<tr>
     <td><a href="https://www.siluxar.si/narocilnice/${r['ID naročila']||''}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;background:rgba(24,119,242,0.08);border:1px solid rgba(24,119,242,0.2);border-radius:4px;padding:2px 7px;display:inline-block">${r['ID naročila']||''} ↗</a></td>
     <td><strong>${r['SKU']||''}</strong></td>
-    <td style="font-size:12px">${r['Naziv']||''}</td>
+    <td style="font-size:13px">${r['Naziv']||''}</td>
     <td style="text-align:center"><span style="background:#534AB7;color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:13px">${r['Količina']||''}</span></td>
-    <td style="font-size:12px">${r['Pozicija SL']||'—'}</td>
-    <td style="font-size:12px">${r['Zaloga SL']||'—'}</td>
-    <td style="font-size:12px;color:${r['Opomba']?'#dc2626':'var(--text-tertiary)'}">${r['Opomba']||'—'}</td>
   </tr>`).join('');
 }
 // ── /VEČJA NAROČILA ───────────────────────────────────────────
