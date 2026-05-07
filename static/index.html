@@ -5029,7 +5029,7 @@ function narcDvojnikiRender() {
     const flag = narcLangToFlag(r['Jezik']||'');
     return `<tr style="${bg}">
       <td><a href="https://www.siluxar.si/narocilnice/${r['ID']||''}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;background:rgba(24,119,242,0.08);border:1px solid rgba(24,119,242,0.2);border-radius:4px;padding:2px 7px;display:inline-block">${r['ID']||''} ↗</a></td>
-      <td style="font-size:12px;white-space:nowrap">${(r['Datum']||'').slice(0,10)}</td>
+      <td style="font-size:12px;white-space:nowrap">${(r['Datum']||'').slice(0,10)}<br><span style="color:var(--text-tertiary);font-size:11px">${(r['Datum']||'').slice(11,16)}</span></td>
       <td style="font-weight:600">${r['Ime in priimek']||''}${badge}</td>
       <td style="font-size:12px;max-width:260px">${izdelki}</td>
       <td style="text-align:center" title="${r['Jezik']||''}">${flag}</td>
