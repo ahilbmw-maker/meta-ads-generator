@@ -10373,15 +10373,50 @@ function spOnCustomerInput() {
   spTranslateTimer = setTimeout(() => spDetectAndTranslate(msg), 800);
 }
 
+// ── LOKALNA DETEKCIJA JEZIKA (brez API klica) ──────────────────
+const SP_LANG_PATTERNS = {
+  sl: /\b(sem|smo|ste|imam|imamo|naročil|naročila|paket|pošiljka|dostava|kdaj|prosim|hvala|lep|pozdravljeni|spoštovani|žal|nimam|izdelek|vračilo|reklamacija|naročilo|plačal|prejel|prišlo|zanima|lahko|prosimo|sporočam|pozdrav|dober|dan|dober)\b/gi,
+  hr: /\b(sam|smo|ste|imam|imamo|naručio|naručila|paket|pošiljka|dostava|kada|molim|hvala|lijep|poštovani|dragi|žao|nemam|proizvod|povrat|reklamacija|narudžba|platio|primio|došlo|zanima|mogu|molimo|javljam|pozdrav|dobar|dan|gdje|što|kako|nije|jest)\b/gi,
+  sr: /\b(sam|smo|ste|imam|imamo|naručio|naručila|paket|pošiljka|dostava|kada|molim|hvala|lep|poštovani|dragi|žao|nemam|proizvod|povrat|reklamacija|porudžbina|platio|primio|došlo|zanima|mogu|molimo|javljam|pozdrav|dobar|dan|gde|šta|kako|nije|jeste)\b/gi,
+  ro: /\b(sunt|avem|aveți|comandă|pachet|livrare|când|vă|mulțumesc|frumos|stimate|doamnă|domnule|retur|reclamație|plătit|primit|produs|bună|ziua|salutări|dorit|putea|rugăm)\b/gi,
+  bg: /\b(съм|сме|сте|имам|имаме|поръчка|пакет|доставка|кога|моля|благодаря|уважаеми|продукт|рекламация|платих|получих|интересува|поздрави)\b/gi,
+  cs: /\b(jsem|jsme|jste|mám|máme|objednávka|balík|doručení|kdy|prosím|děkuji|vážený|produkt|reklamace|zaplatil|obdržel|zajímá|pozdravy|dobrý|den)\b/gi,
+  sk: /\b(som|sme|ste|mám|máme|objednávka|balík|doručenie|kedy|prosím|ďakujem|vážený|produkt|reklamácia|zaplatil|dostal|zaujíma|pozdravy|dobrý|deň)\b/gi,
+  pl: /\b(jestem|jesteśmy|mam|mamy|zamówienie|paczka|dostawa|kiedy|proszę|dziękuję|szanowny|produkt|reklamacja|zapłaciłem|otrzymałem|interesuje|pozdrowienia|dzień|dobry)\b/gi,
+  hu: /\b(vagyok|vagyunk|van|rendelés|csomag|szállítás|mikor|kérem|köszönöm|tisztelt|termék|reklamáció|fizettem|kaptam|érdekel|üdvözlettel|jó|napot)\b/gi,
+  de: /\b(bin|sind|habe|haben|bestellung|paket|lieferung|wann|bitte|danke|geehrte|produkt|reklamation|bezahlt|erhalten|interessiert|freundlichen|grüßen|guten|tag)\b/gi,
+  it: /\b(sono|siamo|ho|abbiamo|ordine|pacco|consegna|quando|per|grazie|gentile|prodotto|reclamo|pagato|ricevuto|interessato|saluti|buona|giornata|egregi)\b/gi,
+  el: /\b(είμαι|είμαστε|έχω|παραγγελία|πακέτο|παράδοση|πότε|παρακαλώ|ευχαριστώ|αγαπητέ|προϊόν|καταγγελία|πλήρωσα|έλαβα|ενδιαφέρομαι|χαιρετισμούς)\b/gi,
+};
+
+function spDetectLangLocal(text) {
+  const scores = {};
+  for (const [lang, pattern] of Object.entries(SP_LANG_PATTERNS)) {
+    const matches = (text.match(pattern) || []).length;
+    if (matches > 0) scores[lang] = matches;
+  }
+  if (!Object.keys(scores).length) return null;
+  return Object.entries(scores).sort((a,b) => b[1]-a[1])[0][0];
+}
+// ── /LOKALNA DETEKCIJA ─────────────────────────────────────────
+
 async function spDetectAndTranslate(msg) {
   const pill = document.getElementById('sp-lang-pill');
   pill.textContent = '...'; pill.style.display = 'inline-block';
   try {
-    const result = await spCallAI(`Detect the language of this text and translate it to both Slovenian and Croatian.
+    // 1. Lokalna detekcija (0ms)
+    const localLang = spDetectLangLocal(msg);
+    if (localLang) {
+      spDetectedLang = localLang;
+      pill.textContent = (SP_LANGS[localLang] || localLang).toUpperCase();
+    }
+
+    // 2. En sam API klic — samo prevod (ne detekcija)
+    const result = await spCallAI(`Translate this customer message to both Slovenian and Croatian. Also confirm the language.
 Respond ONLY with JSON: {"lang":"ISO2code","name":"language name in Slovenian","translation_sl":"slovenian translation","translation_hr":"croatian translation"}
-Text: "${msg.slice(0,600)}"`, 500);
+Text: "${msg.slice(0,600)}"`, 400);
     const parsed = JSON.parse(result.replace(/```json|```/g,'').trim());
-    spDetectedLang = parsed.lang || '';
+    spDetectedLang = parsed.lang || localLang || '';
     pill.textContent = (SP_LANGS[spDetectedLang] || parsed.name || spDetectedLang).toUpperCase();
     const notSl = parsed.lang !== 'sl';
     const notHr = parsed.lang !== 'hr' && parsed.lang !== 'sr';
@@ -10392,7 +10427,7 @@ Text: "${msg.slice(0,600)}"`, 500);
     const langFiltered = spCommonAnswers.filter(a => a.lang === spDetectedLang);
     spRenderCommon(langFiltered);
     document.getElementById('sp-common-count').textContent = langFiltered.length + ` shranjenih (${(SP_LANGS[spDetectedLang]||spDetectedLang).toUpperCase()})`;
-  } catch(e) { pill.textContent = '?'; }
+  } catch(e) { pill.textContent = localLang ? (SP_LANGS[localLang]||localLang).toUpperCase() : '?'; }
 }
 
 function spReset() {
