@@ -504,47 +504,20 @@ function checkPrice(amount, currency) {
     const rounded = Math.round(amount);
     if (amount % 1 !== 0) {
       suggested = rounded;
-      issues.push('PLN mora biti celo število');
-    }
-    // Proximity navzgor max +5 PLN (npr. 24→29 ✗ preveliko, 27→29 ✓)
-    // Navzdol če je razlika do naslednjega X9 > 5
-    const lastPln = rounded % 10;
-    if (lastPln !== 9 && !suggested) {
-      const nextX9 = rounded - lastPln + 9 + (lastPln >= 9 ? 10 : 0);
-      const prevX9 = rounded - lastPln - 1;
-      if ((nextX9 - rounded) <= 5) {
-        suggested = nextX9;
-        issues.push('PLN mora biti X9 → predlog: ' + suggested);
-      } else {
-        suggested = prevX9 > 0 ? prevX9 : nextX9;
-        issues.push('PLN mora biti X9 → predlog: ' + suggested);
-      }
+      issues.push('PLN mora biti celo število → predlog: ' + rounded);
     }
     const bcPln = checkBoundary(rounded, currency);
-    if (bcPln && !suggested) { issues.push(bcPln.issue); suggested = bcPln.suggested; }
+    if (bcPln && issues.length === 0) { issues.push(bcPln.issue); suggested = bcPln.suggested; }
   }
 
   else if (currency === 'RON') {
     const rounded = Math.round(amount);
     if (amount % 1 !== 0) {
       suggested = rounded;
-      issues.push('RON mora biti celo število');
-    }
-    // Proximity navzgor max +5 RON
-    const lastRon = rounded % 10;
-    if (lastRon !== 9 && !suggested) {
-      const nextX9 = rounded - lastRon + 9 + (lastRon >= 9 ? 10 : 0);
-      const prevX9 = rounded - lastRon - 1;
-      if ((nextX9 - rounded) <= 5) {
-        suggested = nextX9;
-        issues.push('RON mora biti X9 → predlog: ' + suggested);
-      } else {
-        suggested = prevX9 > 0 ? prevX9 : nextX9;
-        issues.push('RON mora biti X9 → predlog: ' + suggested);
-      }
+      issues.push('RON mora biti celo število → predlog: ' + rounded);
     }
     const bcRon = checkBoundary(rounded, currency);
-    if (bcRon && !suggested) { issues.push(bcRon.issue); suggested = bcRon.suggested; }
+    if (bcRon && issues.length === 0) { issues.push(bcRon.issue); suggested = bcRon.suggested; }
   }
 
   else if (currency === 'RSD') {
@@ -1574,8 +1547,8 @@ const CALC_COUNTRIES = [
   { code:'RS',  label:'RS',  curr:'RSD', color:'#D85A30', vat:1.20, ship:2.0, dec:0 },
   { code:'HU',  label:'HU',  curr:'HUF', color:'#7F77DD', vat:1.22, ship:3.0, dec:0 },
   { code:'CZ',  label:'CZ',  curr:'CZK', color:'#EF9F27', vat:1.22, ship:4.0, dec:0 },
-  { code:'PL',  label:'PL',  curr:'PLN', color:'#E24B4A', vat:1.23, ship:4.0, dec:2 },
-  { code:'RO',  label:'RO',  curr:'RON', color:'#BA7517', vat:1.19, ship:3.7, dec:2 },
+  { code:'PL',  label:'PL',  curr:'PLN', color:'#E24B4A', vat:1.23, ship:4.0, dec:0 },
+  { code:'RO',  label:'RO',  curr:'RON', color:'#BA7517', vat:1.19, ship:3.7, dec:0 },
 ];
 
 function calcOpen() {
@@ -1601,8 +1574,8 @@ function calcRoundPrice(raw, curr) {
   if (curr === 'RSD') { const r = Math.round(raw/100)*100; return r - 1 < raw ? r - 1 : r - 101; }
   if (curr === 'HUF') { const r = Math.round(raw/100)*100; return r - 1 < raw ? r - 1 : r - 101; }
   if (curr === 'CZK') { const r = Math.round(raw/10)*10; return r - 1; }
-  if (curr === 'PLN') { return Math.floor(raw) + (raw % 1 >= 0.5 ? 0.99 : -0.01 > 0 ? 0.99 : 0.99); }
-  if (curr === 'RON') { return Math.floor(raw) + 0.99; }
+  if (curr === 'PLN') { return Math.round(raw); }   // PL — lepe zaokrožene cene
+  if (curr === 'RON') { return Math.round(raw); }   // RO — lepe zaokrožene cene
   return Math.round(raw * 100) / 100;
 }
 
@@ -1638,7 +1611,7 @@ function calcUpdate() {
           <small>${c.curr}</small>
         </div>
         <input class="calc-price-in" id="calc-${c.code}" type="number"
-          step="${c.dec === 0 ? '1' : '0.01'}"
+          step="${c.dec === 0 ? '1' : (c.curr === 'EUR' ? '1' : '0.01')}"
           oninput="calcUpdateRow('${c.code}')"
           onchange="calcUpdateRow('${c.code}')"
           onfocus="this.select()">
