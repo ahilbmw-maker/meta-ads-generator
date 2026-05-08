@@ -921,10 +921,15 @@ async def get_forecast_entries():
     try:
         import pytz
         lj = pytz.timezone("Europe/Ljubljana")
-        today = datetime.now(lj).strftime("%Y-%m-%d")
+        d_now = datetime.now(lj)
+        today = d_now.strftime("%Y-%m-%d")
     except:
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        d_now = datetime.utcnow()
+        today = d_now.strftime("%Y-%m-%d")
 
+    slsi_key = f"{d_now.day}. {d_now.month}. {d_now.year}"
+
+    # Naloži entries iz fajla
     data = {}
     if FORECAST_ENTRIES_FILE.exists():
         try:
@@ -932,69 +937,53 @@ async def get_forecast_entries():
         except:
             data = {}
 
-    # Normaliziraj stari datum format "8. 5. 2026" → "2026-05-08"
+    # Normaliziraj stari datum
     stored_date = data.get("date", "")
     if stored_date and stored_date != today:
         try:
-            # Poskusi parse stari sl-SI format
             parts = [p.strip().strip('.') for p in stored_date.split('.') if p.strip()]
             if len(parts) == 3:
-                d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
-                normalized = f"{y}-{m:02d}-{d:02d}"
-                if normalized == today:
-                    stored_date = today
+                d2, m2, y2 = int(parts[0]), int(parts[1]), int(parts[2])
+                if f"{y2}-{m2:02d}-{d2:02d}" == today:
                     data["date"] = today
-                    # Shrani normaliziran datum nazaj
-                    FORECAST_ENTRIES_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-                    print(f"[forecast] normalized date {stored_date} → {today}")
         except:
             pass
 
-    if data.get("date") == today and data.get("entries"):
-        return data
+    entries_from_file = data.get("entries", []) if data.get("date") == today else []
 
-    # RECOVERY iz history — preveri oba formata datuma
-    history_file = DATA_DIR / "forecast_history.json"
-    if history_file.exists():
+    # Naloži iz history — oba formata, združi
+    entries_from_history = []
+    if FORECAST_HISTORY_FILE.exists():
         try:
-            hist = json.loads(history_file.read_text(encoding="utf-8"))
+            hist = json.loads(FORECAST_HISTORY_FILE.read_text(encoding="utf-8"))
+            seen_times = set()
+            for key in [today, slsi_key]:
+                for e in hist.get(key, []):
+                    t = f"{str(e.get('h',0)).zfill(2)}:{str(e.get('m',0)).zfill(2)}"
+                    if t not in seen_times:
+                        seen_times.add(t)
+                        entries_from_history.append(e)
+        except:
+            pass
 
-            # Možni ključi za danes — ISO in sl-SI format
-            from datetime import datetime as dt2
-            try:
-                import pytz as _pytz
-                _lj = _pytz.timezone("Europe/Ljubljana")
-                _now = dt2.now(_lj)
-            except:
-                _now = dt2.utcnow()
-            slsi_key = f"{_now.day}. {_now.month}. {_now.year}"
-            possible_keys = [today, slsi_key]
+    # Vrni tisto z več vnosi
+    if len(entries_from_history) > len(entries_from_file):
+        # Združi: entries_from_file + manjkajoče iz history
+        seen = {e.get("label","") for e in entries_from_file}
+        merged = list(entries_from_file)
+        for e in entries_from_history:
+            lbl = f"{str(e.get('h',0)).zfill(2)}:{str(e.get('m',0)).zfill(2)}"
+            if lbl not in seen:
+                seen.add(lbl)
+                merged.append({"label": lbl, "dejanski": e.get("rev",0), "dejanskiOrd": e.get("ord",0), "napoved": None, "napovedOrd": None})
+        merged.sort(key=lambda e: e.get("label",""))
+        result = {"date": today, "entries": merged}
+        FORECAST_ENTRIES_FILE.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"[forecast] merged {len(merged)} entries (file:{len(entries_from_file)}, history:{len(entries_from_history)})")
+        return result
 
-            entries_found = []
-            for key in possible_keys:
-                if hist.get(key) and len(hist[key]) > 0:
-                    entries_found = hist[key]
-                    print(f"[forecast] recovery from history key='{key}': {len(entries_found)} entries")
-                    break
-
-            if entries_found:
-                recovered = {
-                    "date": today,
-                    "entries": [
-                        {
-                            "label": str(e.get("h",0)).zfill(2) + ":" + str(e.get("m",0)).zfill(2),
-                            "dejanski": e.get("rev", 0),
-                            "dejanskiOrd": e.get("ord", 0),
-                            "napoved": None,
-                            "napovedOrd": None,
-                        }
-                        for e in entries_found
-                    ]
-                }
-                FORECAST_ENTRIES_FILE.write_text(json.dumps(recovered, ensure_ascii=False, indent=2), encoding="utf-8")
-                return recovered
-        except Exception as e:
-            print(f"[forecast] recovery error: {e}")
+    if entries_from_file:
+        return {"date": today, "entries": entries_from_file}
 
     return data or {}
 
