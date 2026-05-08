@@ -488,18 +488,34 @@ async function saveEntries(){
 async function collectHistoricalData(today){
   try{
     const hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json());
-    hist[today] = entries.map(e=>({
+    
+    // Normaliziraj stare sl-SI ključe → ISO format
+    const normalized = {};
+    for (const [k, v] of Object.entries(hist)) {
+      if (k.includes('.') && !k.includes('-')) {
+        // Stari format "8. 5. 2026" → "2026-05-08"
+        try {
+          const parts = k.split('.').map(p=>p.trim()).filter(Boolean);
+          if (parts.length === 3) {
+            const iso = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+            if (!normalized[iso]) normalized[iso] = v; // Ne prepiši če ISO že obstaja
+          } else { normalized[k] = v; }
+        } catch { normalized[k] = v; }
+      } else { normalized[k] = v; }
+    }
+    
+    normalized[today] = entries.map(e=>({
       h: parseInt(e.label.split(':')[0]),
       m: parseInt(e.label.split(':')[1]),
       ord: e.dejanskiOrd||0,
       rev: e.dejanski||0
     }));
     // Ohrani zadnjih 30 dni
-    const keys = Object.keys(hist).sort();
-    if(keys.length>30) delete hist[keys[0]];
+    const keys = Object.keys(normalized).sort();
+    if(keys.length>30) delete normalized[keys[0]];
     await fetch(API_BASE + '/forecast-history', {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(hist)});
-    updateDataCounter(hist);
+      body: JSON.stringify(normalized)});
+    updateDataCounter(normalized);
   }catch(e){}
 }
 
