@@ -11155,9 +11155,15 @@ async function betaAIAnalyze() {
   const badList = bad.map(c => `- ${c.name}: spend=${c.spend}€, nakupi=${c.purchases}, CPP=${c.cpp??'ni nakupov'}€, CTR=${c.ctr}%, freq=${c.freq}`).join('\n');
   const goodList = good.map(c => `- ${c.name}: spend=${c.spend}€, nakupi=${c.purchases}, CPP=${c.cpp}€`).join('\n');
 
-  const prompt = `Si strokovnjak za Meta Ads optimizacijo. Analiziraj te podatke kampanj za zadnjih 7 dni in daj konkretna priporočila.
+  const inflated = camps.filter(c=>c.name.toLowerCase().includes('inflated'));
+  const inflatedBenchmarkCPP = inflated.filter(c=>c.cpp).length > 0 
+    ? (inflated.filter(c=>c.cpp).reduce((s,c)=>s+c.cpp,0)/inflated.filter(c=>c.cpp).length).toFixed(2)
+    : null;
+
+  const prompt = `Si strokovnjak za Meta Ads optimizacijo in skaliranje z Inflated Budget bid strategijo. Analiziraj kampanje za zadnjih 7 dni.
 
 SKUPAJ: ${camps.length} kampanij, spend=${totalSpend}€, nakupi=${totalPurchases}, avg CPP=${avgCPP}€, cilj CPP=${targetCPP}€
+${inflatedBenchmarkCPP ? `Obstoječe Inflated kampanje avg CPP: ${inflatedBenchmarkCPP}€` : ''}
 
 SLABE KAMPANJE (aktivne, CPP > ${targetCPP}€ ali brez nakupov):
 ${badList}
@@ -11165,11 +11171,23 @@ ${badList}
 DOBRE KAMPANJE (CPP ≤ ${targetCPP}€):
 ${goodList}
 
-Napiši:
+OBSTOJEČE INFLATED KAMPANJE:
+${inflated.map(c=>`- ${c.name}: spend=${c.spend}€, nakupi=${c.purchases}, CPP=${c.cpp??'ni nakupov'}€`).join('\n')||'Ni obstoječih'}
+
+Napiši strukturirano analizo:
+
 1. USTAVI DANES — kateri kampaniji bi ustavil takoj in zakaj (max 5)
-2. OPAZUJ — kateri so na meji (max 3)
+2. OPAZUJ — kateri so na meji (max 3)  
 3. SKALIRAJ — katere povečaj budget (max 3)
 4. SPLOŠNA OCENA — 2-3 stavki o splošnem zdravju account-a
+
+---
+
+5. 🏆 INFLATED DUPLIKACIJA — kateri so winnerji za duplikacijo z Inflated Budget bid strategijo in lokalizacijo:
+   - Išči kampanje z nizkim CPP (pod ${targetCPP}€), visokim CTR, normalnim freq (pod 3)
+   - Prednostno kampanje ki še NISO v Inflated strategiji in imajo dober CPP
+   - Za vsako navedi: zakaj je winner, na katere trge bi lokaliziral, predlagan budget za Inflated verzijo
+   - Max 5 priporočil
 
 Bodi konkreten, kratki, slovensko.`;
 
