@@ -2688,7 +2688,7 @@ function switchPage(page) {
   closeMenu();
   if (page === 'tiktok') { ttLoadSkus(); }
   if (page === 'zaloga') { zalogaLoad(); }
-  if (page === 'sporocanje') { if(typeof spLoadCommon==='function') spLoadCommon(); }
+  if (page === 'sporocanje') { if(typeof spLoadCommon==='function') spLoadCommon(); if(typeof spLoadMacros==='function') spLoadMacros(); }
   if (page === 'narocilnice') { setTimeout(() => { narcVecjaInitDrop(); narcDvojnikiInitDrop(); }, 100); }
   if (page === 'odprema') { odpLoadHistory(); }
   else { const b = document.getElementById('odp-bulk-bar'); if(b) b.style.display='none'; }
