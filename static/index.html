@@ -700,13 +700,14 @@ input[type="text"].error { border-color: var(--red) !important; }
           <div class="home-tile" style="border-left-color:#eab308" onclick="switchPage('orodja')">
             <div class="ht-icon">🔧</div>
             <div class="ht-name">Orodja</div>
-            <div class="ht-desc">Uvoz, HS+, naročila</div>
+            <div class="ht-desc">Uvoz, HS+, naročila, kontrola cen</div>
             <div class="ht-pills">
               <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('hsuvoz')">↗ HS+ naročanje</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('zdrnarocila')">↗ Zdru. naročila</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('csv')">↗ Ikonka uvoz</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('hs')">↗ Uvoz HS+</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('inventura')">↗ Inventura</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('pricecheck')">↗ Kontrola cen</span>
             </div>
           </div>
           <div class="home-tile" style="border-left-color:#64748b" onclick="switchPage('zaloga')">
