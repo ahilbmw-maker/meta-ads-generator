@@ -6604,7 +6604,7 @@ async def beta_export_load(filename: str):
 
 @app.get("/forecast-fix-today")
 async def forecast_fix_today():
-    """Ročno popravi entries za danes iz history."""
+    """Ročno popravi entries za danes — združi vse ključe."""
     from datetime import datetime
     try:
         import pytz
@@ -6622,17 +6622,22 @@ async def forecast_fix_today():
 
     hist = json.loads(FORECAST_HISTORY_FILE.read_text(encoding="utf-8"))
 
-    # Poišči danes v obeh formatih
-    entries_found = []
-    key_used = None
+    # Združi vnose iz VSEH možnih ključev za danes
+    all_raw = {}
+    keys_used = []
     for key in [today, slsi_key]:
-        if hist.get(key) and len(hist[key]) > 0:
-            entries_found = hist[key]
-            key_used = key
-            break
+        if hist.get(key):
+            keys_used.append(key)
+            for e in hist[key]:
+                time_key = f"{e.get('h',0):02d}:{e.get('m',0):02d}"
+                if time_key not in all_raw:
+                    all_raw[time_key] = e
 
-    if not entries_found:
-        return {"ok": False, "error": f"Ni vnosov za danes v history", "tried": [today, slsi_key], "available_keys": list(hist.keys())[-5:]}
+    if not all_raw:
+        return {"ok": False, "error": "Ni vnosov za danes", "tried": [today, slsi_key], "available": list(hist.keys())[-5:]}
+
+    # Sortiraj po času
+    sorted_entries = sorted(all_raw.values(), key=lambda e: e.get('h',0)*60 + e.get('m',0))
 
     recovered = {
         "date": today,
@@ -6644,8 +6649,8 @@ async def forecast_fix_today():
                 "napoved": None,
                 "napovedOrd": None,
             }
-            for e in entries_found
+            for e in sorted_entries
         ]
     }
     FORECAST_ENTRIES_FILE.write_text(json.dumps(recovered, ensure_ascii=False, indent=2), encoding="utf-8")
-    return {"ok": True, "key_used": key_used, "entries_recovered": len(entries_found), "entries": recovered["entries"]}
+    return {"ok": True, "keys_used": keys_used, "entries_recovered": len(sorted_entries), "entries": recovered["entries"]}
