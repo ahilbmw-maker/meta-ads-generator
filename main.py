@@ -953,13 +953,31 @@ async def get_forecast_entries():
     if data.get("date") == today and data.get("entries"):
         return data
 
-    # RECOVERY iz history
+    # RECOVERY iz history — preveri oba formata datuma
     history_file = DATA_DIR / "forecast_history.json"
     if history_file.exists():
         try:
             hist = json.loads(history_file.read_text(encoding="utf-8"))
-            if hist.get(today) and len(hist[today]) > 0:
-                print(f"[forecast] recovery from history for {today}: {len(hist[today])} entries")
+
+            # Možni ključi za danes — ISO in sl-SI format
+            from datetime import datetime as dt2
+            try:
+                import pytz as _pytz
+                _lj = _pytz.timezone("Europe/Ljubljana")
+                _now = dt2.now(_lj)
+            except:
+                _now = dt2.utcnow()
+            slsi_key = f"{_now.day}. {_now.month}. {_now.year}"
+            possible_keys = [today, slsi_key]
+
+            entries_found = []
+            for key in possible_keys:
+                if hist.get(key) and len(hist[key]) > 0:
+                    entries_found = hist[key]
+                    print(f"[forecast] recovery from history key='{key}': {len(entries_found)} entries")
+                    break
+
+            if entries_found:
                 recovered = {
                     "date": today,
                     "entries": [
@@ -970,7 +988,7 @@ async def get_forecast_entries():
                             "napoved": None,
                             "napovedOrd": None,
                         }
-                        for e in hist[today]
+                        for e in entries_found
                     ]
                 }
                 FORECAST_ENTRIES_FILE.write_text(json.dumps(recovered, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -998,7 +1016,34 @@ async def save_forecast_entries(data: dict):
 async def get_forecast_history():
     if FORECAST_HISTORY_FILE.exists():
         try:
-            return json.loads(FORECAST_HISTORY_FILE.read_text(encoding="utf-8"))
+            hist = json.loads(FORECAST_HISTORY_FILE.read_text(encoding="utf-8"))
+            # Normaliziraj stare sl-SI ključe → ISO format
+            changed = False
+            new_hist = {}
+            for key, val in hist.items():
+                # Prepoznaj sl-SI format: "8. 5. 2026"
+                if '.' in key and len(key.split('.')) == 3:
+                    try:
+                        parts = [p.strip().strip('.') for p in key.split('.') if p.strip()]
+                        if len(parts) == 3:
+                            d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
+                            iso_key = f"{y}-{m:02d}-{d:02d}"
+                            if iso_key not in hist:
+                                new_hist[iso_key] = val
+                                changed = True
+                            else:
+                                new_hist[key] = val  # ISO verzija že obstaja
+                        else:
+                            new_hist[key] = val
+                    except:
+                        new_hist[key] = val
+                else:
+                    new_hist[key] = val
+            if changed:
+                FORECAST_HISTORY_FILE.write_text(json.dumps(new_hist, ensure_ascii=False, indent=2), encoding="utf-8")
+                print(f"[forecast] normalized {sum(1 for k in new_hist if '-' in k)} history keys to ISO format")
+                return new_hist
+            return hist
         except:
             return {}
     return {}
