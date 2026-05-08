@@ -566,6 +566,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('obrat14')">Obrat 7 dni (FB)</div>
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('obrat14tt')">Obrat 7 dni (TikTok)</div>
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('ttkreative')">TikTok Kreative</div>
+    <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('beta')">🧪 Analiza Beta</div>
   </div>
 
   <div class="nav-item nav-forecast" id="nav-forecast" onclick="switchPage('forecast')">
@@ -2010,6 +2011,7 @@ input[type="text"].error { border-color: var(--red) !important; }
       <button class="analiza-tab-btn" id="analizaTab-obrat14" onclick="switchAnalizaTab('obrat14')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📊 Obrat 7 dni (FB)</button>
       <button class="analiza-tab-btn" id="analizaTab-obrat14tt" onclick="switchAnalizaTab('obrat14tt')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📊 Obrat 7 dni (TikTok)</button>
       <button class="analiza-tab-btn" id="analizaTab-ttkreative" onclick="switchAnalizaTab('ttkreative')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🎬 TikTok Kreative</button>
+      <button class="analiza-tab-btn" id="analizaTab-beta" onclick="switchAnalizaTab('beta')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🧪 Analiza Beta</button>
     </div>
 
     <!-- TAB: Meta Ads -->
@@ -2249,6 +2251,90 @@ input[type="text"].error { border-color: var(--red) !important; }
     </div>
 
   </div><!-- /page-analiza -->
+
+  <!-- ═══ BETA ANALIZA PAGE (kot subtab analiza) ═══ -->
+  <div id="analizaSubpage-beta" style="display:none;padding:14px">
+    <div style="display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start">
+
+      <!-- LEVO: Upload + nastavitve -->
+      <div>
+        <div class="card">
+          <span class="slabel">📤 UVOZI META ADS EXPORT</span>
+          <p style="font-size:12px;color:var(--text-secondary);margin:8px 0 12px">
+            Iz Meta Ads Manager izvozi CSV poročilo (kampanje po dnevih) in ga naloži sem.
+          </p>
+          <div id="beta-drop-zone" style="border:2px dashed var(--border);border-radius:var(--radius);padding:24px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color 0.2s"
+            onclick="document.getElementById('beta-file-input').click()"
+            ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+            ondragleave="this.style.borderColor='var(--border)'"
+            ondrop="betaHandleDrop(event)">
+            <div style="font-size:24px;margin-bottom:6px">📂</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">Klikni ali povleci CSV</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Meta Ads Manager export (.csv)</div>
+          </div>
+          <input type="file" id="beta-file-input" accept=".csv" style="display:none">
+          <div id="beta-file-info" style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;display:none"></div>
+
+          <!-- Nastavitve analize -->
+          <div style="margin-bottom:10px">
+            <label style="font-size:11px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">Min. spend za analizo (€)</label>
+            <input type="number" id="beta-min-spend" value="5" min="0" step="1"
+              style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit">
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="font-size:11px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">Max. CPP za dober rezultat (€)</label>
+            <input type="number" id="beta-target-cpp" value="15" min="1" step="1"
+              style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit">
+          </div>
+          <button onclick="betaAnalyze()" id="beta-analyze-btn"
+            style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
+            🔍 Analiziraj kampanje
+          </button>
+        </div>
+
+        <!-- Povzetek -->
+        <div class="card" id="beta-summary" style="display:none;margin-top:12px">
+          <span class="slabel">📊 POVZETEK</span>
+          <div id="beta-summary-content" style="margin-top:8px;font-size:13px"></div>
+        </div>
+      </div>
+
+      <!-- DESNO: Rezultati + AI analiza -->
+      <div>
+        <div class="card" id="beta-results-card" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <span class="slabel">🎯 ANALIZA KAMPANJ</span>
+            <div style="display:flex;gap:6px">
+              <select id="beta-sort" onchange="betaRenderTable()" style="padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:11px;font-family:inherit">
+                <option value="cpp_desc">CPP ↓ najslabši</option>
+                <option value="cpp_asc">CPP ↑ najboljši</option>
+                <option value="spend_desc">Spend ↓</option>
+                <option value="purchases_desc">Nakupi ↓</option>
+              </select>
+              <select id="beta-filter-status" onchange="betaRenderTable()" style="padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:11px;font-family:inherit">
+                <option value="all">Vse</option>
+                <option value="active">Samo aktivne</option>
+                <option value="bad">Samo slabe</option>
+              </select>
+            </div>
+          </div>
+          <div id="beta-table-wrap" style="overflow-x:auto;max-height:500px;overflow-y:auto"></div>
+        </div>
+
+        <!-- AI Analiza -->
+        <div class="card" id="beta-ai-card" style="display:none;margin-top:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <span class="slabel">🤖 AI PRIPOROČILA</span>
+            <button onclick="betaAIAnalyze()" id="beta-ai-btn"
+              style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">
+              Generiraj priporočila
+            </button>
+          </div>
+          <div id="beta-ai-result" style="font-size:13px;color:var(--text-secondary);line-height:1.7;white-space:pre-wrap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- PAGE: ZALOGA -->
   <div class="page" id="page-zaloga">
@@ -7959,7 +8045,7 @@ let anSortCol = 'stock';
 let anSortDir = -1;
 
 function switchAnalizaTab(tab) {
-  ['meta', 'obrat14', 'obrat14tt', 'ttkreative'].forEach(t => {
+  ['meta', 'obrat14', 'obrat14tt', 'ttkreative', 'beta'].forEach(t => {
     const btn = document.getElementById('analizaTab-' + t);
     const sub = document.getElementById('analizaSubpage-' + t);
     if (t === tab) {
@@ -10883,6 +10969,221 @@ async function spLoadKbStats() {
 }
 // ── /KAYAKO IMPORT ─────────────────────────────────────────────
 // ── /SPOROČANJE ────────────────────────────────────────────────
+
+// ── BETA ANALIZA ───────────────────────────────────────────────
+let betaCampaigns = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+  const fi = document.getElementById('beta-file-input');
+  if (fi) fi.addEventListener('change', e => betaLoadFile(e.target.files[0]));
+});
+
+function betaHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('beta-drop-zone').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file) betaLoadFile(file);
+}
+
+function betaLoadFile(file) {
+  if (!file) return;
+  document.getElementById('beta-file-info').style.display = 'block';
+  document.getElementById('beta-file-info').textContent = `📄 ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+  const reader = new FileReader();
+  reader.onload = e => betaParseCSV(e.target.result);
+  reader.readAsText(file, 'UTF-8');
+}
+
+function betaParseCSV(text) {
+  // Odstrani BOM
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split('\n').filter(l => l.trim());
+  const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g,'').trim());
+  const rows = lines.slice(1).map(line => {
+    const vals = [];
+    let cur = '', inQ = false;
+    for (const ch of line) {
+      if (ch === '"') inQ = !inQ;
+      else if (ch === ',' && !inQ) { vals.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    vals.push(cur);
+    const obj = {};
+    headers.forEach((h,i) => obj[h] = (vals[i]||'').trim());
+    return obj;
+  });
+
+  // Grupiraj po kampaniji
+  const camps = {};
+  for (const r of rows) {
+    const name = r['Campaign name'];
+    if (!name || !r['Day']) continue;
+    if (!camps[name]) camps[name] = {name, spend:0, purchases:0, atc:0, cpc:[], ctr:[], freq:[], delivery:'', account:''};
+    camps[name].spend += parseFloat(r['Amount spent (EUR)']||0);
+    camps[name].purchases += parseInt(parseFloat(r['Purchases']||0));
+    camps[name].atc += parseInt(parseFloat(r['Adds to cart']||0));
+    const cpc = parseFloat(r['CPC (cost per link click)']||0);
+    const ctr = parseFloat(r['CTR (link click-through rate)']||0);
+    const freq = parseFloat(r['Frequency']||0);
+    if (cpc) camps[name].cpc.push(cpc);
+    if (ctr) camps[name].ctr.push(ctr);
+    if (freq) camps[name].freq.push(freq);
+    camps[name].delivery = r['Campaign Delivery']||'';
+    camps[name].account = r['Account name']||'';
+  }
+
+  betaCampaigns = Object.values(camps).map(c => ({
+    name: c.name,
+    spend: Math.round(c.spend*100)/100,
+    purchases: c.purchases,
+    cpp: c.purchases > 0 ? Math.round(c.spend/c.purchases*100)/100 : null,
+    cpc: c.cpc.length ? Math.round(c.cpc.reduce((a,b)=>a+b)/c.cpc.length*10000)/10000 : 0,
+    ctr: c.ctr.length ? Math.round(c.ctr.reduce((a,b)=>a+b)/c.ctr.length*100)/100 : 0,
+    freq: c.freq.length ? Math.round(c.freq.reduce((a,b)=>a+b)/c.freq.length*100)/100 : 0,
+    atc: c.atc,
+    delivery: c.delivery,
+    account: c.account,
+  })).filter(c => c.spend > 0);
+
+  // Pokaži summary
+  const total = betaCampaigns.length;
+  const totalSpend = betaCampaigns.reduce((s,c)=>s+c.spend,0).toFixed(2);
+  const totalPurchases = betaCampaigns.reduce((s,c)=>s+c.purchases,0);
+  document.getElementById('beta-summary').style.display = 'block';
+  document.getElementById('beta-summary-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:8px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:var(--text)">${total}</div>
+        <div style="font-size:11px;color:var(--text-secondary)">Kampanij</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:8px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:var(--text)">${totalSpend} €</div>
+        <div style="font-size:11px;color:var(--text-secondary)">Skupaj spend</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:8px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:var(--text)">${totalPurchases}</div>
+        <div style="font-size:11px;color:var(--text-secondary)">Nakupi</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:8px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:var(--text)">${totalSpend > 0 && totalPurchases > 0 ? (totalSpend/totalPurchases).toFixed(2) : '-'} €</div>
+        <div style="font-size:11px;color:var(--text-secondary)">Avg CPP</div>
+      </div>
+    </div>`;
+}
+
+function betaAnalyze() {
+  if (!betaCampaigns.length) { alert('Najprej naloži CSV!'); return; }
+  document.getElementById('beta-results-card').style.display = 'block';
+  document.getElementById('beta-ai-card').style.display = 'block';
+  betaRenderTable();
+}
+
+function betaRenderTable() {
+  const minSpend = parseFloat(document.getElementById('beta-min-spend').value||5);
+  const targetCPP = parseFloat(document.getElementById('beta-target-cpp').value||15);
+  const sort = document.getElementById('beta-sort').value;
+  const filter = document.getElementById('beta-filter-status').value;
+
+  let camps = betaCampaigns.filter(c => c.spend >= minSpend);
+  if (filter === 'active') camps = camps.filter(c => c.delivery === 'active');
+  if (filter === 'bad') camps = camps.filter(c => c.cpp === null || c.cpp > targetCPP);
+
+  camps.sort((a,b) => {
+    const aCpp = a.cpp ?? 9999, bCpp = b.cpp ?? 9999;
+    if (sort === 'cpp_desc') return bCpp - aCpp;
+    if (sort === 'cpp_asc') return aCpp - bCpp;
+    if (sort === 'spend_desc') return b.spend - a.spend;
+    if (sort === 'purchases_desc') return b.purchases - a.purchases;
+    return 0;
+  });
+
+  const rows = camps.map(c => {
+    const cppVal = c.cpp ?? null;
+    const isGood = cppVal !== null && cppVal <= targetCPP;
+    const isBad = cppVal === null || cppVal > targetCPP * 1.5;
+    const color = isBad ? '#ef4444' : isGood ? '#22c55e' : '#f59e0b';
+    const badge = isBad ? '🔴' : isGood ? '🟢' : '🟡';
+    return `<tr style="border-bottom:1px solid var(--border);font-size:12px">
+      <td style="padding:6px 8px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${c.name}">${badge} ${c.name}</td>
+      <td style="padding:6px 8px;text-align:right">${c.spend.toFixed(2)} €</td>
+      <td style="padding:6px 8px;text-align:right">${c.purchases}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:700;color:${color}">${cppVal !== null ? cppVal.toFixed(2)+' €' : '—'}</td>
+      <td style="padding:6px 8px;text-align:right">${c.ctr.toFixed(2)}%</td>
+      <td style="padding:6px 8px;text-align:right">${c.freq.toFixed(2)}</td>
+      <td style="padding:6px 8px;font-size:11px;color:var(--text-secondary)">${c.delivery}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('beta-table-wrap').innerHTML = `
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="background:var(--surface2);font-size:11px;font-weight:700;color:var(--text-secondary)">
+          <th style="padding:8px;text-align:left">Kampanja</th>
+          <th style="padding:8px;text-align:right">Spend</th>
+          <th style="padding:8px;text-align:right">Nakupi</th>
+          <th style="padding:8px;text-align:right">CPP</th>
+          <th style="padding:8px;text-align:right">CTR</th>
+          <th style="padding:8px;text-align:right">Freq.</th>
+          <th style="padding:8px;text-align:left">Status</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function betaAIAnalyze() {
+  if (!betaCampaigns.length) return;
+  const btn = document.getElementById('beta-ai-btn');
+  const result = document.getElementById('beta-ai-result');
+  btn.disabled = true; btn.textContent = '⏳ Analiziram...';
+  result.textContent = '';
+
+  const minSpend = parseFloat(document.getElementById('beta-min-spend').value||5);
+  const targetCPP = parseFloat(document.getElementById('beta-target-cpp').value||15);
+
+  // Pripravi povzetek za AI
+  const camps = betaCampaigns.filter(c => c.spend >= minSpend);
+  const totalSpend = camps.reduce((s,c)=>s+c.spend,0).toFixed(2);
+  const totalPurchases = camps.reduce((s,c)=>s+c.purchases,0);
+  const avgCPP = totalPurchases > 0 ? (totalSpend/totalPurchases).toFixed(2) : 'N/A';
+
+  const bad = camps.filter(c => (c.cpp === null || c.cpp > targetCPP) && c.delivery === 'active')
+    .sort((a,b) => (b.cpp??9999)-(a.cpp??9999)).slice(0,15);
+  const good = camps.filter(c => c.cpp !== null && c.cpp <= targetCPP)
+    .sort((a,b) => a.cpp-b.cpp).slice(0,10);
+
+  const badList = bad.map(c => `- ${c.name}: spend=${c.spend}€, nakupi=${c.purchases}, CPP=${c.cpp??'ni nakupov'}€, CTR=${c.ctr}%, freq=${c.freq}`).join('\n');
+  const goodList = good.map(c => `- ${c.name}: spend=${c.spend}€, nakupi=${c.purchases}, CPP=${c.cpp}€`).join('\n');
+
+  const prompt = `Si strokovnjak za Meta Ads optimizacijo. Analiziraj te podatke kampanj za zadnjih 7 dni in daj konkretna priporočila.
+
+SKUPAJ: ${camps.length} kampanij, spend=${totalSpend}€, nakupi=${totalPurchases}, avg CPP=${avgCPP}€, cilj CPP=${targetCPP}€
+
+SLABE KAMPANJE (aktivne, CPP > ${targetCPP}€ ali brez nakupov):
+${badList}
+
+DOBRE KAMPANJE (CPP ≤ ${targetCPP}€):
+${goodList}
+
+Napiši:
+1. USTAVI DANES — kateri kampaniji bi ustavil takoj in zakaj (max 5)
+2. OPAZUJ — kateri so na meji (max 3)
+3. SKALIRAJ — katere povečaj budget (max 3)
+4. SPLOŠNA OCENA — 2-3 stavki o splošnem zdravju account-a
+
+Bodi konkreten, kratki, slovensko.`;
+
+  try {
+    const res = await fetch('/ai-proxy', {method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt, max_tokens:800, model:'claude-sonnet-4-6'})});
+    const data = await res.json();
+    result.textContent = (data.content?.[0]?.text||'Napaka').trim();
+  } catch(e) {
+    result.textContent = 'Napaka: ' + e.message;
+  }
+  btn.disabled = false; btn.textContent = 'Generiraj priporočila';
+}
+// ── /BETA ANALIZA ──────────────────────────────────────────────
 </script>
 <div class="k-hover-preview" id="kHoverPreview">
   <img id="kHoverPreviewImg" src="" alt="">
