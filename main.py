@@ -917,79 +917,13 @@ async def kayako_kb_search(data: dict):
 
 @app.get("/forecast-entries")
 async def get_forecast_entries():
-    from datetime import datetime
+    """Vrne entries za danes — server je edina resnica."""
+    if not FORECAST_ENTRIES_FILE.exists():
+        return {}
     try:
-        import pytz
-        lj = pytz.timezone("Europe/Ljubljana")
-        d_now = datetime.now(lj)
-        today = d_now.strftime("%Y-%m-%d")
+        return json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
     except:
-        d_now = datetime.utcnow()
-        today = d_now.strftime("%Y-%m-%d")
-
-    slsi_key = f"{d_now.day}. {d_now.month}. {d_now.year}"
-
-    # Naloži entries iz fajla
-    data = {}
-    if FORECAST_ENTRIES_FILE.exists():
-        try:
-            data = json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
-        except:
-            data = {}
-
-    # Normaliziraj stari datum
-    stored_date = data.get("date", "")
-    if stored_date and stored_date != today:
-        try:
-            parts = [p.strip().strip('.') for p in stored_date.split('.') if p.strip()]
-            if len(parts) == 3:
-                d2, m2, y2 = int(parts[0]), int(parts[1]), int(parts[2])
-                if f"{y2}-{m2:02d}-{d2:02d}" == today:
-                    data["date"] = today
-        except:
-            pass
-
-    entries_from_file = data.get("entries", []) if data.get("date") == today else []
-
-    # Naloži iz history — oba formata + včerajšnji ključ za zgodnje jutranje vnose
-    entries_from_history = []
-    if FORECAST_HISTORY_FILE.exists():
-        try:
-            hist = json.loads(FORECAST_HISTORY_FILE.read_text(encoding="utf-8"))
-            # Včerajšnji datum (za vnose shranjene pred polnočjo)
-            from datetime import timedelta
-            yesterday = (d_now - timedelta(days=1)).strftime("%Y-%m-%d")
-            slsi_yesterday = f"{(d_now - timedelta(days=1)).day}. {(d_now - timedelta(days=1)).month}. {(d_now - timedelta(days=1)).year}"
-            seen_times = set()
-            for key in [today, slsi_key, yesterday, slsi_yesterday]:
-                for e in hist.get(key, []):
-                    t = f"{str(e.get('h',0)).zfill(2)}:{str(e.get('m',0)).zfill(2)}"
-                    if t not in seen_times:
-                        seen_times.add(t)
-                        entries_from_history.append(e)
-        except:
-            pass
-
-    # Vrni tisto z več vnosi
-    if len(entries_from_history) > len(entries_from_file):
-        # Združi: entries_from_file + manjkajoče iz history
-        seen = {e.get("label","") for e in entries_from_file}
-        merged = list(entries_from_file)
-        for e in entries_from_history:
-            lbl = f"{str(e.get('h',0)).zfill(2)}:{str(e.get('m',0)).zfill(2)}"
-            if lbl not in seen:
-                seen.add(lbl)
-                merged.append({"label": lbl, "dejanski": e.get("rev",0), "dejanskiOrd": e.get("ord",0), "napoved": None, "napovedOrd": None})
-        merged.sort(key=lambda e: e.get("label",""))
-        result = {"date": today, "entries": merged}
-        FORECAST_ENTRIES_FILE.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"[forecast] merged {len(merged)} entries (file:{len(entries_from_file)}, history:{len(entries_from_history)})")
-        return result
-
-    if entries_from_file:
-        return {"date": today, "entries": entries_from_file}
-
-    return data or {}
+        return {}
 
 @app.post("/forecast-entries")
 async def save_forecast_entries(data: dict):
