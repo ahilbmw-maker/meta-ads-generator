@@ -11223,9 +11223,27 @@ Max 5 priporočil. Bodi konkreten.`;
 
   try {
     const res = await fetch('/ai-proxy', {method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({prompt, max_tokens:1200, model:'claude-sonnet-4-6'})});
+      body:JSON.stringify({prompt, max_tokens:2500, model:'claude-sonnet-4-6'})});
     const data = await res.json();
-    result.textContent = (data.content?.[0]?.text||'Napaka').trim();
+    const txt = (data.content?.[0]?.text||'Napaka').trim();
+    // Markdown render: headers, bold, tables, lists
+    result.innerHTML = txt
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/^### (.+)$/gm,'<h4 style="font-size:13px;font-weight:700;color:var(--text);margin:12px 0 4px">$1</h4>')
+      .replace(/^## (.+)$/gm,'<h3 style="font-size:14px;font-weight:700;color:var(--accent);margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border)">$1</h3>')
+      .replace(/^# (.+)$/gm,'<h2 style="font-size:15px;font-weight:700;color:var(--text);margin:0 0 10px">$1</h2>')
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/^> (.+)$/gm,'<div style="background:var(--surface2);border-left:3px solid var(--accent);padding:6px 10px;border-radius:0 4px 4px 0;font-size:12px;color:var(--text-secondary);margin:4px 0">$1</div>')
+      .replace(/^\| (.+) \|$/gm, (match) => {
+        const cells = match.split('|').filter(c=>c.trim() && !c.match(/^[-: ]+$/));
+        return '<tr>' + cells.map(c=>`<td style="padding:5px 10px;border:1px solid var(--border);font-size:12px">${c.trim()}</td>`).join('') + '</tr>';
+      })
+      .replace(/(<tr>.*<\/tr>\n?)+/gs, m => `<table style="width:100%;border-collapse:collapse;margin:8px 0">${m}</table>`)
+      .replace(/^\|[-: |]+\|$/gm,'')
+      .replace(/^- (.+)$/gm,'<li style="margin:2px 0;font-size:13px">$1</li>')
+      .replace(/(<li.*<\/li>\n?)+/gs, m=>`<ul style="padding-left:18px;margin:4px 0">${m}</ul>`)
+      .replace(/^---$/gm,'<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">')
+      .replace(/\n/g,'<br>');
   } catch(e) {
     result.textContent = 'Napaka: ' + e.message;
   }
