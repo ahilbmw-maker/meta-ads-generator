@@ -377,9 +377,7 @@ input[type="text"].error { border-color: var(--red) !important; }
 .k-opt-text { font-size:12px; font-weight:500; color:var(--text); }
 .k-result-header { padding:6px 8px; background:var(--surface2); border-bottom:1px solid var(--border); }
 @media(max-width:600px){ .kreative-layout { grid-template-columns: 1fr; } }
-@media(max-width:1200px){ .home-grid { grid-template-columns:repeat(4,1fr); } }
-@media(max-width:900px){ .home-grid { grid-template-columns:repeat(3,1fr); } }
-@media(max-width:600px){ .home-grid { grid-template-columns:repeat(2,1fr); } }
+@media(max-width:600px){ .home-grid { gap:8px; } }
 .kreative-history-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; }
 .kreative-history-panel .history-list { max-height: 600px; overflow-y: auto; margin-top: 8px; }
 .tt-h-check { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
@@ -445,7 +443,7 @@ input[type="text"].error { border-color: var(--red) !important; }
   .nav-expand-btn.open { background:var(--accent); border-color:var(--accent); color:#fff; }
 
   /* ── HOME PAGE ── */
-  .home-wrap { padding:28px 32px; max-width:1400px; }
+  .home-wrap { padding:28px 24px; width:100%; }
   .home-greeting { margin-bottom:28px; }
   .home-greeting h1 { font-size:22px; font-weight:600; color:var(--text); margin-bottom:4px; }
   .home-greeting p { font-size:13px; color:var(--text-secondary); }
@@ -455,7 +453,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px;
   }
   .home-section-label:before { content:''; flex:1; }
-  .home-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:28px; }
+  .home-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px; margin-bottom:28px; max-width:100%; }
   .home-tile {
     background:var(--surface); border:1px solid var(--border); border-radius:12px;
     padding:18px 18px 14px; cursor:pointer; transition:all 0.15s;
