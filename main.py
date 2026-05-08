@@ -6601,3 +6601,51 @@ async def beta_export_load(filename: str):
         return {"ok": True, **data}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+@app.get("/forecast-fix-today")
+async def forecast_fix_today():
+    """Ročno popravi entries za danes iz history."""
+    from datetime import datetime
+    try:
+        import pytz
+        lj = pytz.timezone("Europe/Ljubljana")
+        today = datetime.now(lj).strftime("%Y-%m-%d")
+        d_now = datetime.now(lj)
+    except:
+        d_now = datetime.utcnow()
+        today = d_now.strftime("%Y-%m-%d")
+
+    slsi_key = f"{d_now.day}. {d_now.month}. {d_now.year}"
+
+    if not FORECAST_HISTORY_FILE.exists():
+        return {"ok": False, "error": "History file ne obstaja"}
+
+    hist = json.loads(FORECAST_HISTORY_FILE.read_text(encoding="utf-8"))
+
+    # Poišči danes v obeh formatih
+    entries_found = []
+    key_used = None
+    for key in [today, slsi_key]:
+        if hist.get(key) and len(hist[key]) > 0:
+            entries_found = hist[key]
+            key_used = key
+            break
+
+    if not entries_found:
+        return {"ok": False, "error": f"Ni vnosov za danes v history", "tried": [today, slsi_key], "available_keys": list(hist.keys())[-5:]}
+
+    recovered = {
+        "date": today,
+        "entries": [
+            {
+                "label": str(e.get("h",0)).zfill(2) + ":" + str(e.get("m",0)).zfill(2),
+                "dejanski": e.get("rev", 0),
+                "dejanskiOrd": e.get("ord", 0),
+                "napoved": None,
+                "napovedOrd": None,
+            }
+            for e in entries_found
+        ]
+    }
+    FORECAST_ENTRIES_FILE.write_text(json.dumps(recovered, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"ok": True, "key_used": key_used, "entries_recovered": len(entries_found), "entries": recovered["entries"]}
