@@ -951,13 +951,17 @@ async def get_forecast_entries():
 
     entries_from_file = data.get("entries", []) if data.get("date") == today else []
 
-    # Naloži iz history — oba formata, združi
+    # Naloži iz history — oba formata + včerajšnji ključ za zgodnje jutranje vnose
     entries_from_history = []
     if FORECAST_HISTORY_FILE.exists():
         try:
             hist = json.loads(FORECAST_HISTORY_FILE.read_text(encoding="utf-8"))
+            # Včerajšnji datum (za vnose shranjene pred polnočjo)
+            from datetime import timedelta
+            yesterday = (d_now - timedelta(days=1)).strftime("%Y-%m-%d")
+            slsi_yesterday = f"{(d_now - timedelta(days=1)).day}. {(d_now - timedelta(days=1)).month}. {(d_now - timedelta(days=1)).year}"
             seen_times = set()
-            for key in [today, slsi_key]:
+            for key in [today, slsi_key, yesterday, slsi_yesterday]:
                 for e in hist.get(key, []):
                     t = f"{str(e.get('h',0)).zfill(2)}:{str(e.get('m',0)).zfill(2)}"
                     if t not in seen_times:
