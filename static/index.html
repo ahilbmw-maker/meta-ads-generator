@@ -2250,8 +2250,6 @@ input[type="text"].error { border-color: var(--red) !important; }
       </div>
     </div>
 
-  </div><!-- /page-analiza -->
-
   <!-- ═══ BETA ANALIZA PAGE (kot subtab analiza) ═══ -->
   <div id="analizaSubpage-beta" style="display:none;padding:14px">
     <div style="display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start">
@@ -2297,6 +2295,17 @@ input[type="text"].error { border-color: var(--red) !important; }
           <span class="slabel">📊 POVZETEK</span>
           <div id="beta-summary-content" style="margin-top:8px;font-size:13px"></div>
         </div>
+
+        <!-- Zgodovina -->
+        <div class="card" style="margin-top:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span class="slabel">🕒 ZGODOVINA (30 dni)</span>
+            <button onclick="betaLoadHistory()" style="font-size:11px;padding:2px 8px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;color:var(--text-secondary);font-family:inherit">↺</button>
+          </div>
+          <div id="beta-history-list" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto">
+            <div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:10px">Ni shranjenih exportov</div>
+          </div>
+        </div>
       </div>
 
       <!-- DESNO: Rezultati + AI analiza -->
@@ -2304,7 +2313,9 @@ input[type="text"].error { border-color: var(--red) !important; }
         <div class="card" id="beta-results-card" style="display:none">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
             <span class="slabel">🎯 ANALIZA KAMPANJ</span>
-            <div style="display:flex;gap:6px">
+            <div style="display:flex;gap:6px;align-items:center">
+              <input type="text" id="beta-search" placeholder="🔍 Išči SKU / kampanjo..." oninput="betaRenderTable()"
+                style="padding:5px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:11px;font-family:inherit;width:180px">
               <select id="beta-sort" onchange="betaRenderTable()" style="padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:11px;font-family:inherit">
                 <option value="cpp_desc">CPP ↓ najslabši</option>
                 <option value="cpp_asc">CPP ↑ najboljši</option>
@@ -2337,6 +2348,8 @@ input[type="text"].error { border-color: var(--red) !important; }
   </div>
 
   <!-- PAGE: ZALOGA -->
+  </div><!-- /page-analiza -->
+
   <div class="page" id="page-zaloga">
     <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
 
@@ -8060,6 +8073,7 @@ function switchAnalizaTab(tab) {
   if (tab === 'meta') { anLoadStock(); anLoadMetaFromServer(); }
   if (tab === 'obrat14tt') { tt14LoadData(); }
   if (tab === 'ttkreative') { ttKrLoadData(); }
+  if (tab === 'beta') { betaLoadHistory(); }
   try { localStorage.setItem('slx_active_subtab', tab); } catch(e) {}
 }
 
@@ -10990,7 +11004,10 @@ function betaLoadFile(file) {
   document.getElementById('beta-file-info').style.display = 'block';
   document.getElementById('beta-file-info').textContent = `📄 ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
   const reader = new FileReader();
-  reader.onload = e => betaParseCSV(e.target.result);
+  reader.onload = e => {
+    betaParseCSV(e.target.result);
+    betaSaveExport(file.name);
+  };
   reader.readAsText(file, 'UTF-8');
 }
 
@@ -11085,6 +11102,8 @@ function betaRenderTable() {
   const filter = document.getElementById('beta-filter-status').value;
 
   let camps = betaCampaigns.filter(c => c.spend >= minSpend);
+  const searchQ = (document.getElementById('beta-search')?.value||'').toLowerCase();
+  if (searchQ) camps = camps.filter(c => c.name.toLowerCase().includes(searchQ) || c.account.toLowerCase().includes(searchQ));
   if (filter === 'active') camps = camps.filter(c => c.delivery === 'active');
   if (filter === 'bad') camps = camps.filter(c => c.cpp === null || c.cpp > targetCPP);
 
@@ -11141,7 +11160,6 @@ async function betaAIAnalyze() {
   const minSpend = parseFloat(document.getElementById('beta-min-spend').value||5);
   const targetCPP = parseFloat(document.getElementById('beta-target-cpp').value||15);
 
-  // Pripravi povzetek za AI
   const camps = betaCampaigns.filter(c => c.spend >= minSpend);
   const totalSpend = camps.reduce((s,c)=>s+c.spend,0).toFixed(2);
   const totalPurchases = camps.reduce((s,c)=>s+c.purchases,0);
@@ -11150,56 +11168,133 @@ async function betaAIAnalyze() {
   const bad = camps.filter(c => (c.cpp === null || c.cpp > targetCPP) && c.delivery === 'active')
     .sort((a,b) => (b.cpp??9999)-(a.cpp??9999)).slice(0,15);
   const good = camps.filter(c => c.cpp !== null && c.cpp <= targetCPP)
-    .sort((a,b) => a.cpp-b.cpp).slice(0,10);
-
-  const badList = bad.map(c => `- ${c.name}: spend=${c.spend}€, nakupi=${c.purchases}, CPP=${c.cpp??'ni nakupov'}€, CTR=${c.ctr}%, freq=${c.freq}`).join('\n');
-  const goodList = good.map(c => `- ${c.name}: spend=${c.spend}€, nakupi=${c.purchases}, CPP=${c.cpp}€`).join('\n');
-
-  const inflated = camps.filter(c=>c.name.toLowerCase().includes('inflated'));
-  const inflatedBenchmarkCPP = inflated.filter(c=>c.cpp).length > 0 
+    .sort((a,b) => a.cpp-b.cpp).slice(0,20);
+  const inflated = camps.filter(c => c.name.toLowerCase().includes('inflated'));
+  const inflatedBenchmarkCPP = inflated.filter(c=>c.cpp).length > 0
     ? (inflated.filter(c=>c.cpp).reduce((s,c)=>s+c.cpp,0)/inflated.filter(c=>c.cpp).length).toFixed(2)
     : null;
+  const inflatedCandidates = good.filter(c => !c.name.toLowerCase().includes('inflated')).slice(0,15);
+
+  const badList = bad.map(c => `- ${c.name}: spend=${c.spend}€, nakupi=${c.purchases}, CPP=${c.cpp??'ni nakupov'}€, CTR=${c.ctr}%, freq=${c.freq}`).join('\n');
+  const goodList = good.map(c => `- ${c.name}: spend=${c.spend}€, nakupi=${c.purchases}, CPP=${c.cpp}€, CTR=${c.ctr}%, freq=${c.freq}`).join('\n');
+  const inflatedList = inflated.map(c => `- ${c.name}: spend=${c.spend}€, nakupi=${c.purchases}, CPP=${c.cpp??'ni nakupov'}€`).join('\n') || 'Ni obstoječih';
+  const candidateList = inflatedCandidates.map(c => `- ${c.name}: spend=${c.spend}€, nakupi=${c.purchases}, CPP=${c.cpp}€, CTR=${c.ctr}%, freq=${c.freq}, account=${c.account}`).join('\n');
 
   const prompt = `Si strokovnjak za Meta Ads optimizacijo in skaliranje z Inflated Budget bid strategijo. Analiziraj kampanje za zadnjih 7 dni.
 
-SKUPAJ: ${camps.length} kampanij, spend=${totalSpend}€, nakupi=${totalPurchases}, avg CPP=${avgCPP}€, cilj CPP=${targetCPP}€
-${inflatedBenchmarkCPP ? `Obstoječe Inflated kampanje avg CPP: ${inflatedBenchmarkCPP}€` : ''}
+SKUPAJ: ${camps.length} kampanij, spend=${totalSpend}€, nakupi=${totalPurchases}, avg CPP=${avgCPP}€, cilj CPP=${targetCPP}€${inflatedBenchmarkCPP ? `, obstoječe Inflated avg CPP=${inflatedBenchmarkCPP}€` : ''}
 
-SLABE KAMPANJE (aktivne, CPP > ${targetCPP}€ ali brez nakupov):
-${badList}
+SLABE AKTIVNE KAMPANJE (CPP > ${targetCPP}€ ali brez nakupov):
+${badList||'Ni slabih'}
 
-DOBRE KAMPANJE (CPP ≤ ${targetCPP}€):
-${goodList}
+DOBRE KAMPANJE (CPP ≤ ${targetCPP}€, sortirano po CPP):
+${goodList||'Ni dobrih'}
 
 OBSTOJEČE INFLATED KAMPANJE:
-${inflated.map(c=>`- ${c.name}: spend=${c.spend}€, nakupi=${c.purchases}, CPP=${c.cpp??'ni nakupov'}€`).join('\n')||'Ni obstoječih'}
+${inflatedList}
 
-Napiši strukturirano analizo:
+KANDIDATI ZA INFLATED DUPLIKACIJO (dobre, še niso Inflated):
+${candidateList||'Ni kandidatov'}
 
-1. USTAVI DANES — kateri kampaniji bi ustavil takoj in zakaj (max 5)
-2. OPAZUJ — kateri so na meji (max 3)  
-3. SKALIRAJ — katere povečaj budget (max 3)
-4. SPLOŠNA OCENA — 2-3 stavki o splošnem zdravju account-a
+Napiši strukturirano analizo v slovenščini:
+
+## 1. 🛑 USTAVI DANES (max 5)
+Tabela: Kampanja | Razlog
+
+## 2. 👁️ OPAZUJ (max 3)
+Tabela: Kampanja | Status | Zakaj opazuj
+
+## 3. 🚀 SKALIRAJ (max 3)
+Tabela: Kampanja | Trenutni spend | Predlog | Razlog
+
+## 4. 📊 SPLOŠNA OCENA
+2-3 stavki o zdravju account-a.
 
 ---
 
-5. 🏆 INFLATED DUPLIKACIJA — kateri so winnerji za duplikacijo z Inflated Budget bid strategijo in lokalizacijo:
-   - Išči kampanje z nizkim CPP (pod ${targetCPP}€), visokim CTR, normalnim freq (pod 3)
-   - Prednostno kampanje ki še NISO v Inflated strategiji in imajo dober CPP
-   - Za vsako navedi: zakaj je winner, na katere trge bi lokaliziral, predlagan budget za Inflated verzijo
-   - Max 5 priporočil
+## 5. 🏆 INFLATED DUPLIKACIJA
+Za vsakega kandidata navedi:
+- Zakaj je winner (CPP, CTR, volumen)
+- Kateri trgi primerni za lokalizacijo (glede na account name in ime kampanje)
+- Predlagan dnevni budget za Inflated verzijo
+- Predlagano ime: [💣 Inflated] IME_PRODUKTA | TRG
 
-Bodi konkreten, kratki, slovensko.`;
+Max 5 priporočil. Bodi konkreten.`;
 
   try {
     const res = await fetch('/ai-proxy', {method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({prompt, max_tokens:800, model:'claude-sonnet-4-6'})});
+      body:JSON.stringify({prompt, max_tokens:1200, model:'claude-sonnet-4-6'})});
     const data = await res.json();
     result.textContent = (data.content?.[0]?.text||'Napaka').trim();
   } catch(e) {
     result.textContent = 'Napaka: ' + e.message;
   }
   btn.disabled = false; btn.textContent = 'Generiraj priporočila';
+}
+
+async function betaSaveExport(filename) {
+  if (!betaCampaigns.length) return;
+  const totalSpend = betaCampaigns.reduce((s,c)=>s+c.spend,0);
+  const totalPurchases = betaCampaigns.reduce((s,c)=>s+c.purchases,0);
+  try {
+    await fetch('/beta-save-export', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({filename, campaigns: betaCampaigns, total_spend: totalSpend, total_purchases: totalPurchases})});
+    await betaLoadHistory();
+  } catch(e) { console.warn('beta save error', e); }
+}
+
+async function betaLoadHistory() {
+  try {
+    const res = await fetch('/beta-export-history');
+    const data = await res.json();
+    const el = document.getElementById('beta-history-list');
+    if (!el) return;
+    if (!data.exports || !data.exports.length) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:10px">Ni shranjenih exportov</div>';
+      return;
+    }
+    el.innerHTML = data.exports.map(e => `
+      <div onclick="betaLoadFromHistory('${e.filename}')" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;background:var(--surface2);font-size:11px"
+        onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='var(--surface2)'">
+        <div style="font-weight:600;color:var(--text)">${e.date} <span style="font-weight:400;color:var(--text-secondary)">— ${e.campaign_count} kampanij</span></div>
+        <div style="color:var(--text-tertiary);margin-top:2px">${e.original||e.filename} · ${e.total_spend?.toFixed(2)}€ · ${e.total_purchases} nakupov</div>
+      </div>`).join('');
+  } catch(e) { console.warn('history error', e); }
+}
+
+async function betaLoadFromHistory(filename) {
+  try {
+    const res = await fetch(`/beta-export-load/${filename}`);
+    const data = await res.json();
+    if (!data.ok) return;
+    betaCampaigns = data.campaigns || [];
+    const fi = document.getElementById('beta-file-info');
+    if (fi) { fi.style.display='block'; fi.textContent = `📂 ${data.original||filename} (${data.date})`; }
+    const total = betaCampaigns.length;
+    const totalSpend = betaCampaigns.reduce((s,c)=>s+c.spend,0);
+    const totalPurchases = betaCampaigns.reduce((s,c)=>s+c.purchases,0);
+    document.getElementById('beta-summary').style.display = 'block';
+    document.getElementById('beta-summary-content').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--surface2);border-radius:var(--radius);padding:8px;text-align:center">
+          <div style="font-size:18px;font-weight:700;color:var(--text)">${total}</div>
+          <div style="font-size:11px;color:var(--text-secondary)">Kampanij</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:var(--radius);padding:8px;text-align:center">
+          <div style="font-size:18px;font-weight:700;color:var(--text)">${totalSpend.toFixed(2)} €</div>
+          <div style="font-size:11px;color:var(--text-secondary)">Skupaj spend</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:var(--radius);padding:8px;text-align:center">
+          <div style="font-size:18px;font-weight:700;color:var(--text)">${totalPurchases}</div>
+          <div style="font-size:11px;color:var(--text-secondary)">Nakupi</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:var(--radius);padding:8px;text-align:center">
+          <div style="font-size:18px;font-weight:700;color:var(--text)">${totalPurchases > 0 ? (totalSpend/totalPurchases).toFixed(2) : '-'} €</div>
+          <div style="font-size:11px;color:var(--text-secondary)">Avg CPP</div>
+        </div>
+      </div>`;
+    betaAnalyze();
+  } catch(e) { console.warn('load history error', e); }
 }
 // ── /BETA ANALIZA ──────────────────────────────────────────────
 </script>
