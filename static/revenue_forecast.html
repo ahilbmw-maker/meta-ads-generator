@@ -433,11 +433,11 @@ async function loadEntries(){
       if (local && local.date === today && local.entries && local.entries.length > 0) {
         entries = local.entries;
         console.log('[forecast] loaded from localStorage:', entries.length, 'entries');
-        await saveEntries();
+        await saveEntries(); // sinhroniziraj na server
         return;
       }
     } catch(e) {}
-    // Poskusi obnoviti iz history za danes
+    // Poskusi obnoviti iz history za danes — SAMO če history ima vnose za danes
     const histText = await fetch(API_BASE + '/forecast-history').then(r=>r.text()).catch(()=>'{}');
     if(histText.trim().startsWith('<')){ entries=[]; return; }
     const hist = JSON.parse(histText);
@@ -465,11 +465,17 @@ async function saveEntries(){
     localStorage.setItem('forecast_entries_' + today, JSON.stringify({date: today, entries}));
     console.log('[forecast] localStorage saved:', entries.length, 'entries');
   } catch(e) { console.warn('[forecast] localStorage fail:', e); }
-  // Shrani v history
-  try {
-    await collectHistoricalData(today);
-  } catch(e) { console.warn('[forecast] history save fail:', e); }
-  // Shrani entries na server
+  // Shrani v history SAMO če imamo vnose
+  if (entries.length > 0) {
+    try {
+      await collectHistoricalData(today);
+    } catch(e) { console.warn('[forecast] history save fail:', e); }
+  }
+  // Shrani entries na server SAMO če imamo vnose
+  if (entries.length === 0) {
+    console.log('[forecast] skip server save — no entries');
+    return;
+  }
   try{
     const r = await fetch(API_BASE + '/forecast-entries', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({date:today, entries})});
