@@ -917,16 +917,78 @@ async def kayako_kb_search(data: dict):
 
 @app.get("/forecast-entries")
 async def get_forecast_entries():
+    from datetime import datetime
+    try:
+        import pytz
+        lj = pytz.timezone("Europe/Ljubljana")
+        today = datetime.now(lj).strftime("%Y-%m-%d")
+    except:
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+
+    data = {}
     if FORECAST_ENTRIES_FILE.exists():
         try:
-            return json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
+            data = json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
         except:
-            return {}
-    return {}
+            data = {}
+
+    # Normaliziraj stari datum format "8. 5. 2026" → "2026-05-08"
+    stored_date = data.get("date", "")
+    if stored_date and stored_date != today:
+        try:
+            # Poskusi parse stari sl-SI format
+            parts = [p.strip().strip('.') for p in stored_date.split('.') if p.strip()]
+            if len(parts) == 3:
+                d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
+                normalized = f"{y}-{m:02d}-{d:02d}"
+                if normalized == today:
+                    stored_date = today
+                    data["date"] = today
+                    # Shrani normaliziran datum nazaj
+                    FORECAST_ENTRIES_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+                    print(f"[forecast] normalized date {stored_date} → {today}")
+        except:
+            pass
+
+    if data.get("date") == today and data.get("entries"):
+        return data
+
+    # RECOVERY iz history
+    history_file = DATA_DIR / "forecast_history.json"
+    if history_file.exists():
+        try:
+            hist = json.loads(history_file.read_text(encoding="utf-8"))
+            if hist.get(today) and len(hist[today]) > 0:
+                print(f"[forecast] recovery from history for {today}: {len(hist[today])} entries")
+                recovered = {
+                    "date": today,
+                    "entries": [
+                        {
+                            "label": str(e.get("h",0)).zfill(2) + ":" + str(e.get("m",0)).zfill(2),
+                            "dejanski": e.get("rev", 0),
+                            "dejanskiOrd": e.get("ord", 0),
+                            "napoved": None,
+                            "napovedOrd": None,
+                        }
+                        for e in hist[today]
+                    ]
+                }
+                FORECAST_ENTRIES_FILE.write_text(json.dumps(recovered, ensure_ascii=False, indent=2), encoding="utf-8")
+                return recovered
+        except Exception as e:
+            print(f"[forecast] recovery error: {e}")
+
+    return data or {}
 
 @app.post("/forecast-entries")
 async def save_forecast_entries(data: dict):
     try:
+        # Varnostna zaščita — ne shrani praznih entries
+        if not data.get("entries") and FORECAST_ENTRIES_FILE.exists():
+            existing = json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
+            if existing.get("entries"):
+                print(f"[forecast] BLOCKED empty save — existing data protected")
+                return {"status": "ok", "note": "empty save blocked"}
         FORECAST_ENTRIES_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         return {"status": "ok"}
     except Exception as e:
@@ -6417,5 +6479,80 @@ async def kayako_kb_stats(brand: str = "maaarket"):
             "updated": kb.get("updated"),
             "sample":  pairs[:5],
         }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ─── BETA ANALIZA — META ADS EXPORT HISTORY ──────────────────────────────────
+BETA_DIR = DATA_DIR / "beta_exports"
+
+@app.post("/beta-save-export")
+async def beta_save_export(data: dict):
+    """Shrani Meta Ads CSV export na disk z datumom."""
+    try:
+        BETA_DIR.mkdir(exist_ok=True)
+        from datetime import datetime
+        import pytz
+        lj = pytz.timezone("Europe/Ljubljana")
+        now = datetime.now(lj)
+        date_str = now.strftime("%Y-%m-%d")
+        ts_str = now.strftime("%Y-%m-%d_%H-%M")
+        
+        # Meta info
+        filename = f"{ts_str}_{data.get('filename','export').replace(' ','_')[:40]}.json"
+        payload = {
+            "filename": data.get("filename", ""),
+            "date": date_str,
+            "timestamp": ts_str,
+            "campaigns": data.get("campaigns", []),
+            "total_spend": data.get("total_spend", 0),
+            "total_purchases": data.get("total_purchases", 0),
+        }
+        (BETA_DIR / filename).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        
+        # Pobriši stare (> 30 dni)
+        cutoff = now.timestamp() - 30*24*3600
+        for f in BETA_DIR.glob("*.json"):
+            if f.stat().st_mtime < cutoff:
+                f.unlink()
+        
+        return {"ok": True, "saved": filename}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.get("/beta-export-history")
+async def beta_export_history():
+    """Seznam shranjenih exportov (zadnjih 30 dni)."""
+    try:
+        BETA_DIR.mkdir(exist_ok=True)
+        files = sorted(BETA_DIR.glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
+        history = []
+        for f in files:
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                history.append({
+                    "filename": f.name,
+                    "original": data.get("filename",""),
+                    "date": data.get("date",""),
+                    "timestamp": data.get("timestamp",""),
+                    "total_spend": data.get("total_spend",0),
+                    "total_purchases": data.get("total_purchases",0),
+                    "campaign_count": len(data.get("campaigns",[])),
+                })
+            except:
+                pass
+        return {"ok": True, "exports": history}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.get("/beta-export-load/{filename}")
+async def beta_export_load(filename: str):
+    """Naloži specifičen export."""
+    try:
+        f = BETA_DIR / filename
+        if not f.exists():
+            return {"ok": False, "error": "Datoteka ne obstaja"}
+        data = json.loads(f.read_text(encoding="utf-8"))
+        return {"ok": True, **data}
     except Exception as e:
         return {"ok": False, "error": str(e)}
