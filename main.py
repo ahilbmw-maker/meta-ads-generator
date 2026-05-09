@@ -36,6 +36,7 @@ TT_HISTORY_FILE = DATA_DIR / "tiktok_history.json"
 META_HISTORY_FILE = DATA_DIR / "meta_history.json"
 KREATIVE_HISTORY_FILE = DATA_DIR / "kreative_history.json"
 FORECAST_ENTRIES_FILE = DATA_DIR / "forecast_entries.json"
+FORECAST_DELETED_FILE = DATA_DIR / "forecast_deleted.json"
 FORECAST_HISTORY_FILE = DATA_DIR / "forecast_history.json"
 SPOROCANJE_FILE = DATA_DIR / "sporocanje_common.json"
 
@@ -941,7 +942,7 @@ async def get_forecast_entries():
 @app.post("/forecast-entries")
 async def save_forecast_entries(data: dict):
     """Združi poslane entries z obstoječimi po času (multi-user safe).
-    Če `replace=True` v dataju, zamenja namesto združi (za brisanje)."""
+    Spoštuje deleted-list: vnose ki so bili izbrisani po datumu deletion ne sprejme."""
     try:
         from datetime import datetime
         try:
@@ -955,7 +956,6 @@ async def save_forecast_entries(data: dict):
         new_date = data.get("date", today)
         replace_mode = data.get("replace", False)
 
-        # Naloži obstoječe
         existing = {}
         if FORECAST_ENTRIES_FILE.exists():
             try:
@@ -963,34 +963,100 @@ async def save_forecast_entries(data: dict):
             except:
                 existing = {}
 
-        # Če obstoječi datum ni današnji, ga zavrzi
         if existing.get("date") != today:
             existing = {"date": today, "entries": []}
 
-        # Če novi datum ni današnji, ne združi
         if new_date != today:
             print(f"[forecast] ignored save with non-today date {new_date}")
             return {"status": "ok", "note": "date mismatch"}
 
+        # Naloži deleted-list za danes
+        deleted = {}
+        if FORECAST_DELETED_FILE.exists():
+            try:
+                all_deleted = json.loads(FORECAST_DELETED_FILE.read_text(encoding="utf-8"))
+                deleted = all_deleted.get(today, {})  # {label: timestamp_ms}
+            except:
+                deleted = {}
+
         # REPLACE mode — zamenja namesto združi
         if replace_mode:
-            result = {"date": today, "entries": sorted(new_entries, key=lambda e: e.get("label",""))}
+            # Filtriraj tiste ki so bili brisani
+            filtered = [e for e in new_entries if e.get("label","") not in deleted]
+            result = {"date": today, "entries": sorted(filtered, key=lambda e: e.get("label",""))}
             FORECAST_ENTRIES_FILE.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-            print(f"[forecast] REPLACE save: {len(new_entries)} entries")
-            return {"status": "ok", "replaced": len(new_entries)}
+            print(f"[forecast] REPLACE save: {len(filtered)} entries")
+            return {"status": "ok", "replaced": len(filtered)}
 
-        # MERGE mode — združi po času, najnovejši zmaga
+        # MERGE mode
         merged = {}
         for e in existing.get("entries", []):
-            merged[e.get("label","")] = e
+            lbl = e.get("label","")
+            if lbl not in deleted:
+                merged[lbl] = e
         for e in new_entries:
-            merged[e.get("label","")] = e
+            lbl = e.get("label","")
+            if lbl not in deleted:
+                merged[lbl] = e
         sorted_entries = sorted(merged.values(), key=lambda e: e.get("label",""))
 
         result = {"date": today, "entries": sorted_entries}
         FORECAST_ENTRIES_FILE.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"[forecast] MERGE save: {len(existing.get('entries',[]))} + {len(new_entries)} = {len(sorted_entries)}")
+        print(f"[forecast] MERGE save: total {len(sorted_entries)} (filtered out {len(deleted)} deleted)")
         return {"status": "ok", "merged": len(sorted_entries)}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/forecast-entry-delete")
+async def delete_forecast_entry(data: dict):
+    """Izbriši vnos iz danes — doda na deleted-list ki traja čez seje."""
+    try:
+        from datetime import datetime
+        try:
+            import pytz
+            lj = pytz.timezone("Europe/Ljubljana")
+            today = datetime.now(lj).strftime("%Y-%m-%d")
+        except:
+            today = datetime.utcnow().strftime("%Y-%m-%d")
+
+        label = data.get("label", "")
+        if not label:
+            return {"error": "missing label"}
+
+        # Naloži deleted-list
+        all_deleted = {}
+        if FORECAST_DELETED_FILE.exists():
+            try:
+                all_deleted = json.loads(FORECAST_DELETED_FILE.read_text(encoding="utf-8"))
+            except:
+                all_deleted = {}
+
+        # Dodaj v deleted za danes
+        if today not in all_deleted:
+            all_deleted[today] = {}
+        import time
+        all_deleted[today][label] = int(time.time() * 1000)
+
+        # Pobriši stare dni (>7 dni) — sprosti prostor
+        cutoff_keys = sorted(all_deleted.keys())
+        if len(cutoff_keys) > 7:
+            for k in cutoff_keys[:-7]:
+                del all_deleted[k]
+
+        FORECAST_DELETED_FILE.write_text(json.dumps(all_deleted, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        # Takoj odstrani iz entries fajla
+        if FORECAST_ENTRIES_FILE.exists():
+            try:
+                existing = json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
+                if existing.get("date") == today:
+                    existing["entries"] = [e for e in existing.get("entries",[]) if e.get("label","") != label]
+                    FORECAST_ENTRIES_FILE.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
+            except:
+                pass
+
+        print(f"[forecast] DELETED entry '{label}' for {today}")
+        return {"status": "ok", "deleted": label}
     except Exception as e:
         return {"error": str(e)}
 
