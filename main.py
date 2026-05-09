@@ -917,11 +917,24 @@ async def kayako_kb_search(data: dict):
 
 @app.get("/forecast-entries")
 async def get_forecast_entries():
-    """Vrne entries za danes — server je edina resnica."""
+    """Vrne entries samo če so za danes."""
+    from datetime import datetime
+    try:
+        import pytz
+        lj = pytz.timezone("Europe/Ljubljana")
+        today = datetime.now(lj).strftime("%Y-%m-%d")
+    except:
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+
     if not FORECAST_ENTRIES_FILE.exists():
         return {}
     try:
-        return json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
+        data = json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
+        if data.get("date") == today:
+            return data
+        # Stari podatki — vrni prazen
+        print(f"[forecast] entries are from {data.get('date')}, today is {today} — returning empty")
+        return {}
     except:
         return {}
 
