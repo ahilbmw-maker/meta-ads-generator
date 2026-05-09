@@ -645,7 +645,22 @@ function clearEntries(){
   document.getElementById('empty').style.display='block';
 }
 
-function removeEntry(i){entries.splice(i,1);saveEntries(true);renderChart();renderLog();}
+async function removeEntry(i){
+  const removed = entries[i];
+  entries.splice(i,1);
+  renderChart();
+  renderLog();
+  // Pošlji direktno delete na server — to bo dodalo v deleted-list
+  if(removed && removed.label){
+    try{
+      await fetch(API_BASE + '/forecast-entry-delete', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({label: removed.label})
+      });
+      console.log('[forecast] deleted', removed.label);
+    }catch(e){ console.warn('[forecast] delete error:', e); }
+  }
+}
 
 function renderChart(){
   const wrap=document.getElementById('chart-wrap'),empty=document.getElementById('chart-empty');
