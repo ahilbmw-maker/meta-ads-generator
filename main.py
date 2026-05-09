@@ -940,7 +940,8 @@ async def get_forecast_entries():
 
 @app.post("/forecast-entries")
 async def save_forecast_entries(data: dict):
-    """Združi poslane entries z obstoječimi po času (multi-user safe)."""
+    """Združi poslane entries z obstoječimi po času (multi-user safe).
+    Če `replace=True` v dataju, zamenja namesto združi (za brisanje)."""
     try:
         from datetime import datetime
         try:
@@ -952,6 +953,7 @@ async def save_forecast_entries(data: dict):
 
         new_entries = data.get("entries", [])
         new_date = data.get("date", today)
+        replace_mode = data.get("replace", False)
 
         # Naloži obstoječe
         existing = {}
@@ -965,23 +967,29 @@ async def save_forecast_entries(data: dict):
         if existing.get("date") != today:
             existing = {"date": today, "entries": []}
 
-        # Če novi datum ni današnji, ne združi (prazen save iz starih sej)
+        # Če novi datum ni današnji, ne združi
         if new_date != today:
             print(f"[forecast] ignored save with non-today date {new_date}")
             return {"status": "ok", "note": "date mismatch"}
 
-        # Združi entries po času (label) — najnovejši zmaga
+        # REPLACE mode — zamenja namesto združi
+        if replace_mode:
+            result = {"date": today, "entries": sorted(new_entries, key=lambda e: e.get("label",""))}
+            FORECAST_ENTRIES_FILE.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+            print(f"[forecast] REPLACE save: {len(new_entries)} entries")
+            return {"status": "ok", "replaced": len(new_entries)}
+
+        # MERGE mode — združi po času, najnovejši zmaga
         merged = {}
         for e in existing.get("entries", []):
             merged[e.get("label","")] = e
         for e in new_entries:
             merged[e.get("label","")] = e
-        # Sortiraj
         sorted_entries = sorted(merged.values(), key=lambda e: e.get("label",""))
 
         result = {"date": today, "entries": sorted_entries}
         FORECAST_ENTRIES_FILE.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"[forecast] merged save: {len(existing.get('entries',[]))} existing + {len(new_entries)} new = {len(sorted_entries)} total")
+        print(f"[forecast] MERGE save: {len(existing.get('entries',[]))} + {len(new_entries)} = {len(sorted_entries)}")
         return {"status": "ok", "merged": len(sorted_entries)}
     except Exception as e:
         return {"error": str(e)}
