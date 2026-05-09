@@ -56,7 +56,6 @@
     padding: 13px 24px;
     display: flex; align-items: center; justify-content: space-between;
     gap: 16px; flex-wrap: wrap;
-    position: sticky; top: 0; z-index: 50;
   }
   .logo { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
   .logo span { color: var(--accent); }
@@ -249,6 +248,7 @@
 </head>
 <body>
 
+<div style="position:sticky;top:0;z-index:50;background:var(--bg)">
 <div class="header">
   <div class="logo">price<span>checker</span><em>// maaarket</em></div>
   <div class="upload-area">
@@ -324,6 +324,7 @@
   <span style="color:var(--border);margin:0 4px">|</span>
   <button class="filter-btn" onclick="taskFilter('resolved',null);this.classList.add('active')" style="color:var(--green)">✓ Urejeni</button>
 </div>
+</div><!-- /sticky -->
 
 <div id="dropZone" style="margin:24px 24px;display:flex;flex-direction:column;gap:12px">
   <!-- PASTE AREA — primarna -->
