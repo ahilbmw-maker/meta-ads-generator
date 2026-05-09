@@ -940,15 +940,49 @@ async def get_forecast_entries():
 
 @app.post("/forecast-entries")
 async def save_forecast_entries(data: dict):
+    """Združi poslane entries z obstoječimi po času (multi-user safe)."""
     try:
-        # Varnostna zaščita — ne shrani praznih entries
-        if not data.get("entries") and FORECAST_ENTRIES_FILE.exists():
-            existing = json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
-            if existing.get("entries"):
-                print(f"[forecast] BLOCKED empty save — existing data protected")
-                return {"status": "ok", "note": "empty save blocked"}
-        FORECAST_ENTRIES_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        return {"status": "ok"}
+        from datetime import datetime
+        try:
+            import pytz
+            lj = pytz.timezone("Europe/Ljubljana")
+            today = datetime.now(lj).strftime("%Y-%m-%d")
+        except:
+            today = datetime.utcnow().strftime("%Y-%m-%d")
+
+        new_entries = data.get("entries", [])
+        new_date = data.get("date", today)
+
+        # Naloži obstoječe
+        existing = {}
+        if FORECAST_ENTRIES_FILE.exists():
+            try:
+                existing = json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
+            except:
+                existing = {}
+
+        # Če obstoječi datum ni današnji, ga zavrzi
+        if existing.get("date") != today:
+            existing = {"date": today, "entries": []}
+
+        # Če novi datum ni današnji, ne združi (prazen save iz starih sej)
+        if new_date != today:
+            print(f"[forecast] ignored save with non-today date {new_date}")
+            return {"status": "ok", "note": "date mismatch"}
+
+        # Združi entries po času (label) — najnovejši zmaga
+        merged = {}
+        for e in existing.get("entries", []):
+            merged[e.get("label","")] = e
+        for e in new_entries:
+            merged[e.get("label","")] = e
+        # Sortiraj
+        sorted_entries = sorted(merged.values(), key=lambda e: e.get("label",""))
+
+        result = {"date": today, "entries": sorted_entries}
+        FORECAST_ENTRIES_FILE.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"[forecast] merged save: {len(existing.get('entries',[]))} existing + {len(new_entries)} new = {len(sorted_entries)} total")
+        return {"status": "ok", "merged": len(sorted_entries)}
     except Exception as e:
         return {"error": str(e)}
 
@@ -6594,3 +6628,16 @@ async def forecast_fix_today():
     }
     FORECAST_ENTRIES_FILE.write_text(json.dumps(recovered, ensure_ascii=False, indent=2), encoding="utf-8")
     return {"ok": True, "keys_used": keys_used, "entries_recovered": len(sorted_entries), "entries": recovered["entries"]}
+
+@app.get("/forecast-clear-today")
+async def forecast_clear_today():
+    """Počisti entries za danes (admin endpoint)."""
+    try:
+        if FORECAST_ENTRIES_FILE.exists():
+            data = json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
+            old_count = len(data.get("entries", []))
+            FORECAST_ENTRIES_FILE.write_text(json.dumps({}, ensure_ascii=False, indent=2), encoding="utf-8")
+            return {"ok": True, "cleared": old_count}
+        return {"ok": True, "cleared": 0}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
