@@ -436,18 +436,17 @@ async function loadEntries(){
   }
 }
 
-async function saveEntries(){
-  if(entries.length === 0){ console.log('[forecast] skip save — no entries'); return; }
+async function saveEntries(replaceMode){
+  if(entries.length === 0 && !replaceMode){ console.log('[forecast] skip save — no entries'); return; }
   const today = getTodayLJ();
   try{
     const r = await fetch(API_BASE + '/forecast-entries', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({date:today, entries})
+      body: JSON.stringify({date:today, entries, replace: !!replaceMode})
     });
     const txt = await r.text();
     if(txt.trim().startsWith('<')){ console.warn('[forecast] save returned HTML'); return; }
-    console.log('[forecast] saved OK:', entries.length, 'entries');
-    // History posodobi asinhrono - ne blokira
+    console.log('[forecast] saved OK:', entries.length, 'entries', replaceMode?'(replace)':'(merge)');
     collectHistoricalData(today).catch(()=>{});
   }catch(e){ console.warn('[forecast] save error:', e); }
 }
@@ -646,7 +645,7 @@ function clearEntries(){
   document.getElementById('empty').style.display='block';
 }
 
-function removeEntry(i){entries.splice(i,1);saveEntries();renderChart();renderLog();}
+function removeEntry(i){entries.splice(i,1);saveEntries(true);renderChart();renderLog();}
 
 function renderChart(){
   const wrap=document.getElementById('chart-wrap'),empty=document.getElementById('chart-empty');
