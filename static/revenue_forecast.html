@@ -418,11 +418,18 @@ function getTodayLJ(){
 
 async function loadEntries(){
   try{
+    const today = getTodayLJ();
     const text = await fetch(API_BASE + '/forecast-entries').then(r=>r.text());
     if(text.trim().startsWith('<')){ console.log('[forecast] entries endpoint not ready'); entries=[]; return; }
     const data = JSON.parse(text);
-    entries = (data && Array.isArray(data.entries)) ? data.entries : [];
-    console.log('[forecast] loaded from server:', entries.length, 'entries');
+    // Samo naloži če je datum danes
+    if(data && data.date === today && Array.isArray(data.entries) && data.entries.length > 0){
+      entries = data.entries;
+      console.log('[forecast] loaded from server:', entries.length, 'entries');
+    } else {
+      console.log('[forecast] no entries for today (' + today + '), server has:', data?.date);
+      entries = [];
+    }
   }catch(e){
     console.warn('[forecast] loadEntries error:', e);
     entries=[];
