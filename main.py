@@ -7266,17 +7266,28 @@ async def spam_confirm(data: dict):
         trash_status = int(os.environ.get("KAYAKO_TRASH_STATUS_ID", "4"))
         try:
             from urllib.parse import quote_plus
-            url = _kayako_build_url(f"/Tickets/Ticket/{tid}")
-            # PUT request z status ID
+            # Za PUT request mora biti auth kot form fields, ne URL params
+            salt = str(random.randint(1000000000, 9999999999))
+            raw_sig = hmac.new(
+                key=KAYAKO_SECRET.encode("utf-8"),
+                msg=salt.encode("utf-8"),
+                digestmod=hashlib.sha256
+            ).digest()
+            signature = base64.b64encode(raw_sig).decode("utf-8")
+            
+            url = f"{KAYAKO_API_URL}?e=/Tickets/Ticket/{tid}"
+            form_data = {
+                "apikey":         KAYAKO_API_KEY,
+                "salt":           salt,
+                "signature":      signature,
+                "ticketstatusid": str(trash_status),
+            }
             async with httpx.AsyncClient() as client:
-                form_data = {
-                    "ticketstatusid": str(trash_status),
-                }
                 r = await client.put(url, data=form_data, timeout=20)
                 print(f"[spam] Trash ticket {tid}: HTTP {r.status_code}")
                 if r.status_code != 200:
-                    print(f"[spam] response: {r.text[:200]}")
-                    return {"ok": False, "error": f"Kayako error: {r.status_code}"}
+                    print(f"[spam] response: {r.text[:300]}")
+                    return {"ok": False, "error": f"Kayako error: {r.status_code} — {r.text[:100]}"}
         except Exception as e:
             print(f"[spam] Trash error: {e}")
             return {"ok": False, "error": str(e)}
