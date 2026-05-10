@@ -7140,9 +7140,7 @@ async def spam_analyze():
                 if tid in rejected or tid in confirmed:
                     continue  # že obdelano - preskoči
                 t["brand"] = brand
-                if not t.get("posts"):
-                    posts = await _fetch_ticket_posts(client, tid)
-                    t["posts"] = posts
+                # Ne nalagamo postov — analiziramo samo naslov
                 all_tickets.append(t)
 
     # AI klasifikacija
@@ -7154,28 +7152,62 @@ async def spam_analyze():
     classified = []
     skipped = 0
 
+    # Hitri pre-filter: označi za AI samo angleške naslove
+    # Ne-angleški znaki, šumniki, in tipične besede v drugih jezikih = preskoči
+    import unicodedata as _ud
+
+    def _is_english_only(text: str) -> bool:
+        """True če je naslov verjetno angleški (brez šumnikov, brez ne-ASCII črk)."""
+        if not text or len(text.strip()) < 3:
+            return False
+        # Vsebuje šumnike ali cirilico ali grško → ni angleški
+        for ch in text:
+            if ch in 'čšžćđČŠŽĆĐńąęłóśźżŃĄĘŁÓŚŹŻáéíóúýäöüÁÉÍÓÚÝÄÖÜőűŐŰâîăşţÂÎĂŞŢ':
+                return False
+            # Ne-latinski alfabet (cirilica, grščina, arabščina, kitajščina...)
+            if ch.isalpha() and ord(ch) > 591:
+                return False
+        # Tipične ne-angleške besede (običajno na začetku naslova)
+        text_lower = text.lower()
+        non_english_keywords = [
+            'naroč', 'pošilj', 'dostav', 'plač', 'računa', 'izdelek', 'vraač',
+            'reklam', 'kupon', 'paket', 'cena', 'ponudb', 'poizvedb',
+            'narudžb', 'isporuk', 'plać', 'račun', 'proizvod', 'povrat',
+            'narudžba', 'poručio', 'paypal',
+            'поръчк', 'доставк', 'плащане', 'продукт',
+            'objedn', 'doruč', 'platb', 'výrobok', 'vrátenie',
+            'rendel', 'szállí', 'fizetés', 'termék', 'visszaküld',
+            'zamówi', 'dostawa', 'płatność', 'produkt', 'zwrot',
+            'comand', 'livrare', 'plat', 'produs', 'retur',
+            'παραγγελ', 'αποστολ', 'πληρωμ', 'προϊόν', 'επιστροφ'
+        ]
+        for kw in non_english_keywords:
+            if kw in text_lower:
+                return False
+        return True
+
     for t in all_tickets:
         subject = t.get("subject", "")
         from_email = t.get("email", "")
         from_name = t.get("fullname", "")
-        first_post = ""
-        for p in t.get("posts", []):
-            if p["role"] == "customer":
-                first_post = p["text"][:1500]
-                break
 
-        prompt = f"""Si strog klasifikator email spam-a. Analiziraj ticket — ali je SPAM ali pristna stranka?
+        # PRE-FILTER: samo angleški naslovi grejo skozi AI
+        if not _is_english_only(subject):
+            rejected.add(t.get("id",""))
+            skipped += 1
+            continue
+
+        prompt = f"""Si strog klasifikator email spam-a. Analiziraj SAMO naslov ticket-a iz Kayako support sistema (e-trgovina).
 
 POŠILJATELJ: {from_name} <{from_email}>
 NASLOV: {subject}
-VSEBINA: {first_post[:1000]}
 
 Odgovori SAMO z JSON:
 {{"score": <0-100, koliko verjetno je spam>, "reason": "<razlaga v slovenščini, max 1 stavek>"}}
 
-Visok score (>80) = phishing, prevare, oglaševanje SEO/marketing storitev, generične masovne ponudbe, B2B nadlegovanje (npr. "would you like to discuss our services").
-Srednji (50-80) = sumljivo a ne 100% spam.
-Nizek (<50) = pristna stranka — vprašanja o naročilih, izdelkih, dostavi, vračilu, pritožbe."""
+Visok score (>80) = oglaševanje SEO/marketing/development storitev, B2B "we offer X services", "increase your traffic", phishing, prevare, "partnership opportunity", agencije ki ponujajo svoje storitve, generično angleško sporočilo brez konteksta naših izdelkov.
+Srednji (50-80) = sumljivo a možno legitimno (npr. tuji kupec).
+Nizek (<50) = pristno vprašanje o naročilih/izdelkih/dostavi (npr. order #12345, my order, refund request, where is my package)."""
 
         try:
             msg = client_h.messages.create(
