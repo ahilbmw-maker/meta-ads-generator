@@ -1910,7 +1910,7 @@ input[type="text"].error { border-color: var(--red) !important; }
               <button onclick="aptelMoveSelectedBack()" style="padding:5px 12px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">← Vrni v seznam</button>
               <button onclick="aptelDeselectAll('order')" style="padding:5px 10px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">✕ Počisti izbor</button>
             </div>
-            <div id="hsuvozOrderEmpty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:1.5rem">Premakni SKU-je sem z gumbom "→ Naročilo".</div>
+            <div id="aptelOrderEmpty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:1.5rem">Premakni SKU-je sem z gumbom "→ Naročilo".</div>
             <div style="display:grid;grid-template-columns:32px 28px 130px 1fr 55px 85px 85px 100px;gap:8px;padding:8px 12px;background:rgba(15,118,110,0.08);border-radius:var(--radius);font-size:10px;font-weight:600;color:#0f766e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;display:none;align-items:center" id="aptelOrderHeader">
               <input type="checkbox" id="aptelOrderSelectAll" onchange="aptelToggleSelectAll('order',this.checked)" style="cursor:pointer;width:14px;height:14px">
               <span>#</span><span>SKU</span><span>Naziv</span><span style="text-align:center">Kol.</span><span style="text-align:center">Obrat 30d</span><span style="text-align:center">Naročila</span><span></span>
@@ -10516,6 +10516,7 @@ let spBrand = 'maaarket'; // 'maaarket' ali 'silux'
 
 
 // ── APTEL NAROČANJE ──────────────────────────────────────────
+let _aptelShowDone = false;
 async function aptelLoadStock() {
   try {
     const res = await fetch('/orodja-stock-data');
