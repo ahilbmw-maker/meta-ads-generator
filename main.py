@@ -7321,3 +7321,212 @@ async def spam_clear_confirmed():
     """Počisti seznam potrjenih spam-ov."""
     _spam_save_set(SPAM_CONFIRMED_FILE, set())
     return {"ok": True}
+
+
+# ─── KNJIGOVODSTVO (Polcar XML → CSV) ────────────────────────────────────────
+KNJ_DIR = DATA_DIR / "knjigovodstvo"
+KNJ_DIR.mkdir(exist_ok=True, parents=True)
+
+def _parse_polcar_debit(content: str) -> list[dict]:
+    """Polcar Debit Note (DU) — ROOT atributi + USL elementi."""
+    try:
+        root = ET.fromstring(content)
+    except ET.ParseError as e:
+        print(f"[knj] debit parse error: {e}")
+        return []
+    rows = []
+    for usl in root.findall('USL'):
+        rows.append({
+            'Tip':                'DEBIT NOTE',
+            'Številka':           root.get('NumerRachunku', ''),
+            'Datum prodaje':      root.get('DataSprzedazyText_Wartosc', ''),
+            'Datum izdaje':       root.get('DataWystawieniaText_Wartosc', ''),
+            'Rok plačila':        root.get('TerminPlatnosciText_Wartosc', ''),
+            'Prodajalec':         root.get('WystawcaNazwa', ''),
+            'Kupec':              root.get('OdbiorcaNazwa', '').strip(),
+            'EU VAT':             root.get('OdbiorcaUEVAT', '') or root.get('OdbiorcaNIP',''),
+            'Valuta':             root.get('Rachunek_Waluta', '').strip(),
+            'Art. številka':      usl.get('NazwaUslugi', ''),
+            'Opis':               usl.get('OpisUslugi', '') or usl.get('PowodWystawienia',''),
+            'Količina':           '1',
+            'Cena/kos':           usl.get('WartoscNetto', '').replace(',','.'),
+            'Vrednost neto':      usl.get('WartoscNetto', '').replace(',','.'),
+            'VAT %':              str(usl.get('StawkaVat', '0')),
+            'Vrednost VAT':       usl.get('WartoscVat', '').replace(',','.'),
+            'Vrednost bruto':     usl.get('WartoscBrutto', '').replace(',','.'),
+            'Razlog':             usl.get('PowodWystawienia', ''),
+            'Skupaj bruto':       root.get('Rachunek_WartoscBrutto', '').replace(',','.'),
+        })
+    if not rows:
+        # Fallback — header only
+        rows.append({
+            'Tip':            'DEBIT NOTE',
+            'Številka':       root.get('NumerRachunku', ''),
+            'Datum prodaje':  root.get('DataSprzedazyText_Wartosc', ''),
+            'Datum izdaje':   root.get('DataWystawieniaText_Wartosc', ''),
+            'Rok plačila':    root.get('TerminPlatnosciText_Wartosc', ''),
+            'Prodajalec':     root.get('WystawcaNazwa', ''),
+            'Kupec':          root.get('OdbiorcaNazwa', '').strip(),
+            'EU VAT':         root.get('OdbiorcaUEVAT', ''),
+            'Valuta':         root.get('Rachunek_Waluta', '').strip(),
+            'Art. številka':  '',
+            'Opis':           '',
+            'Količina':       '',
+            'Cena/kos':       '',
+            'Vrednost neto':  root.get('Rachunek_WartoscNetto','').replace(',','.'),
+            'VAT %':          '',
+            'Vrednost VAT':   root.get('Rachunek_WartoscVat','').replace(',','.'),
+            'Vrednost bruto': root.get('Rachunek_WartoscBrutto','').replace(',','.'),
+            'Razlog':         '',
+            'Skupaj bruto':   root.get('Rachunek_WartoscBrutto','').replace(',','.'),
+        })
+    return rows
+
+def _parse_polcar_credit(content: str) -> list[dict]:
+    """Polcar Credit Note (NU) — ROOT atributi + POZ elementi."""
+    try:
+        root = ET.fromstring(content)
+    except ET.ParseError as e:
+        print(f"[knj] credit parse error: {e}")
+        return []
+    rows = []
+    for poz in root.findall('POZ'):
+        razlog = ''
+        for p in root.findall('Powody'):
+            if p.get('Symbol') == poz.get('Symbol'):
+                razlog = p.get('Powod', '').replace('(','| ').replace(')','').strip()
+        rows.append({
+            'Tip':            'CREDIT NOTE',
+            'Številka':       root.get('NumerKorekty', ''),
+            'Za dokument':    root.get('NumerRachunku', ''),
+            'Datum prodaje':  root.get('Rachunek_DataSprzedazyText_Wartosc', ''),
+            'Datum izdaje':   root.get('Korekta_DataWystawienia_Wartosc', ''),
+            'Rok plačila':    root.get('TerminPlatnosciText_Wartosc', '') or root.get('TerminWyplatyText',''),
+            'Prodajalec':     root.get('WystawcaNazwa', ''),
+            'Kupec':          root.get('OdbiorcaNazwa', '').strip(),
+            'EU VAT':         root.get('OdbiorcaUEVAT', '') or root.get('OdbiorcaNIP',''),
+            'Valuta':         root.get('Korekta_Waluta', '').strip(),
+            'Art. številka':  poz.get('Numer', ''),
+            'Art. št. kupca': poz.get('NumerTowaruKlienta', ''),
+            'Naziv artikla':  poz.get('Naziv', '') or poz.get('Nazwa',''),
+            'Opis':           poz.get('Opis', ''),
+            'Količina':       poz.get('Ilosc', '').split('[')[0].strip(),
+            'Cena/kos':       poz.get('CenaJednostkowa', '').replace(',','.'),
+            'Vrednost neto':  poz.get('WartoscNetto', '').replace(',','.'),
+            'VAT %':          str(poz.get('StawkaVat', '0')),
+            'Vrednost VAT':   poz.get('WartoscVat', '').replace(',','.'),
+            'Vrednost bruto': poz.get('WartoscBrutto', '').replace(',','.'),
+            'Razlog':         razlog,
+            'Skupaj bruto':   root.get('Korekta_WartoscBrutto','').replace(',','.'),
+        })
+    return rows
+
+@app.post("/knj-parse")
+async def knj_parse(files: list[UploadFile] = File(...)):
+    """Sprejme Polcar XML datoteke (DU/NU) in vrne razčlenjene vrstice."""
+    debit_rows = []
+    credit_rows = []
+    parsed_count = 0
+
+    for f in files:
+        try:
+            raw = await f.read()
+            # Polcar XML so v UTF-16 z BOM (\xff\xfe)
+            try:
+                content = raw.decode('utf-16')
+            except UnicodeDecodeError:
+                try:
+                    content = raw.decode('utf-8-sig')
+                except UnicodeDecodeError:
+                    content = raw.decode('utf-8', errors='ignore')
+
+            fname = (f.filename or '').upper()
+            if '_DU_' in fname or '_DU.' in fname or 'DU.XML' in fname:
+                debit_rows.extend(_parse_polcar_debit(content))
+            elif '_NU_' in fname or '_NU.' in fname or 'NU.XML' in fname:
+                credit_rows.extend(_parse_polcar_credit(content))
+            else:
+                # Heuristika: poskusi oba parserja
+                d = _parse_polcar_debit(content)
+                c = _parse_polcar_credit(content)
+                if d and not c: debit_rows.extend(d)
+                elif c and not d: credit_rows.extend(c)
+                elif len(d) > len(c): debit_rows.extend(d)
+                else: credit_rows.extend(c)
+            parsed_count += 1
+        except Exception as e:
+            print(f"[knj] error parsing {f.filename}: {e}")
+            continue
+
+    return {
+        "ok": True,
+        "parsed": parsed_count,
+        "debit": debit_rows,
+        "credit": credit_rows,
+    }
+
+@app.post("/knj-save")
+async def knj_save(data: dict):
+    """Shrani CSV podatke v zgodovino."""
+    try:
+        from datetime import datetime
+        try:
+            import pytz
+            lj = pytz.timezone("Europe/Ljubljana")
+            now = datetime.now(lj)
+        except:
+            now = datetime.utcnow()
+
+        ts = now.strftime("%Y-%m-%d_%H-%M-%S")
+        filename = data.get("filename", f"polcar_{ts}.csv")
+        # Sanitiziraj filename
+        safe = re.sub(r'[^\w\-_.]', '_', filename)
+        save_path = KNJ_DIR / f"{ts}_{safe}.json"
+
+        payload = {
+            "filename": filename,
+            "timestamp": now.strftime("%Y-%m-%d %H:%M"),
+            "rows": data.get("rows", []),
+            "columns": data.get("columns", []),
+        }
+        save_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"ok": True, "saved": save_path.name}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.get("/knj-history")
+async def knj_history():
+    """Zgodovina shranjenih CSV-jev."""
+    try:
+        files = sorted(KNJ_DIR.glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
+        exports = []
+        for f in files[:50]:
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                exports.append({
+                    "filename": data.get("filename", f.name),
+                    "timestamp": data.get("timestamp", ""),
+                    "rows": len(data.get("rows", [])),
+                    "internal_id": f.name,
+                })
+            except:
+                pass
+        return {"ok": True, "exports": exports}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.get("/knj-load/{filename}")
+async def knj_load(filename: str):
+    """Naloži shranjen CSV iz zgodovine."""
+    try:
+        # Iščemo po imenu (filename je user-facing ime, ne internal)
+        for f in KNJ_DIR.glob("*.json"):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                if data.get("filename") == filename:
+                    return {"ok": True, **data}
+            except:
+                continue
+        return {"ok": False, "error": "Ni najden"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
