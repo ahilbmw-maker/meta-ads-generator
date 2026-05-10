@@ -2651,7 +2651,7 @@ input[type="text"].error { border-color: var(--red) !important; }
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px">
           <div>
             <span class="slabel">🛡 SPAM FILTER</span>
-            <p style="font-size:12px;color:var(--text-secondary);margin:4px 0 0">AI pregleda zadnjih 200 odprtih ticketov (100/brand) in prikaže samo verjetne spame (>80%). Klik na "🛡 Spam" → ticket se premakne v Trash v Kayako.</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin:4px 0 0">AI pregleda zadnjih 200 odprtih ticketov (samo naslove). Pre-filter izloči vse ne-angleške naslove (lokalni jeziki = pristni). Prikaže samo verjetne spame (>80%). Klik na "🛡 Spam → Trash" → ticket gre v Trash v Kayako.</p>
           </div>
           <div style="display:flex;gap:8px">
             <button onclick="spamLoadTickets()" id="spamLoadBtn" style="padding:9px 16px;background:#534AB7;color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🔍 Naloži & analiziraj</button>
@@ -11025,8 +11025,8 @@ function spSwitchMainTab(tab) {
 async function spamLoadTickets() {
   const btn = document.getElementById('spamLoadBtn');
   const status = document.getElementById('spamStatus');
-  btn.disabled = true; btn.textContent = '⏳ Pregledam 200 odprtih ticketov...';
-  status.textContent = 'AI pregleduje vsak odprti ticket — to lahko traja nekaj minut...';
+  btn.disabled = true; btn.textContent = '⏳ Pregledam naslove...';
+  status.textContent = 'AI pregleduje samo angleške naslove — bo zelo hitro...';
 
   try {
     const res = await fetch('/spam-analyze', {method:'POST'});
@@ -11039,7 +11039,7 @@ async function spamLoadTickets() {
     spamTickets = data.tickets || [];
     spamConfirmed = new Set(data.confirmed || []);
     const stats = data.stats || {};
-    status.textContent = `✓ Pregledano ${stats.checked||0} ticketov · najdeno ${spamTickets.length} verjetnih spamov · ${stats.filtered_out||0} čistih ticketov preskočenih`;
+    status.textContent = `✓ Pregledano ${stats.checked||0} ticketov · ${stats.filtered_out||0} ne-angleških preskočenih · najdeno ${spamTickets.length} verjetnih spamov`;
     spamRender();
   } catch(e) {
     status.textContent = '❌ Napaka: ' + e.message;
