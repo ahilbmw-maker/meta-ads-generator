@@ -6702,12 +6702,14 @@ def _parse_ticket_xml(xml_text: str) -> list[dict]:
         dept_id    = _xml_text(t, "departmentid")
         status_id  = _xml_text(t, "statusid")
         created    = _xml_text(t, "creationtime")
+        email      = _xml_text(t, "email")
+        fullname   = _xml_text(t, "fullname")
         # posti (konverzacija)
         posts = []
         for p in t.findall(".//post"):
             creator   = p.get("creator", _xml_text(p, "creator", "2"))
             staff_id  = _xml_text(p, "staffid", "0")
-            fullname  = _xml_text(p, "fullname")
+            p_fullname  = _xml_text(p, "fullname")
             contents_node = p.find("contents")
             contents = ""
             if contents_node is not None:
@@ -6715,13 +6717,15 @@ def _parse_ticket_xml(xml_text: str) -> list[dict]:
             # creator=1 = staff, creator=2 = user/stranka
             role = "staff" if (staff_id != "0" or str(creator) == "1") else "customer"
             if contents:
-                posts.append({"role": role, "name": fullname, "text": contents})
+                posts.append({"role": role, "name": p_fullname, "text": contents})
         tickets.append({
             "id": ticket_id,
             "subject": subject,
             "dept_id": dept_id,
             "status_id": status_id,
             "created": created,
+            "email": email,
+            "fullname": fullname,
             "posts": posts,
         })
     return tickets
@@ -7086,3 +7090,171 @@ async def forecast_clear_today():
         return {"ok": True, "cleared": 0}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+# ─── SPAM FILTER ────────────────────────────────────────────────────────────
+SPAM_DIR = DATA_DIR / "spam"
+SPAM_DIR.mkdir(exist_ok=True, parents=True)
+SPAM_CONFIRMED_FILE = SPAM_DIR / "confirmed.json"
+SPAM_REJECTED_FILE = SPAM_DIR / "rejected.json"
+
+def _spam_load_set(path: Path) -> set:
+    if not path.exists(): return set()
+    try:
+        return set(json.loads(path.read_text(encoding="utf-8")))
+    except: return set()
+
+def _spam_save_set(path: Path, s: set):
+    path.write_text(json.dumps(list(s), ensure_ascii=False, indent=2), encoding="utf-8")
+
+SPAM_THRESHOLD = 80  # Spodnja meja za prikaz - samo >80% se vrne v ads.slx
+
+@app.post("/spam-analyze")
+async def spam_analyze():
+    """Naloži zadnjih 100 ticketov iz vseh brand-ov, klasificira z AI in vrne SAMO tiste z score >80%."""
+    if not KAYAKO_API_KEY or not KAYAKO_SECRET:
+        return {"ok": False, "error": "Kayako API ni konfiguriran"}
+
+    confirmed = _spam_load_set(SPAM_CONFIRMED_FILE)
+    rejected  = _spam_load_set(SPAM_REJECTED_FILE)
+
+    all_tickets = []
+    async with httpx.AsyncClient() as client:
+        # 50 ticketov iz vsakega branda = 100 skupaj
+        for brand, dept_id in KAYAKO_DEPT.items():
+            tickets = await _fetch_tickets_batch(client, dept_id, 0, 50)
+            for t in tickets:
+                tid = t.get("id", "")
+                if tid in rejected or tid in confirmed:
+                    continue  # že obdelano - preskoči
+                t["brand"] = brand
+                if not t.get("posts"):
+                    posts = await _fetch_ticket_posts(client, tid)
+                    t["posts"] = posts
+                all_tickets.append(t)
+
+    # AI klasifikacija
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return {"ok": False, "error": "ANTHROPIC_API_KEY ni nastavljen"}
+
+    client_h = anthropic.Anthropic(api_key=api_key)
+    classified = []
+    skipped = 0
+
+    for t in all_tickets:
+        subject = t.get("subject", "")
+        from_email = t.get("email", "")
+        from_name = t.get("fullname", "")
+        first_post = ""
+        for p in t.get("posts", []):
+            if p["role"] == "customer":
+                first_post = p["text"][:1500]
+                break
+
+        prompt = f"""Si strog klasifikator email spam-a. Analiziraj ticket — ali je SPAM ali pristna stranka?
+
+POŠILJATELJ: {from_name} <{from_email}>
+NASLOV: {subject}
+VSEBINA: {first_post[:1000]}
+
+Odgovori SAMO z JSON:
+{{"score": <0-100, koliko verjetno je spam>, "reason": "<razlaga v slovenščini, max 1 stavek>"}}
+
+Visok score (>80) = phishing, prevare, oglaševanje SEO/marketing storitev, generične masovne ponudbe, B2B nadlegovanje (npr. "would you like to discuss our services").
+Srednji (50-80) = sumljivo a ne 100% spam.
+Nizek (<50) = pristna stranka — vprašanja o naročilih, izdelkih, dostavi, vračilu, pritožbe."""
+
+        try:
+            msg = client_h.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=200,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            txt = msg.content[0].text.strip() if msg.content else "{}"
+            txt = re.sub(r'^```(?:json)?|```$', '', txt, flags=re.MULTILINE).strip()
+            try:
+                ai = json.loads(txt)
+                score = int(ai.get("score", 0))
+                reason = ai.get("reason", "")
+            except:
+                continue
+        except Exception as e:
+            print(f"[spam] AI error for {t.get('id','')}: {e}")
+            continue
+
+        # Samo nad threshold-om
+        if score < SPAM_THRESHOLD:
+            # Auto-zavrni tiste pod threshold-om da jih ne procesiramo več
+            rejected.add(t.get("id",""))
+            skipped += 1
+            continue
+
+        classified.append({
+            "id": t.get("id", ""),
+            "brand": t.get("brand", ""),
+            "subject": subject,
+            "from": f"{from_name} <{from_email}>" if from_email else from_name,
+            "score": score,
+            "reason": reason,
+            "url": f"https://support.silux.si/staff/index.php?/Tickets/Ticket/View/{t.get('id','')}",
+        })
+
+    # Shrani auto-rejected da jih naslednji klic preskoči
+    _spam_save_set(SPAM_REJECTED_FILE, rejected)
+
+    return {"ok": True, "tickets": classified, "confirmed": list(confirmed), "stats": {"checked": len(all_tickets), "found": len(classified), "filtered_out": skipped}}
+
+@app.post("/spam-confirm")
+async def spam_confirm(data: dict):
+    """Potrdi spam → premakni v Trash v Kayako, ali zavrni."""
+    tid = str(data.get("id", ""))
+    action = data.get("action", "")
+    if not tid:
+        return {"error": "missing id"}
+
+    confirmed = _spam_load_set(SPAM_CONFIRMED_FILE)
+    rejected  = _spam_load_set(SPAM_REJECTED_FILE)
+
+    if action == "confirm":
+        # Premakni v Trash v Kayako
+        # Status ID za Trash = običajno 4 (Trash) ali 6 (Spam) - poskusimo Trash
+        trash_status = int(os.environ.get("KAYAKO_TRASH_STATUS_ID", "4"))
+        try:
+            from urllib.parse import quote_plus
+            url = _kayako_build_url(f"/Tickets/Ticket/{tid}")
+            # PUT request z status ID
+            async with httpx.AsyncClient() as client:
+                form_data = {
+                    "ticketstatusid": str(trash_status),
+                }
+                r = await client.put(url, data=form_data, timeout=20)
+                print(f"[spam] Trash ticket {tid}: HTTP {r.status_code}")
+                if r.status_code != 200:
+                    print(f"[spam] response: {r.text[:200]}")
+                    return {"ok": False, "error": f"Kayako error: {r.status_code}"}
+        except Exception as e:
+            print(f"[spam] Trash error: {e}")
+            return {"ok": False, "error": str(e)}
+
+        confirmed.add(tid)
+        rejected.discard(tid)
+        _spam_save_set(SPAM_CONFIRMED_FILE, confirmed)
+        _spam_save_set(SPAM_REJECTED_FILE, rejected)
+        return {"ok": True, "trashed": True}
+
+    elif action == "reject":
+        rejected.add(tid)
+        confirmed.discard(tid)
+    elif action == "unconfirm":
+        confirmed.discard(tid)
+
+    _spam_save_set(SPAM_CONFIRMED_FILE, confirmed)
+    _spam_save_set(SPAM_REJECTED_FILE, rejected)
+    return {"ok": True}
+
+@app.post("/spam-clear-confirmed")
+async def spam_clear_confirmed():
+    """Počisti seznam potrjenih spam-ov."""
+    _spam_save_set(SPAM_CONFIRMED_FILE, set())
+    return {"ok": True}
