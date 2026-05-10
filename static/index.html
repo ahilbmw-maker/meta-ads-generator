@@ -2651,7 +2651,7 @@ input[type="text"].error { border-color: var(--red) !important; }
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px">
           <div>
             <span class="slabel">🛡 SPAM FILTER</span>
-            <p style="font-size:12px;color:var(--text-secondary);margin:4px 0 0">AI pregleda zadnjih 100 ticketov in prikaže samo verjetne spame (>80%). Klik na "🛡 Spam" → ticket se premakne v Trash v Kayako.</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin:4px 0 0">AI pregleda zadnjih 200 odprtih ticketov (100/brand) in prikaže samo verjetne spame (>80%). Klik na "🛡 Spam" → ticket se premakne v Trash v Kayako.</p>
           </div>
           <div style="display:flex;gap:8px">
             <button onclick="spamLoadTickets()" id="spamLoadBtn" style="padding:9px 16px;background:#534AB7;color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🔍 Naloži & analiziraj</button>
@@ -11025,8 +11025,8 @@ function spSwitchMainTab(tab) {
 async function spamLoadTickets() {
   const btn = document.getElementById('spamLoadBtn');
   const status = document.getElementById('spamStatus');
-  btn.disabled = true; btn.textContent = '⏳ Pregledam 100 ticketov...';
-  status.textContent = 'AI pregleduje vsak ticket — to lahko traja minuto ali dve...';
+  btn.disabled = true; btn.textContent = '⏳ Pregledam 200 odprtih ticketov...';
+  status.textContent = 'AI pregleduje vsak odprti ticket — to lahko traja nekaj minut...';
 
   try {
     const res = await fetch('/spam-analyze', {method:'POST'});
