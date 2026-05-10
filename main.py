@@ -7120,9 +7120,21 @@ async def spam_analyze():
 
     all_tickets = []
     async with httpx.AsyncClient() as client:
-        # 50 ticketov iz vsakega branda = 100 skupaj
+        # 100 odprtih ticketov iz vsakega branda = 200 skupaj
         for brand, dept_id in KAYAKO_DEPT.items():
-            tickets = await _fetch_tickets_batch(client, dept_id, 0, 50)
+            # Status filter: 1 = samo odprti (status_id=1)
+            path = f"/Tickets/Ticket/ListAll/{dept_id}/1/-1/-1/100/0/ticketid/DESC"
+            url = _kayako_build_url(path)
+            try:
+                r = await client.get(url, timeout=30)
+                if r.status_code != 200:
+                    print(f"[spam] ListAll {brand} HTTP {r.status_code}")
+                    continue
+                tickets = _parse_ticket_xml(r.text)
+            except Exception as e:
+                print(f"[spam] ListAll error {brand}: {e}")
+                continue
+
             for t in tickets:
                 tid = t.get("id", "")
                 if tid in rejected or tid in confirmed:
