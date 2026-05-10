@@ -569,7 +569,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('beta')">🧪 Analiza Beta</div>
   </div>
 
-  <div class="nav-item nav-knjigovodstvo" id="nav-knjigovodstvo" onclick="switchPage('analiza');switchAnalizaTab('knjigovodstvo')">
+  <div class="nav-item nav-knjigovodstvo" id="nav-knjigovodstvo" onclick="switchPage('knjigovodstvo')">
     <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
     Knjigovodstvo
   </div>
@@ -694,12 +694,12 @@ input[type="text"].error { border-color: var(--red) !important; }
               <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('ttkreative')">↗ TikTok Kreative</span>
             </div>
           </div>
-          <div class="home-tile" style="border-left-color:#a855f7" onclick="switchPage('analiza');switchAnalizaTab('knjigovodstvo')">
+          <div class="home-tile" style="border-left-color:#a855f7" onclick="switchPage('knjigovodstvo')">
             <div class="ht-icon">📑</div>
             <div class="ht-name">Knjigovodstvo</div>
             <div class="ht-desc">Polcar XML → CSV</div>
             <div class="ht-pills">
-              <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('knjigovodstvo')">↗ Pretvori XML</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('knjigovodstvo')">↗ Pretvori XML</span>
             </div>
           </div>
           <div class="home-tile" style="border-left-color:#f97316" onclick="switchPage('forecast')">
@@ -2113,7 +2113,6 @@ input[type="text"].error { border-color: var(--red) !important; }
       <button class="analiza-tab-btn" id="analizaTab-obrat14tt" onclick="switchAnalizaTab('obrat14tt')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📊 Obrat 7 dni (TikTok)</button>
       <button class="analiza-tab-btn" id="analizaTab-ttkreative" onclick="switchAnalizaTab('ttkreative')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🎬 TikTok Kreative</button>
       <button class="analiza-tab-btn" id="analizaTab-beta" onclick="switchAnalizaTab('beta')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🧪 Analiza Beta</button>
-      <button class="analiza-tab-btn" id="analizaTab-knjigovodstvo" onclick="switchAnalizaTab('knjigovodstvo')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📑 Knjigovodstvo</button>
     </div>
 
     <!-- TAB: Meta Ads -->
@@ -2449,8 +2448,9 @@ input[type="text"].error { border-color: var(--red) !important; }
     </div>
   </div>
 
-  <!-- TAB: Knjigovodstvo -->
-  <div id="analizaSubpage-knjigovodstvo" style="display:none;padding:14px">
+  <!-- ═══ KNJIGOVODSTVO PAGE ═══ -->
+  <div class="page" id="page-knjigovodstvo">
+    <div style="padding:14px">
     <div style="display:grid;grid-template-columns:340px minmax(0,1fr);gap:14px;align-items:start">
 
       <!-- LEVO: Upload + zgodovina -->
@@ -2507,7 +2507,8 @@ input[type="text"].error { border-color: var(--red) !important; }
         </div>
       </div>
     </div>
-  </div>
+    </div>
+  </div><!-- /page-knjigovodstvo -->
 
   <div class="page" id="page-zaloga">
     <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
@@ -2957,7 +2958,7 @@ function closeMenu(){
   document.querySelector('.sidebar').classList.remove('open');
   document.getElementById('overlay').classList.remove('open');
 }
-const PAGES = ['home','meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads','orodja','analiza','zaloga','sporocanje','odprema'];
+const PAGES = ['home','meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads','orodja','analiza','knjigovodstvo','zaloga','sporocanje','odprema'];
 let currentIdx = 0;
 
 function switchCalcTab(tab) {
@@ -2987,7 +2988,7 @@ function switchPage(page) {
   // Wide layout
   const mainEl = document.querySelector('.main');
   if(mainEl) {
-    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative' || page==='lokalizacija' || page==='narocilnice' || page==='videoads' || page==='orodja' || page==='analiza' || page==='zaloga' || page==='odprema' || page==='sporocanje') {
+    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative' || page==='lokalizacija' || page==='narocilnice' || page==='videoads' || page==='orodja' || page==='analiza' || page==='knjigovodstvo' || page==='zaloga' || page==='odprema' || page==='sporocanje') {
       mainEl.classList.add('wide');
     } else if(page==='meta') {
       const formVisible = document.getElementById('metaFormSection').style.display !== 'none';
@@ -3000,6 +3001,7 @@ function switchPage(page) {
   if (page === 'tiktok') { ttLoadSkus(); }
   if (page === 'zaloga') { zalogaLoad(); }
   if (page === 'sporocanje') { if(typeof spLoadCommon==='function') spLoadCommon(); if(typeof spLoadMacros==='function') spLoadMacros(); }
+  if (page === 'knjigovodstvo') { if(typeof knjLoadHistory==='function') knjLoadHistory(); }
   if (page === 'narocilnice') { setTimeout(() => { narcVecjaInitDrop(); narcDvojnikiInitDrop(); }, 100); }
   if (page === 'odprema') { odpLoadHistory(); }
   else { const b = document.getElementById('odp-bulk-bar'); if(b) b.style.display='none'; }
@@ -8269,7 +8271,7 @@ let anSortCol = 'stock';
 let anSortDir = -1;
 
 function switchAnalizaTab(tab) {
-  ['meta', 'obrat14', 'obrat14tt', 'ttkreative', 'beta', 'knjigovodstvo'].forEach(t => {
+  ['meta', 'obrat14', 'obrat14tt', 'ttkreative', 'beta'].forEach(t => {
     const btn = document.getElementById('analizaTab-' + t);
     const sub = document.getElementById('analizaSubpage-' + t);
     if (t === tab) {
@@ -8285,7 +8287,6 @@ function switchAnalizaTab(tab) {
   if (tab === 'obrat14tt') { tt14LoadData(); }
   if (tab === 'ttkreative') { ttKrLoadData(); }
   if (tab === 'beta') { betaLoadHistory(); }
-  if (tab === 'knjigovodstvo') { knjLoadHistory(); }
   try { localStorage.setItem('slx_active_subtab', tab); } catch(e) {}
 }
 
