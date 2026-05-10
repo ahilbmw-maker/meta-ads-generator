@@ -567,6 +567,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('obrat14tt')">Obrat 7 dni (TikTok)</div>
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('ttkreative')">TikTok Kreative</div>
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('beta')">🧪 Analiza Beta</div>
+    <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('knjigovodstvo')">📑 Knjigovodstvo</div>
   </div>
 
   <div class="nav-item nav-forecast" id="nav-forecast" onclick="switchPage('forecast')">
@@ -687,6 +688,7 @@ input[type="text"].error { border-color: var(--red) !important; }
               <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14')">↗ Obrat 7d (FB)</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14tt')">↗ Obrat 7d (TT)</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('ttkreative')">↗ TikTok Kreative</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('knjigovodstvo')">↗ Knjigovodstvo</span>
             </div>
           </div>
           <div class="home-tile" style="border-left-color:#f97316" onclick="switchPage('forecast')">
@@ -2100,6 +2102,7 @@ input[type="text"].error { border-color: var(--red) !important; }
       <button class="analiza-tab-btn" id="analizaTab-obrat14tt" onclick="switchAnalizaTab('obrat14tt')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📊 Obrat 7 dni (TikTok)</button>
       <button class="analiza-tab-btn" id="analizaTab-ttkreative" onclick="switchAnalizaTab('ttkreative')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🎬 TikTok Kreative</button>
       <button class="analiza-tab-btn" id="analizaTab-beta" onclick="switchAnalizaTab('beta')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🧪 Analiza Beta</button>
+      <button class="analiza-tab-btn" id="analizaTab-knjigovodstvo" onclick="switchAnalizaTab('knjigovodstvo')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📑 Knjigovodstvo</button>
     </div>
 
     <!-- TAB: Meta Ads -->
@@ -2435,8 +2438,65 @@ input[type="text"].error { border-color: var(--red) !important; }
     </div>
   </div>
 
-  <!-- PAGE: ZALOGA -->
-  </div><!-- /page-analiza -->
+  <!-- TAB: Knjigovodstvo -->
+  <div id="analizaSubpage-knjigovodstvo" style="display:none;padding:14px">
+    <div style="display:grid;grid-template-columns:340px minmax(0,1fr);gap:14px;align-items:start">
+
+      <!-- LEVO: Upload + zgodovina -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="card">
+          <span class="slabel">📑 KNJIGOVODSTVO — POLCAR XML</span>
+          <p style="font-size:12px;color:var(--text-secondary);margin:6px 0 12px">
+            Naložite Polcar XML (debit/credit note) — pretvori v CSV za računovodstvo.
+          </p>
+          <div id="knjDropZone" style="border:2px dashed var(--border);border-radius:var(--radius);padding:24px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color 0.2s"
+            onclick="document.getElementById('knjFileInput').click()"
+            ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+            ondragleave="this.style.borderColor='var(--border)'"
+            ondrop="knjHandleDrop(event)">
+            <div style="font-size:24px;margin-bottom:6px">📂</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">Klikni ali povleci XML(-je)</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Lahko več datotek (DU + NU)</div>
+          </div>
+          <input type="file" id="knjFileInput" accept=".xml" multiple style="display:none">
+          <div id="knjStatus" style="font-size:12px;color:var(--text-secondary);margin-bottom:8px"></div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span class="slabel">🕒 ZGODOVINA</span>
+            <button onclick="knjLoadHistory()" style="font-size:11px;padding:2px 8px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;color:var(--text-secondary);font-family:inherit">↺</button>
+          </div>
+          <div id="knjHistoryList" style="display:flex;flex-direction:column;gap:4px;max-height:400px;overflow-y:auto">
+            <div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:10px">Ni shranjenih CSV-jev</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DESNO: Rezultat tabela -->
+      <div>
+        <div class="card" id="knjResultCard" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div>
+              <span class="slabel" id="knjResultTitle">REZULTAT (0 vrstic)</span>
+              <div id="knjResultMeta" style="font-size:11px;color:var(--text-secondary);margin-top:4px"></div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button onclick="knjDownloadDebit()" id="knjDownloadDebitBtn" style="padding:6px 12px;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid #ef4444;border-radius:var(--radius);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:none">⬇ Debit (DU)</button>
+              <button onclick="knjDownloadCredit()" id="knjDownloadCreditBtn" style="padding:6px 12px;background:rgba(34,197,94,0.1);color:#22c55e;border:1px solid #22c55e;border-radius:var(--radius);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:none">⬇ Credit (NU)</button>
+              <button onclick="knjDownloadCombined()" style="padding:6px 12px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">⬇ Združen CSV</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto;max-height:600px;overflow-y:auto">
+            <table id="knjTable" style="width:100%;border-collapse:collapse;font-size:11px"></table>
+          </div>
+        </div>
+        <div id="knjEmpty" style="text-align:center;color:var(--text-tertiary);font-size:13px;padding:60px 20px">
+          📂 Naloži Polcar XML(-je) za pretvorbo v CSV.
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="page" id="page-zaloga">
     <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
@@ -8198,7 +8258,7 @@ let anSortCol = 'stock';
 let anSortDir = -1;
 
 function switchAnalizaTab(tab) {
-  ['meta', 'obrat14', 'obrat14tt', 'ttkreative', 'beta'].forEach(t => {
+  ['meta', 'obrat14', 'obrat14tt', 'ttkreative', 'beta', 'knjigovodstvo'].forEach(t => {
     const btn = document.getElementById('analizaTab-' + t);
     const sub = document.getElementById('analizaSubpage-' + t);
     if (t === tab) {
@@ -8214,6 +8274,7 @@ function switchAnalizaTab(tab) {
   if (tab === 'obrat14tt') { tt14LoadData(); }
   if (tab === 'ttkreative') { ttKrLoadData(); }
   if (tab === 'beta') { betaLoadHistory(); }
+  if (tab === 'knjigovodstvo') { knjLoadHistory(); }
   try { localStorage.setItem('slx_active_subtab', tab); } catch(e) {}
 }
 
@@ -12112,6 +12173,182 @@ function betaRenderBody(body, color) {
   return html;
 }
 // ── /BETA ANALIZA ──────────────────────────────────────────────
+
+// ── KNJIGOVODSTVO (Polcar XML → CSV) ─────────────────────────────
+let knjDebitRows = [];
+let knjCreditRows = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('knjFileInput');
+  if (inp) inp.addEventListener('change', e => knjHandleFiles(e.target.files));
+});
+
+function knjHandleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.style.borderColor = 'var(--border)';
+  knjHandleFiles(e.dataTransfer.files);
+}
+
+async function knjHandleFiles(files) {
+  if (!files || !files.length) return;
+  const status = document.getElementById('knjStatus');
+  status.textContent = `⏳ Obdelujem ${files.length} fajlov...`;
+
+  const fd = new FormData();
+  for (const f of files) fd.append('files', f);
+
+  try {
+    const res = await fetch('/knj-parse', {method:'POST', body:fd});
+    const data = await res.json();
+    if (!data.ok) {
+      status.textContent = '❌ Napaka: ' + (data.error || 'unknown');
+      return;
+    }
+    knjDebitRows = data.debit || [];
+    knjCreditRows = data.credit || [];
+    status.textContent = `✓ Obdelano: ${data.parsed} XML → ${knjDebitRows.length} DU + ${knjCreditRows.length} NU vrstic`;
+    knjRender();
+    knjLoadHistory();
+  } catch(e) {
+    status.textContent = '❌ Napaka: ' + e.message;
+  }
+}
+
+function knjRender() {
+  const card = document.getElementById('knjResultCard');
+  const empty = document.getElementById('knjEmpty');
+  const total = knjDebitRows.length + knjCreditRows.length;
+  if (total === 0) {
+    card.style.display = 'none'; empty.style.display = 'block';
+    return;
+  }
+  card.style.display = 'block'; empty.style.display = 'none';
+
+  document.getElementById('knjResultTitle').textContent = `REZULTAT (${total} vrstic)`;
+  document.getElementById('knjResultMeta').textContent = `${knjDebitRows.length} debit (DU) + ${knjCreditRows.length} credit (NU)`;
+  document.getElementById('knjDownloadDebitBtn').style.display = knjDebitRows.length > 0 ? 'inline-block' : 'none';
+  document.getElementById('knjDownloadCreditBtn').style.display = knjCreditRows.length > 0 ? 'inline-block' : 'none';
+
+  // Tabela — vse vrstice
+  const allRows = [...knjDebitRows, ...knjCreditRows];
+  const cols = ['Tip','Številka','Za dokument','Datum izdaje','Kupec','Art. številka','Naziv artikla','Količina','Cena/kos','Vrednost neto','Vrednost VAT','Vrednost bruto','Razlog'];
+
+  let html = '<thead><tr>';
+  cols.forEach(c => {
+    html += `<th style="padding:6px 8px;background:var(--surface2);border:1px solid var(--border);text-align:left;font-weight:600;color:var(--text-secondary);font-size:10px;text-transform:uppercase;position:sticky;top:0">${c}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+  for (const r of allRows) {
+    const tipColor = r['Tip'] === 'DEBIT NOTE' ? '#ef4444' : '#22c55e';
+    html += '<tr>';
+    cols.forEach(c => {
+      const v = r[c] || '';
+      if (c === 'Tip') {
+        html += `<td style="padding:5px 8px;border:1px solid var(--border);color:${tipColor};font-weight:600;font-size:10px;white-space:nowrap">${knjEsc(v.replace(' NOTE',''))}</td>`;
+      } else {
+        html += `<td style="padding:5px 8px;border:1px solid var(--border);color:var(--text);${c.startsWith('Vrednost')||c==='Cena/kos'?'text-align:right;font-variant-numeric:tabular-nums':''}">${knjEsc(v)}</td>`;
+      }
+    });
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  document.getElementById('knjTable').innerHTML = html;
+}
+
+function knjEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function knjDownloadDebit() {
+  if (!knjDebitRows.length) return;
+  knjDownloadCSV(knjDebitRows, 'polcar_debit_DU');
+}
+function knjDownloadCredit() {
+  if (!knjCreditRows.length) return;
+  knjDownloadCSV(knjCreditRows, 'polcar_credit_NU');
+}
+function knjDownloadCombined() {
+  const all = [...knjDebitRows, ...knjCreditRows];
+  if (!all.length) return;
+  knjDownloadCSV(all, 'polcar_debit_credit');
+}
+
+function knjDownloadCSV(rows, filename) {
+  // Vse stolpce v urejenem zaporedju
+  const ordered = ['Tip','Številka','Za dokument','Datum prodaje','Datum izdaje','Rok plačila','Prodajalec','Kupec','EU VAT','Valuta','Art. številka','Art. št. kupca','Naziv artikla','Opis','Količina','Cena/kos','Vrednost neto','VAT %','Vrednost VAT','Vrednost bruto','Razlog','Skupaj bruto'];
+  const allKeys = new Set();
+  rows.forEach(r => Object.keys(r).forEach(k => allKeys.add(k)));
+  const cols = ordered.filter(k => allKeys.has(k));
+
+  let csv = '\uFEFF' + cols.join(';') + '\n';  // UTF-8 BOM
+  for (const r of rows) {
+    csv += cols.map(c => {
+      let v = String(r[c] || '');
+      if (v.includes(';') || v.includes('"') || v.includes('\n')) {
+        v = '"' + v.replace(/"/g,'""') + '"';
+      }
+      return v;
+    }).join(';') + '\n';
+  }
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const ts = new Date().toISOString().slice(0,10);
+  a.href = url; a.download = `${filename}_${ts}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  // Shrani na server v zgodovino
+  fetch('/knj-save', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({filename: a.download, rows, columns: cols})
+  }).then(r=>r.json()).then(()=>knjLoadHistory()).catch(()=>{});
+}
+
+async function knjLoadHistory() {
+  try {
+    const res = await fetch('/knj-history');
+    const data = await res.json();
+    const el = document.getElementById('knjHistoryList');
+    if (!el) return;
+    if (!data.exports || !data.exports.length) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:10px">Ni shranjenih CSV-jev</div>';
+      return;
+    }
+    el.innerHTML = data.exports.map(e => `
+      <div style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);font-size:11px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${knjEsc(e.filename)}</div>
+          <div style="color:var(--text-tertiary);margin-top:2px">${e.timestamp} · ${e.rows} vrstic</div>
+        </div>
+        <button onclick="knjDownloadFromHistory('${knjEsc(e.filename)}')" style="padding:4px 8px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">⬇</button>
+      </div>`).join('');
+  } catch(e) { console.warn('knj history error', e); }
+}
+
+async function knjDownloadFromHistory(filename) {
+  try {
+    const res = await fetch(`/knj-load/${encodeURIComponent(filename)}`);
+    const data = await res.json();
+    if (!data.ok) { alert('Napaka: ' + (data.error||'unknown')); return; }
+    // Reconstruct CSV iz shranjenih podatkov
+    const rows = data.rows || [];
+    const cols = data.columns || Object.keys(rows[0]||{});
+    let csv = '\uFEFF' + cols.join(';') + '\n';
+    for (const r of rows) {
+      csv += cols.map(c => {
+        let v = String(r[c] || '');
+        if (v.includes(';') || v.includes('"') || v.includes('\n')) v = '"' + v.replace(/"/g,'""') + '"';
+        return v;
+      }).join(';') + '\n';
+    }
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) { alert('Napaka: ' + e.message); }
+}
+// ── /KNJIGOVODSTVO ────────────────────────────────────────────────
 </script>
 <div class="k-hover-preview" id="kHoverPreview">
   <img id="kHoverPreviewImg" src="" alt="">
