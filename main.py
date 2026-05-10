@@ -6704,6 +6704,7 @@ def _parse_ticket_xml(xml_text: str) -> list[dict]:
         created    = _xml_text(t, "creationtime")
         email      = _xml_text(t, "email")
         fullname   = _xml_text(t, "fullname")
+        replies    = _xml_text(t, "totalreplies", "0")
         # posti (konverzacija)
         posts = []
         for p in t.findall(".//post"):
@@ -6726,6 +6727,7 @@ def _parse_ticket_xml(xml_text: str) -> list[dict]:
             "created": created,
             "email": email,
             "fullname": fullname,
+            "replies": replies,
             "posts": posts,
         })
     return tickets
@@ -7160,6 +7162,10 @@ async def spam_analyze():
         """True če je naslov verjetno angleški (brez šumnikov, brez ne-ASCII črk)."""
         if not text or len(text.strip()) < 3:
             return False
+        # Skip prazni / "(no subject)" / "no subject"
+        ts = text.strip().lower()
+        if ts in ('(no subject)', 'no subject', '(brez naslova)', 'brez naslova', '-', '...'):
+            return False
         # Vsebuje šumnike ali cirilico ali grško → ni angleški
         for ch in text:
             if ch in 'čšžćđČŠŽĆĐńąęłóśźżŃĄĘŁÓŚŹŻáéíóúýäöüÁÉÍÓÚÝÄÖÜőűŐŰâîăşţÂÎĂŞŢ':
@@ -7190,6 +7196,13 @@ async def spam_analyze():
         subject = t.get("subject", "")
         from_email = t.get("email", "")
         from_name = t.get("fullname", "")
+        replies = int(t.get("replies", "0") or "0")
+
+        # Skip ticket-i ki že imajo odgovore — verjetno legitimna komunikacija
+        if replies > 0:
+            rejected.add(t.get("id",""))
+            skipped += 1
+            continue
 
         # PRE-FILTER: samo angleški naslovi grejo skozi AI
         if not _is_english_only(subject):
