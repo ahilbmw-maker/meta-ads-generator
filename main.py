@@ -5243,6 +5243,372 @@ async def hsuvoz_current_clear():
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+# ─── APTEL NAROČANJE ─────────────────────────────────────────────────────────
+APTEL_DIR = DATA_DIR / "aptel_history"
+APTEL_DIR.mkdir(exist_ok=True, parents=True)
+APTEL_CURRENT = DATA_DIR / "aptel_current.json"
+
+
+def aptel_cleanup():
+    """Briše JSON datoteke starejše od 30 dni."""
+    try:
+        cutoff = datetime.now().timestamp() - (30 * 86400)
+        for f in APTEL_DIR.glob("*.json"):
+            if f.stat().st_mtime < cutoff:
+                f.unlink()
+    except Exception as e:
+        print(f"[aptel] cleanup err: {e}")
+
+
+@app.post("/aptel-upload")
+async def aptel_upload(file: UploadFile = File(...)):
+    """Sprejme CSV naročilnic, združi količine po SKU, shrani v current + history."""
+    import csv
+    from io import StringIO
+    try:
+        content = (await file.read()).decode("utf-8-sig", errors="replace")
+        reader = csv.DictReader(StringIO(content))
+
+        # Normalizacija headerjev
+        rows = []
+        for row in reader:
+            norm = {k.strip().replace('\ufeff', ''): v.strip() for k, v in row.items()}
+            rows.append(norm)
+
+        if not rows:
+            return JSONResponse({"error": "Prazen CSV."}, status_code=400)
+
+        # Najdi kolone (ID naročila, SKU, Naziv, Količina)
+        sample = rows[0]
+        keys = list(sample.keys())
+
+        def find_col(candidates):
+            for c in candidates:
+                for k in keys:
+                    if c.lower() in k.lower():
+                        return k
+            return None
+
+        id_col  = find_col(["id naročila", "id narocila", "id"])
+        sku_col = find_col(["sku"])
+        naz_col = find_col(["naziv", "name"])
+        qty_col = find_col(["količina", "kolicina", "qty", "quantity"])
+
+        if not sku_col or not qty_col:
+            return JSONResponse({"error": f"Ne najdem SKU/Količina kolon. Najdene: {keys}"}, status_code=400)
+
+        # Združi po SKU
+        sku_map = {}  # sku → {naziv, qty, orders: [id,...]}
+        for row in rows:
+            sku = (row.get(sku_col) or "").strip()
+            if not sku:
+                continue
+            try:
+                qty = int(float((row.get(qty_col) or "0").replace(",", ".")))
+            except:
+                qty = 0
+            naziv = (row.get(naz_col) or "").strip() if naz_col else ""
+            order_id = (row.get(id_col) or "").strip() if id_col else ""
+
+            if sku not in sku_map:
+                sku_map[sku] = {"sku": sku, "naziv": naziv, "qty": 0, "orders": [], "done": False}
+            sku_map[sku]["qty"] += qty
+            if order_id and order_id not in sku_map[sku]["orders"]:
+                sku_map[sku]["orders"].append(order_id)
+            # Ohrani naziv (vzemi prvega ki ni prazen)
+            if not sku_map[sku]["naziv"] and naziv:
+                sku_map[sku]["naziv"] = naziv
+
+        items = sorted(sku_map.values(), key=lambda x: -x["qty"])
+
+        # Naloži obstoječe done state iz currenta (ohrani done flag)
+        if APTEL_CURRENT.exists():
+            try:
+                existing = json.loads(APTEL_CURRENT.read_text(encoding="utf-8"))
+                done_map = {it["sku"]: it.get("done", False) for it in existing.get("items", [])}
+                for it in items:
+                    if it["sku"] in done_map:
+                        it["done"] = done_map[it["sku"]]
+            except:
+                pass
+
+        ts = datetime.now(timezone.utc).isoformat()
+        payload = {
+            "uploaded_at": ts,
+            "filename": file.filename,
+            "total_skus": len(items),
+            "items": items,
+        }
+
+        # Shrani current
+        APTEL_CURRENT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        # Shrani v history
+        aptel_cleanup()
+        hist_file = APTEL_DIR / f"aptel_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
+        hist_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        return {"ok": True, "total_skus": len(items), "uploaded_at": ts, "filename": file.filename}
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/aptel-data")
+async def aptel_data():
+    """Vrne trenutne Aptel uvoz podatke."""
+    try:
+        if not APTEL_CURRENT.exists():
+            return {"loaded": False, "items": []}
+        data = json.loads(APTEL_CURRENT.read_text(encoding="utf-8"))
+        return {"loaded": True, **data}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/aptel-set-done")
+async def aptel_set_done(sku: str = None, done: str = "1", request: Request = None):
+    try:
+        if not sku and request:
+            try:
+                raw = await request.body()
+                if raw:
+                    body = json.loads(raw)
+                    sku = body.get("sku")
+                    done = str(body.get("done", True)).lower()
+            except: pass
+        done_bool = done not in ("0", "false", "False")
+        if not APTEL_CURRENT.exists():
+            return JSONResponse({"error": "Ni podatkov."}, status_code=404)
+        data = json.loads(APTEL_CURRENT.read_text(encoding="utf-8"))
+        for it in data.get("items", []):
+            if it["sku"] == sku:
+                it["done"] = done_bool
+                break
+        APTEL_CURRENT.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/aptel-edit-sku")
+async def aptel_edit_sku(old_sku: str = None, new_sku: str = None, source: str = "current", request: Request = None):
+    """Preimenuje SKU v current ali order."""
+    try:
+        if (not old_sku or not new_sku) and request:
+            try:
+                raw = await request.body()
+                if raw:
+                    body = __import__("json").loads(raw)
+                    old_sku = old_sku or body.get("old_sku")
+                    new_sku = new_sku or (body.get("new_sku") or "").strip()
+                    source = body.get("source", source)
+            except: pass
+        new_sku = (new_sku or "").strip()
+        if not new_sku:
+            return JSONResponse({"error": "Nov SKU je prazen."}, status_code=400)
+        file = APTEL_CURRENT if source == "current" else APTEL_ORDER
+        if not file.exists():
+            return JSONResponse({"error": "Ni podatkov."}, status_code=404)
+        data = json.loads(file.read_text(encoding="utf-8"))
+        for it in data.get("items", []):
+            if it["sku"] == old_sku:
+                it["sku"] = new_sku
+                break
+        file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/aptel-history")
+async def aptel_history():
+    """Vrne seznam zgodovinskih uploadov (30 dni)."""
+    aptel_cleanup()
+    try:
+        items = []
+        for f in sorted(APTEL_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
+            try:
+                d = json.loads(f.read_text(encoding="utf-8"))
+                items.append({
+                    "filename": f.name,
+                    "original_filename": d.get("filename", f.name),
+                    "uploaded_at": d.get("uploaded_at", ""),
+                    "total_skus": d.get("total_skus", 0),
+                    "size": f.stat().st_size,
+                })
+            except:
+                pass
+        return {"items": items}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/aptel-load-history")
+async def aptel_load_history(filename: str = None, request: Request = None):
+    """Naloži zgodovinski upload kot current."""
+    try:
+        if not filename and request:
+            try:
+                raw = await request.body()
+                if raw: filename = __import__("json").loads(raw).get("filename")
+            except: pass
+        fname = filename
+        hist_file = APTEL_DIR / fname
+        if not hist_file.exists():
+            return JSONResponse({"error": "Datoteka ne obstaja."}, status_code=404)
+        data = json.loads(hist_file.read_text(encoding="utf-8"))
+        APTEL_CURRENT.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"ok": True, "total_skus": data.get("total_skus", 0)}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# ═══════════════════════════════════════════════════════════════
+# Aptel NAROČANJE — naročilo composer (ločen persistent state)
+# ═══════════════════════════════════════════════════════════════
+APTEL_ORDER = DATA_DIR / "aptel_order.json"
+
+@app.post("/aptel-move-to-order")
+async def aptel_move_to_order(sku: str = None, request: Request = None):
+    """Premakne SKU iz 'za naročilo' v 'naročilo'."""
+    try:
+        if not sku and request:
+            try:
+                raw = await request.body()
+                if raw: sku = __import__("json").loads(raw).get("sku")
+            except: pass
+        if not sku or not APTEL_CURRENT.exists():
+            return JSONResponse({"error": "Ni podatkov."}, status_code=400)
+
+        # Poberi iz current
+        current = json.loads(APTEL_CURRENT.read_text(encoding="utf-8"))
+        item = next((it for it in current.get("items", []) if it["sku"] == sku), None)
+        if not item:
+            return JSONResponse({"error": "SKU ne obstaja."}, status_code=404)
+
+        # Dodaj v order (ali posodobi qty)
+        order = {"items": []}
+        if APTEL_ORDER.exists():
+            try: order = json.loads(APTEL_ORDER.read_text(encoding="utf-8"))
+            except: pass
+
+        existing = next((it for it in order["items"] if it["sku"] == sku), None)
+        if existing:
+            existing["qty"] += item["qty"]
+            existing["orders"] = list(set(existing.get("orders", []) + item.get("orders", [])))
+        else:
+            order["items"].append({**item, "done": False})
+
+        APTEL_ORDER.write_text(json.dumps(order, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        # Odstrani iz current
+        current["items"] = [it for it in current["items"] if it["sku"] != sku]
+        APTEL_CURRENT.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/aptel-move-back")
+async def aptel_move_back(sku: str = None, request: Request = None):
+    """Vrne SKU iz naročila nazaj v 'za naročilo'."""
+    try:
+        if not sku and request:
+            try:
+                raw = await request.body()
+                if raw: sku = __import__("json").loads(raw).get("sku")
+            except: pass
+        if not sku or not APTEL_ORDER.exists():
+            return JSONResponse({"error": "Ni podatkov."}, status_code=400)
+
+        order = json.loads(APTEL_ORDER.read_text(encoding="utf-8"))
+        item = next((it for it in order["items"] if it["sku"] == sku), None)
+        if not item:
+            return JSONResponse({"error": "SKU ne obstaja v naročilu."}, status_code=404)
+
+        # Vrni v current
+        current = {"items": []}
+        if APTEL_CURRENT.exists():
+            try: current = json.loads(APTEL_CURRENT.read_text(encoding="utf-8"))
+            except: pass
+
+        if not any(it["sku"] == sku for it in current["items"]):
+            current["items"].append({**item, "done": False})
+            APTEL_CURRENT.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        order["items"] = [it for it in order["items"] if it["sku"] != sku]
+        APTEL_ORDER.write_text(json.dumps(order, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/aptel-delete-item")
+async def aptel_delete_item(sku: str = None, source: str = "current", request: Request = None):
+    """Zbriše SKU iz seznama. Sprejme query param ali JSON body."""
+    try:
+        # Poskusi dobiti iz JSON body če query param ni podan
+        if not sku and request:
+            try:
+                raw = await request.body()
+                if raw:
+                    body = json.loads(raw)
+                    sku = body.get("sku") or (body.get("skus") or [None])[0]
+                    source = body.get("source", source)
+            except: pass
+
+        if not sku:
+            return JSONResponse({"error": "Manjka SKU."}, status_code=400)
+
+        file = APTEL_CURRENT if source == "current" else APTEL_ORDER
+        if not file.exists():
+            return JSONResponse({"error": "Ni podatkov."}, status_code=404)
+
+        data = json.loads(file.read_text(encoding="utf-8"))
+        before = len(data.get("items", []))
+        data["items"] = [it for it in data.get("items", []) if str(it.get("sku","")).strip() != str(sku).strip()]
+        file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"ok": True, "deleted": before - len(data["items"])}
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/aptel-order-data")
+async def aptel_order_data():
+    """Vrne seznam SKU-jev v naročilu."""
+    try:
+        if not APTEL_ORDER.exists():
+            return {"items": []}
+        return json.loads(APTEL_ORDER.read_text(encoding="utf-8"))
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/aptel-order-clear")
+async def aptel_order_clear():
+    """Počisti celotno naročilo."""
+    try:
+        APTEL_ORDER.write_text(json.dumps({"items": []}, ensure_ascii=False), encoding="utf-8")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/aptel-current-clear")
+async def aptel_current_clear():
+    """Počisti celoten seznam 'za naročilo'."""
+    try:
+        if APTEL_CURRENT.exists():
+            data = json.loads(APTEL_CURRENT.read_text(encoding="utf-8"))
+            data["items"] = []
+            APTEL_CURRENT.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 # ─── INVENTURA ────────────────────────────────────────────────────────────────
 
 INVENTURA_DIR = DATA_DIR / "inventura"
