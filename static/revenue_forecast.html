@@ -608,7 +608,7 @@ async function addEntry(){
 
   // Preveri duplikat — če že obstaja vnos za ta čas, posodobi
   const existing = entries.findIndex(e => e.label === label);
-  const entry = {label, napoved:Math.round(lastPredRev), dejanski:Math.round(rev), napovedOrd:Math.round(lastPredOrd), dejanskiOrd:Math.round(ord)};
+  const entry = {label, napoved:Math.round(lastPredRev), dejanski:Math.round(rev), napovedOrd:Math.round(lastPredOrd), dejanskiOrd:Math.round(ord), _date:getTodayLJ()};
   if(existing >= 0){
     entries[existing] = entry;
   } else {
