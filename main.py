@@ -7274,35 +7274,16 @@ async def spam_confirm(data: dict):
     rejected  = _spam_load_set(SPAM_REJECTED_FILE)
 
     if action == "confirm":
-        # Premakni v Trash v Kayako
-        # Status ID za Trash = običajno 4 (Trash) ali 6 (Spam) - poskusimo Trash
-        trash_status = int(os.environ.get("KAYAKO_TRASH_STATUS_ID", "4"))
+        # Direkt DELETE ticket-a v Kayako (premakne v Trash mapo)
         try:
-            from urllib.parse import quote_plus
-            # Za PUT request mora biti auth kot form fields, ne URL params
-            salt = str(random.randint(1000000000, 9999999999))
-            raw_sig = hmac.new(
-                key=KAYAKO_SECRET.encode("utf-8"),
-                msg=salt.encode("utf-8"),
-                digestmod=hashlib.sha256
-            ).digest()
-            signature = base64.b64encode(raw_sig).decode("utf-8")
-            
-            url = f"{KAYAKO_API_URL}?e=/Tickets/Ticket/{tid}"
-            form_data = {
-                "apikey":         KAYAKO_API_KEY,
-                "salt":           salt,
-                "signature":      signature,
-                "ticketstatusid": str(trash_status),
-            }
+            url = _kayako_build_url(f"/Tickets/Ticket/{tid}")
             async with httpx.AsyncClient() as client:
-                r = await client.put(url, data=form_data, timeout=20)
-                print(f"[spam] Trash ticket {tid}: HTTP {r.status_code}")
-                if r.status_code != 200:
-                    print(f"[spam] response: {r.text[:300]}")
+                r = await client.delete(url, timeout=20)
+                print(f"[spam] DELETE ticket {tid}: HTTP {r.status_code} | response: {r.text[:200]}")
+                if r.status_code not in (200, 204):
                     return {"ok": False, "error": f"Kayako error: {r.status_code} — {r.text[:100]}"}
         except Exception as e:
-            print(f"[spam] Trash error: {e}")
+            print(f"[spam] Delete error: {e}")
             return {"ok": False, "error": str(e)}
 
         confirmed.add(tid)
