@@ -996,6 +996,11 @@ async def save_forecast_entries(data: dict):
                 merged[lbl] = e
         for e in new_entries:
             lbl = e.get("label","")
+            entry_date = e.get("_date", "")
+            # Zavrni entry če _date obstaja in ni danes
+            if entry_date and entry_date != today:
+                print(f"[forecast] rejected entry '{lbl}' with _date={entry_date} (today={today})")
+                continue
             if lbl not in deleted:
                 merged[lbl] = e
         sorted_entries = sorted(merged.values(), key=lambda e: e.get("label",""))
