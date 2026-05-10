@@ -587,6 +587,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div class="nav-sub-item" onclick="switchPage('orodja');switchOrodjaTab('csv')">Ikonka uvoz</div>
     <div class="nav-sub-item" onclick="switchPage('orodja');switchOrodjaTab('hs')">Uvoz HS+</div>
     <div class="nav-sub-item" onclick="switchPage('orodja');switchOrodjaTab('hsuvoz')">HS+ naročanje</div>
+    <div class="nav-sub-item" onclick="switchPage('orodja');switchOrodjaTab('apteluvoz')">Aptel naročanje</div>
     <div class="nav-sub-item" onclick="switchPage('orodja');switchOrodjaTab('pricecheck')">Kontrola cen</div>
     <div class="nav-sub-item" onclick="switchPage('orodja');switchOrodjaTab('zdrnarocila')">Zdru. naročila</div>
     <div class="nav-sub-item" onclick="switchPage('orodja');switchOrodjaTab('inventura')">📦 Inventura</div>
@@ -705,6 +706,7 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div class="ht-desc">Uvoz, HS+, naročila, kontrola cen</div>
             <div class="ht-pills">
               <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('hsuvoz')">↗ HS+ naročanje</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('apteluvoz')">↗ Aptel naročanje</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('zdrnarocila')">↗ Zdru. naročila</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('csv')">↗ Ikonka uvoz</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('orodja');switchOrodjaTab('hs')">↗ Uvoz HS+</span>
@@ -1669,6 +1671,7 @@ input[type="text"].error { border-color: var(--red) !important; }
       <button class="orodja-tab-btn active" id="orodjaTab-csv" onclick="switchOrodjaTab('csv')" style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📋 Ikonka uvoz</button>
       <button class="orodja-tab-btn" id="orodjaTab-hs" onclick="switchOrodjaTab('hs')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📦 Uvoz HS+</button>
       <button class="orodja-tab-btn" id="orodjaTab-hsuvoz" onclick="switchOrodjaTab('hsuvoz')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🛒 HS+ naročanje</button>
+      <button class="orodja-tab-btn" id="orodjaTab-apteluvoz" onclick="switchOrodjaTab('apteluvoz')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🛒 Aptel naročanje</button>
       <button class="orodja-tab-btn" id="orodjaTab-pricecheck" onclick="switchOrodjaTab('pricecheck')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">💰 Kontrola cen</button>
       <button class="orodja-tab-btn" id="orodjaTab-zdrnarocila" onclick="switchOrodjaTab('zdrnarocila')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🔗 Združena naročila</button>
       <button class="orodja-tab-btn" id="orodjaTab-inventura" onclick="switchOrodjaTab('inventura')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📦 Inventura</button>
@@ -1828,6 +1831,91 @@ input[type="text"].error { border-color: var(--red) !important; }
               <span>#</span><span>SKU</span><span>Naziv</span><span style="text-align:center">Kol.</span><span style="text-align:center">Obrat 30d</span><span style="text-align:center">Naročila</span><span></span>
             </div>
             <div id="hsuvozOrderList" style="display:flex;flex-direction:column;gap:3px"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div id="orodjaSubpage-apteluvoz" style="display:none;padding:14px">
+      <div style="display:grid;grid-template-columns:220px minmax(0,1fr);gap:14px;align-items:start">
+
+        <!-- LEVO: upload + history -->
+        <div>
+          <div class="card">
+            <span class="slabel">APTEL NAROČANJE</span>
+            <p style="font-size:11px;color:var(--text-secondary);margin:8px 0 10px;line-height:1.4">Naloži CSV export iz naročilnic (ID naročila, SKU, Naziv, Količina).</p>
+            <div id="aptelDropZone" class="k-dropzone" style="padding:14px" onclick="document.getElementById('aptelInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="aptelHandleDrop(event)">
+              <span style="font-size:11px">Klikni ali povleci CSV sem</span>
+            </div>
+            <input type="file" id="aptelInput" accept=".csv" style="display:none" onchange="aptelUpload(this.files[0])">
+            <div id="aptelStatus" style="margin-top:8px;font-size:11px;color:var(--text-secondary);text-align:center;display:none"></div>
+            <div id="aptelInfo" style="margin-top:8px;font-size:11px;color:var(--text-secondary);display:none"></div>
+          </div>
+
+          <div class="card" style="margin-top:0">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <span class="slabel" style="margin:0">ZGODOVINA (30 DNI)</span>
+              <button onclick="aptelLoadHistory()" style="padding:3px 8px;background:none;border:1px solid var(--border);border-radius:var(--radius);font-size:10px;color:var(--text-tertiary);cursor:pointer;font-family:'DM Sans',sans-serif">↻ Osveži</button>
+            </div>
+            <div id="aptelHistoryList" style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--text-secondary)">Nalagam...</div>
+          </div>
+        </div>
+
+        <!-- DESNO: dva panela -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+
+          <!-- PANEL 1: Za naročilo (CSV uvoz) -->
+          <div class="card" id="aptelResultCard" style="display:none;padding:1rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+              <span class="slabel" style="margin:0" id="aptelTitle">ZA NAROČILO (0)</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                <button onclick="aptelToggleDone()" id="aptelToggleDoneBtn" style="padding:5px 10px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">👁 Done</button>
+              </div>
+            </div>
+            <!-- Masovne akcije (pokažejo se ko je kaj označeno) -->
+            <div id="aptelBulkBar" style="display:none;padding:8px 12px;background:rgba(24,119,242,0.06);border:1px solid rgba(24,119,242,0.2);border-radius:var(--radius);margin-bottom:8px;display:none;align-items:center;gap:8px;flex-wrap:wrap">
+              <span id="aptelSelCount" style="font-size:12px;font-weight:600;color:var(--accent)">0 označenih</span>
+              <button onclick="aptelMoveSelectedToOrder()" style="padding:5px 12px;background:#0f766e;color:white;border:none;border-radius:var(--radius);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">→ Premakni v naročilo</button>
+              <button onclick="aptelDeleteSelected()" style="padding:5px 12px;background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">🗑 Zbriši označene</button>
+              <button onclick="aptelDeselectAll('current')" style="padding:5px 10px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">✕ Počisti izbor</button>
+            </div>
+            <!-- Header -->
+            <div style="display:grid;grid-template-columns:32px 28px 130px 1fr 55px 85px 85px 100px;gap:8px;padding:8px 12px;background:var(--bg-secondary);border-radius:var(--radius);font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;align-items:center">
+              <input type="checkbox" id="aptelSelectAll" onchange="aptelToggleSelectAll('current',this.checked)" style="cursor:pointer;width:14px;height:14px">
+              <span>#</span><span>SKU</span><span>Naziv</span><span style="text-align:center">Kol.</span><span style="text-align:center">Obrat 30d</span><span style="text-align:center">Naročila</span><span></span>
+            </div>
+            <div id="aptelList" style="display:flex;flex-direction:column;gap:3px"></div>
+            <!-- Footer akcije -->
+            <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap">
+              <button onclick="aptelMoveAllToOrder()" style="padding:5px 10px;background:#0f766e;color:white;border:none;border-radius:var(--radius);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">→ Vse v naročilo</button>
+              <button onclick="aptelClearCurrent()" style="padding:5px 10px;background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">🗑 Počisti vse</button>
+            </div>
+          </div>
+          <div id="aptelEmpty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:2rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">Naloži CSV naročilnic za začetek.</div>
+
+          <!-- PANEL 2: Naročilo (composer) -->
+          <div class="card" id="aptelOrderCard" style="padding:1rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+              <span class="slabel" style="margin:0;color:#0f766e" id="aptelOrderTitle">📦 NAROČILO (0 SKU)</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button onclick="aptelCopyOrder()" id="aptelCopyOrderBtn" style="padding:5px 10px;background:var(--green);color:white;border:none;border-radius:var(--radius);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📋 Kopiraj SKU</button>
+                <button onclick="aptelClearOrder()" style="padding:5px 10px;background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">🗑 Počisti</button>
+              </div>
+            </div>
+            <!-- Masovne akcije za naročilo -->
+            <div id="aptelOrderBulkBar" style="display:none;padding:8px 12px;background:rgba(15,118,110,0.06);border:1px solid rgba(15,118,110,0.2);border-radius:var(--radius);margin-bottom:8px;align-items:center;gap:8px;flex-wrap:wrap">
+              <span id="aptelOrderSelCount" style="font-size:12px;font-weight:600;color:#0f766e">0 označenih</span>
+              <button onclick="aptelDeleteSelectedOrder()" style="padding:5px 12px;background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">🗑 Zbriši označene</button>
+              <button onclick="aptelMoveSelectedBack()" style="padding:5px 12px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">← Vrni v seznam</button>
+              <button onclick="aptelDeselectAll('order')" style="padding:5px 10px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif">✕ Počisti izbor</button>
+            </div>
+            <div id="hsuvozOrderEmpty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:1.5rem">Premakni SKU-je sem z gumbom "→ Naročilo".</div>
+            <div style="display:grid;grid-template-columns:32px 28px 130px 1fr 55px 85px 85px 100px;gap:8px;padding:8px 12px;background:rgba(15,118,110,0.08);border-radius:var(--radius);font-size:10px;font-weight:600;color:#0f766e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;display:none;align-items:center" id="aptelOrderHeader">
+              <input type="checkbox" id="aptelOrderSelectAll" onchange="aptelToggleSelectAll('order',this.checked)" style="cursor:pointer;width:14px;height:14px">
+              <span>#</span><span>SKU</span><span>Naziv</span><span style="text-align:center">Kol.</span><span style="text-align:center">Obrat 30d</span><span style="text-align:center">Naročila</span><span></span>
+            </div>
+            <div id="aptelOrderList" style="display:flex;flex-direction:column;gap:3px"></div>
           </div>
 
         </div>
@@ -6226,7 +6314,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ─── ORODJA SUB-TABS + HS+ ─────────────────────────────────────────────────
 function switchOrodjaTab(tab) {
-  ['csv', 'hs', 'hsuvoz', 'pricecheck', 'zdrnarocila', 'inventura'].forEach(t => {
+  ['csv', 'hs', 'hsuvoz', 'apteluvoz', 'pricecheck', 'zdrnarocila', 'inventura'].forEach(t => {
     const btn = document.getElementById('orodjaTab-' + t);
     const sub = document.getElementById('orodjaSubpage-' + t);
     if (t === tab) {
@@ -6241,6 +6329,7 @@ function switchOrodjaTab(tab) {
   if (tab === 'pricecheck') pcLoadStockStatus();
   if (tab === 'csv') orodjaLoadHistory();
   if (tab === 'hsuvoz') { hsuvozLoadStock(); hsuvozLoadHistory(); hsuvozLoadCurrent(); hsuvozLoadOrderPanel(); }
+  if (tab === 'apteluvoz') { aptelLoadStock(); aptelLoadHistory(); aptelLoadCurrent(); aptelLoadOrderPanel(); }
   if (tab === 'zdrnarocila') znLoad();
   if (tab === 'inventura') { invLoadHistory(); invLoadCurrent(); }
   try { localStorage.setItem('slx_active_subtab', tab); } catch(e) {}
@@ -10425,6 +10514,439 @@ let spTranslateTimer = null;
 let spCommonAnswers = [];
 let spBrand = 'maaarket'; // 'maaarket' ali 'silux'
 
+
+// ── APTEL NAROČANJE ──────────────────────────────────────────
+async function aptelLoadStock() {
+  try {
+    const res = await fetch('/orodja-stock-data');
+    if (!res.ok) return;
+    const data = await res.json();
+    _aptelStock = {};
+    (data.items || []).forEach(it => { _aptelStock[it.sku.toUpperCase()] = parseInt(it.stock30) || 0; });
+  } catch(e) {}
+}
+
+function aptelHandleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) aptelUpload(f);
+}
+
+async function aptelUpload(file) {
+  const status = document.getElementById('aptelStatus');
+  const info = document.getElementById('aptelInfo');
+  status.style.display = 'block';
+  status.style.color = 'var(--text-secondary)';
+  status.textContent = '⏳ Nalagam...';
+  info.style.display = 'none';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/aptel-upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { status.style.color = 'var(--red)'; status.textContent = '⚠ ' + data.error; return; }
+    status.style.color = 'var(--green)';
+    status.textContent = `✓ ${data.total_skus} SKU-jev naloženih`;
+    info.style.display = 'block';
+    info.textContent = `${new Date(data.uploaded_at).toLocaleString('sl-SI')} · ${file.name}`;
+    await aptelLoadCurrent();
+    await aptelLoadHistory();
+  } catch(e) { status.style.color = 'var(--red)'; status.textContent = '⚠ ' + e.message; }
+}
+
+async function aptelLoadCurrent() {
+  try {
+    const res = await fetch('/aptel-data');
+    const data = await res.json();
+    const card = document.getElementById('aptelResultCard');
+    const empty = document.getElementById('aptelEmpty');
+    if (!data.loaded || !data.items?.length) {
+      card.style.display = 'none'; empty.style.display = 'block';
+    } else {
+      card.style.display = 'block'; empty.style.display = 'none';
+      aptelRender(data.items, 'aptelList', 'current');
+      const undone = data.items.filter(it => !it.done).length;
+      document.getElementById('aptelTitle').textContent = `ZA NAROČILO (${undone} / ${data.items.length})`;
+    }
+  } catch(e) { console.warn('aptelLoadCurrent', e); }
+}
+
+async function aptelLoadOrderPanel() {
+  try {
+    const res = await fetch('/aptel-order-data');
+    const data = await res.json();
+    const items = data.items || [];
+    document.getElementById('aptelOrderTitle').textContent = `📦 NAROČILO (${items.length} SKU · ${items.reduce((s,i)=>s+i.qty,0)} kos)`;
+    const orderEmpty = document.getElementById('aptelOrderEmpty');
+    const orderHeader = document.getElementById('aptelOrderHeader');
+    if (!items.length) {
+      orderEmpty.style.display = 'block'; orderHeader.style.display = 'none';
+      document.getElementById('aptelOrderList').innerHTML = '';
+    } else {
+      orderEmpty.style.display = 'none'; orderHeader.style.display = 'grid';
+      aptelRender(items, 'aptelOrderList', 'order');
+    }
+  } catch(e) { console.warn('aptelLoadOrderPanel', e); }
+}
+
+function aptelRender(items, listId, source) {
+  const list = document.getElementById(listId);
+  const visible = (source === 'current' && !_aptelShowDone) ? items.filter(it => !it.done) : items;
+  if (!visible.length) {
+    list.innerHTML = source === 'order' ? '' : '<div style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:1rem">Vsi SKU-ji so v naročilu ali done. 🎉</div>';
+    return;
+  }
+
+  // Shrani v window za event delegation
+  if (source === 'current') window._aptelCurrentItems = visible;
+  else window._aptelOrderItems = visible;
+
+  const rows = visible.map((it, idx) => {
+    const isDone = it.done;
+    const obrat = _aptelStock[(it.sku||'').toUpperCase()];
+    const obratColor = obrat > 10 ? '#16a34a' : obrat > 3 ? '#d97706' : obrat !== undefined ? 'var(--red)' : 'var(--text-tertiary)';
+    const obratBg = obrat > 10 ? 'rgba(22,163,74,0.08)' : obrat > 3 ? 'rgba(217,119,6,0.08)' : obrat !== undefined ? 'rgba(239,68,68,0.08)' : 'transparent';
+    const obratBorder = obrat > 10 ? 'rgba(22,163,74,0.25)' : obrat > 3 ? 'rgba(217,119,6,0.25)' : obrat !== undefined ? 'rgba(239,68,68,0.25)' : 'transparent';
+    const ordersId = 'aptel-orders-' + source + '-' + idx;
+    const ordersCount = (it.orders || []).length;
+    const orderLinks = (it.orders || []).map(function(id) {
+      return '<a href="https://www.siluxar.si/narocilnice/' + id + '" target="_blank" style="color:var(--accent);text-decoration:none;font-size:10px;background:rgba(24,119,242,0.08);border:1px solid rgba(24,119,242,0.2);border-radius:4px;padding:2px 7px;display:inline-block">' + id + '</a>';
+    }).join(' ');
+
+    const rowBg = source === 'order' ? 'rgba(15,118,110,0.05)' : (isDone ? 'rgba(0,0,0,0.02)' : 'var(--surface)');
+    const rowBorder = source === 'order' ? '1px solid rgba(15,118,110,0.2)' : '1px solid var(--border)';
+    const skuColor = isDone ? 'var(--text-tertiary)' : (source === 'order' ? '#0f766e' : 'var(--text)');
+    const skuDeco = isDone ? 'line-through' : 'none';
+
+    const isChecked = (window._aptelSelected || new Set()).has(it.sku + '|' + source);
+
+    const btnMove = source === 'current'
+      ? '<button onclick="window._hsvAct(\'move\',\'current\',' + idx + ')" style="padding:3px 7px;background:#0f766e;color:white;border:none;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap">&rarr; Naročilo</button>'
+      : '<button onclick="window._hsvAct(\'back\',\'order\',' + idx + ')" style="padding:3px 7px;background:none;border:1px solid var(--border);color:var(--text-secondary);border-radius:4px;font-size:10px;cursor:pointer">&larr; Nazaj</button>';
+
+    return '<div style="border:' + rowBorder + ';border-radius:var(--radius);background:' + rowBg + ';' + (isDone ? 'opacity:0.5' : '') + (isChecked ? 'outline:2px solid rgba(24,119,242,0.4);' : '') + '">'
+      + '<div style="display:grid;grid-template-columns:32px 28px 130px 1fr 55px 85px 85px 100px;gap:8px;padding:9px 12px;font-size:12px;align-items:center">'
+      + '<input type="checkbox" ' + (isChecked ? 'checked' : '') + ' onchange="window._hsvCheck(\'' + source + '\',' + idx + ',this.checked)" style="cursor:pointer;width:14px;height:14px;accent-color:var(--accent)">'
+      + '<span style="color:var(--text-tertiary);font-size:11px">' + (idx + 1) + '</span>'
+      + '<input value="' + esc(it.sku) + '" data-orig="' + esc(it.sku) + '" data-src="' + source + '" data-idx="' + idx + '" onfocus="this.style.background=\'rgba(24,119,242,0.06)\';this.style.outline=\'1px solid var(--accent)\';this.style.borderRadius=\'3px\';this.select()" onblur="this.style.background=\'transparent\';this.style.outline=\'none\';window._hsvSaveSkuEdit(this)" onkeydown="if(event.key===\'Enter\'){this.blur();}if(event.key===\'Escape\'){this.value=this.dataset.orig;this.blur();}" onmouseenter="this.style.background=\'rgba(0,0,0,0.04)\';this.style.borderRadius=\'3px\'" onmouseleave="if(document.activeElement!==this)this.style.background=\'transparent\'" style="font-weight:700;font-size:12px;color:' + skuColor + ';text-decoration:' + skuDeco + ';border:none;background:transparent;outline:none;width:100%;cursor:text;font-family:DM Sans,sans-serif;padding:2px 4px;border-radius:3px;transition:background 0.1s" title="Klikni za urejanje SKU">'
+      + '<span style="color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">' + esc(it.naziv || '—') + '</span>'
+      + '<div style="text-align:center">'
+      + '<span style="font-weight:700;font-size:15px;color:var(--text)">' + it.qty + '</span>'
+      + '<div style="font-size:9px;color:var(--text-tertiary);margin-top:1px">kos</div>'
+      + '</div>'
+      + (obrat !== undefined
+        ? '<div style="text-align:center;background:' + obratBg + ';border-radius:6px;padding:4px 6px;border:1px solid ' + obratBorder + '">'
+          + '<div style="font-weight:700;font-size:14px;color:' + obratColor + '">' + obrat + '</div>'
+          + '<div style="font-size:9px;color:' + obratColor + ';opacity:0.8">obr/30d</div>'
+          + '</div>'
+        : '<div style="text-align:center;color:var(--text-tertiary);font-size:11px">—</div>')
+      + '<button onclick="window._hsvOrders(\'' + ordersId + '\',this)" style="padding:4px 8px;background:rgba(24,119,242,0.07);border:1px solid rgba(24,119,242,0.2);border-radius:6px;font-size:11px;color:var(--accent);cursor:pointer;width:100%;text-align:center">📦 ' + ordersCount + '</button>'
+      + '<div style="display:flex;gap:3px;justify-content:flex-end">'
+      + btnMove
+      + '</div>'
+      + '</div>'
+      + '<div id="' + ordersId + '" style="display:none;padding:5px 12px 10px 50px;flex-wrap:wrap;gap:5px">' + orderLinks + '</div>'
+      + '</div>';
+  });
+
+  list.innerHTML = rows.join('');
+
+  window._hsvAct = function(action, src, idx) {
+    const items_ref = src === 'current' ? window._aptelCurrentItems : window._aptelOrderItems;
+    if (!items_ref || idx < 0 || idx >= items_ref.length) return;
+    const sku = items_ref[idx].sku;
+    if (action === 'move') aptelMoveToOrder(sku);
+    else if (action === 'back') aptelMoveBack(sku);
+  };
+
+  window._hsvSaveSkuEdit = async function(input) {
+    const newSku = input.value.trim();
+    const oldSku = input.dataset.orig;
+    const source = input.dataset.src;
+    const idx = parseInt(input.dataset.idx);
+    if (!newSku || newSku === oldSku) {
+      input.value = oldSku; // Vrni original če prazno
+      return;
+    }
+    // Vizualni feedback med shranjevanjem
+    input.style.opacity = '0.5';
+    try {
+      const res = await fetch('/aptel-edit-sku?old_sku=' + encodeURIComponent(oldSku) + '&new_sku=' + encodeURIComponent(newSku) + '&source=' + source, {method:'POST'});
+      const data = await res.json();
+      if (data.error) {
+        input.value = oldSku;
+        alert('Napaka: ' + data.error);
+      } else {
+        input.dataset.orig = newSku; // Posodobi orig za naslednji edit
+        // Posodobi _aptelSelected če je bila ta vrstica označena
+        if (window._aptelSelected) {
+          if (window._aptelSelected.has(oldSku + '|' + source)) {
+            window._aptelSelected.delete(oldSku + '|' + source);
+            window._aptelSelected.add(newSku + '|' + source);
+          }
+        }
+        // Posodobi items_ref v memory
+        const items_ref = source === 'current' ? window._aptelCurrentItems : window._aptelOrderItems;
+        if (items_ref && items_ref[idx]) items_ref[idx].sku = newSku;
+      }
+    } catch(e) {
+      input.value = oldSku;
+    }
+    input.style.opacity = '1';
+  };
+
+  window._hsvCheck = function(src, idx, checked) {
+    if (!window._aptelSelected) window._aptelSelected = new Set();
+    const items_ref = src === 'current' ? window._aptelCurrentItems : window._aptelOrderItems;
+    if (!items_ref || idx >= items_ref.length) return;
+    const key = items_ref[idx].sku + '|' + src;
+    if (checked) window._aptelSelected.add(key);
+    else window._aptelSelected.delete(key);
+    aptelUpdateBulkBar(src);
+  };
+
+  window._hsvOrders = function(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const isOpen = el.style.display !== 'none';
+    el.style.display = isOpen ? 'none' : 'flex';
+    btn.style.background = isOpen ? 'rgba(24,119,242,0.07)' : 'rgba(24,119,242,0.18)';
+  };
+}
+
+
+function aptelToggleOrders(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'flex';
+  btn.style.background = isOpen ? 'rgba(24,119,242,0.07)' : 'rgba(24,119,242,0.18)';
+  btn.style.fontWeight = isOpen ? 'normal' : '600';
+}
+
+async function aptelMoveToOrder(sku) {
+  try {
+    await fetch('/aptel-move-to-order?sku=' + encodeURIComponent(sku), {method:'POST'});
+    await Promise.all([aptelLoadCurrent(), aptelLoadOrderPanel()]);
+  } catch(e) { alert('Napaka: '+e.message); }
+}
+
+async function aptelMoveBack(sku) {
+  try {
+    await fetch('/aptel-move-back?sku=' + encodeURIComponent(sku), {method:'POST'});
+    await Promise.all([aptelLoadCurrent(), aptelLoadOrderPanel()]);
+  } catch(e) { alert('Napaka: '+e.message); }
+}
+
+async function aptelMoveAllToOrder() {
+  try {
+    const res = await fetch('/aptel-data');
+    const data = await res.json();
+    const active = (data.items||[]).filter(it=>!it.done);
+    for (const it of active) {
+      await fetch('/aptel-move-to-order?sku=' + encodeURIComponent(it.sku), {method:'POST'});
+    }
+    await Promise.all([aptelLoadCurrent(), aptelLoadOrderPanel()]);
+  } catch(e) { alert('Napaka: '+e.message); }
+}
+
+async function aptelMoveSelectedToOrder() {
+  if (!window._aptelSelected) return;
+  const skus = [...window._aptelSelected].filter(k=>k.endsWith('|current')).map(k=>k.slice(0,k.lastIndexOf('|current')));
+  if (!skus.length) return;
+  for (const sku of skus) {
+    await fetch('/aptel-move-to-order?sku=' + encodeURIComponent(sku), {method:'POST'});
+    window._aptelSelected.delete(sku + '|current');
+  }
+  await Promise.all([aptelLoadCurrent(), aptelLoadOrderPanel()]);
+}
+
+async function aptelMoveSelectedBack() {
+  if (!window._aptelSelected) return;
+  const skus = [...window._aptelSelected].filter(k=>k.endsWith('|order')).map(k=>k.slice(0,k.lastIndexOf('|order')));
+  if (!skus.length) return;
+  for (const sku of skus) {
+    await fetch('/aptel-move-back?sku=' + encodeURIComponent(sku), {method:'POST'});
+    window._aptelSelected.delete(sku + '|order');
+  }
+  await Promise.all([aptelLoadCurrent(), aptelLoadOrderPanel()]);
+}
+
+async function aptelDeleteItem(sku, source) {
+  try {
+    await fetch('/aptel-delete-item?sku=' + encodeURIComponent(sku) + '&source=' + source, {method:'POST'});
+    if (source === 'current') await aptelLoadCurrent();
+    else await aptelLoadOrderPanel();
+  } catch(e) { alert('Napaka: '+e.message); }
+}
+
+async function aptelSetDone(sku, done) {
+  try {
+    await fetch('/aptel-set-done?sku=' + encodeURIComponent(sku) + '&done=' + (done?'1':'0'), {method:'POST'});
+    await aptelLoadCurrent();
+  } catch(e) {}
+}
+
+async function aptelSaveEdit(oldSku, source) {
+  const input = document.getElementById('aptel-edit-input');
+  const newSku = input?.value?.trim();
+  if (!newSku || newSku === oldSku) { source === 'current' ? aptelLoadCurrent() : aptelLoadOrderPanel(); return; }
+  try {
+    const res = await fetch('/aptel-edit-sku?old_sku=' + encodeURIComponent(oldSku) + '&new_sku=' + encodeURIComponent(newSku) + '&source=' + source, {method:'POST'});
+    const data = await res.json();
+    if (data.error) { alert('Napaka: '+data.error); return; }
+    source === 'current' ? await aptelLoadCurrent() : await aptelLoadOrderPanel();
+  } catch(e) { alert('Napaka: '+e.message); }
+}
+
+async function aptelLoadFromHistory(filename) {
+  try {
+    const res = await fetch('/aptel-load-history?filename=' + encodeURIComponent(filename), {method:'POST'});
+    const data = await res.json();
+    if (data.error) { alert('Napaka: '+data.error); return; }
+    await aptelLoadCurrent();
+  } catch(e) { alert('Napaka: '+e.message); }
+}
+
+// ── Bulk bar & checkbox funkcije ──────────────────────────
+function aptelUpdateBulkBar(src) {
+  if (!window._aptelSelected) window._aptelSelected = new Set();
+  const count = [...window._aptelSelected].filter(k => k.endsWith('|' + src)).length;
+  if (src === 'current') {
+    const bar = document.getElementById('aptelBulkBar');
+    const cnt = document.getElementById('aptelSelCount');
+    if (bar) bar.style.display = count > 0 ? 'flex' : 'none';
+    if (cnt) cnt.textContent = count + ' označenih';
+  } else {
+    const bar = document.getElementById('aptelOrderBulkBar');
+    const cnt = document.getElementById('aptelOrderSelCount');
+    if (bar) bar.style.display = count > 0 ? 'flex' : 'none';
+    if (cnt) cnt.textContent = count + ' označenih';
+  }
+}
+
+function aptelDeselectAll(src) {
+  if (!window._aptelSelected) return;
+  [...window._aptelSelected].filter(k => k.endsWith('|' + src))
+    .forEach(k => window._aptelSelected.delete(k));
+  aptelUpdateBulkBar(src);
+  if (src === 'current') aptelLoadCurrent();
+  else aptelLoadOrderPanel();
+}
+
+function aptelToggleSelectAll(src, checked) {
+  if (!window._aptelSelected) window._aptelSelected = new Set();
+  const items_ref = src === 'current' ? window._aptelCurrentItems : window._aptelOrderItems;
+  if (!items_ref) return;
+  items_ref.forEach(it => {
+    const key = it.sku + '|' + src;
+    if (checked) window._aptelSelected.add(key);
+    else window._aptelSelected.delete(key);
+  });
+  aptelUpdateBulkBar(src);
+  if (src === 'current') aptelLoadCurrent();
+  else aptelLoadOrderPanel();
+}
+
+async function aptelDeleteSelected() {
+  if (!window._aptelSelected) return;
+  const skus = [...window._aptelSelected].filter(k=>k.endsWith('|current')).map(k=>k.slice(0,k.lastIndexOf('|current')));
+  if (!skus.length) return;
+  for (const sku of skus) {
+    await fetch('/aptel-delete-item?sku=' + encodeURIComponent(sku) + '&source=current', {method:'POST'});
+    window._aptelSelected.delete(sku + '|current');
+  }
+  aptelUpdateBulkBar('current');
+  await aptelLoadCurrent();
+}
+
+async function aptelDeleteSelectedOrder() {
+  if (!window._aptelSelected) return;
+  const skus = [...window._aptelSelected].filter(k=>k.endsWith('|order')).map(k=>k.slice(0,k.lastIndexOf('|order')));
+  if (!skus.length) return;
+  for (const sku of skus) {
+    await fetch('/aptel-delete-item?sku=' + encodeURIComponent(sku) + '&source=order', {method:'POST'});
+    window._aptelSelected.delete(sku + '|order');
+  }
+  aptelUpdateBulkBar('order');
+  await aptelLoadOrderPanel();
+}
+
+async function aptelCopyOrder() {
+  try {
+    const res = await fetch('/aptel-order-data');
+    const data = await res.json();
+    const text = (data.items||[]).map(it=>it.sku).join('\n');
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('aptelCopyOrderBtn');
+    const orig = btn.textContent;
+    btn.textContent = '✓ Kopirano!';
+    btn.style.background = '#16a34a';
+    setTimeout(()=>{ btn.textContent = orig; btn.style.background = 'var(--green)'; }, 1500);
+  } catch(e) { alert('Napaka: '+e.message); }
+}
+
+async function aptelClearOrder() {
+  if (!confirm('Počisti celotno naročilo?')) return;
+  try {
+    await fetch('/aptel-order-clear', { method:'POST' });
+    await aptelLoadOrderPanel();
+  } catch(e) { alert('Napaka: '+e.message); }
+}
+
+function aptelToggleDone() {
+  _aptelShowDone = !_aptelShowDone;
+  const btn = document.getElementById('aptelToggleDoneBtn');
+  btn.textContent = _aptelShowDone ? '🙈 Skrij done' : '👁 Done';
+  btn.style.background = _aptelShowDone ? 'rgba(0,0,0,0.06)' : 'transparent';
+  aptelLoadCurrent();
+}
+
+async function aptelClearCurrent() {
+  if (!confirm('Zbriši vse SKU-je iz seznama?')) return;
+  try {
+    const res = await fetch('/aptel-current-clear', { method:'POST' });
+    const data = await res.json();
+    if (data.error) { alert('Napaka: ' + data.error); return; }
+    await aptelLoadCurrent();
+  } catch(e) { alert('Napaka: ' + e.message); }
+}
+
+async function aptelLoadHistory() {
+  const el = document.getElementById('aptelHistoryList');
+  try {
+    const res = await fetch('/aptel-history');
+    const data = await res.json();
+    if (!data.items?.length) { el.innerHTML = '<span style="color:var(--text-tertiary)">Ni zgodovine.</span>'; return; }
+    window._hsvHistory = data.items;
+    el.innerHTML = data.items.map(function(it, hidx) {
+      const dt = it.uploaded_at ? new Date(it.uploaded_at).toLocaleString('sl-SI', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);gap:6px">'
+        + '<div style="min-width:0">'
+        + '<div style="font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">' + esc(it.original_filename) + '</div>'
+        + '<div style="color:var(--text-tertiary);font-size:10px">' + dt + ' · ' + it.total_skus + ' SKU</div>'
+        + '</div>'
+        + '<button onclick="window._hsvLoadHist(' + hidx + ',this)" style="flex-shrink:0;padding:4px 10px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap">&#8617; Naloži</button>'
+        + '</div>';
+    }).join('');
+    window._hsvLoadHist = async function(hidx, btn) {
+      if (!window._hsvHistory || hidx >= window._hsvHistory.length) return;
+      const filename = window._hsvHistory[hidx].filename;
+      const orig = btn.textContent;
+      btn.textContent = '⏳';
+      btn.disabled = true;
+      await aptelLoadFromHistory(filename);
+      btn.textContent = '✓ Naloženo!';
+      btn.style.background = '#16a34a';
+      setTimeout(function() { btn.textContent = orig; btn.style.background = 'var(--accent)'; btn.disabled = false; }, 1500);
+    };
+  } catch(e) { el.innerHTML = '<span style="color:var(--red)">Napaka.</span>'; }
+}
+
+// ── SPOROČANJE ────────────────────────────────────────────────
+// ── /APTEL NAROČANJE ─────────────────────────────────────────
 function spSetBrand(brand) {
   spBrand = brand;
   try { localStorage.setItem('slx_active_subtab', brand); } catch(e) {}
