@@ -97,6 +97,7 @@
     <div>
       <a href="/forecast-backup" target="_blank" class="btn btn-soft" style="text-decoration:none;display:inline-block">💾 Backup starega</a>
       <button class="btn btn-soft" onclick="migrateOld()">📥 Migracija starega</button>
+      <button class="btn btn-soft" onclick="cleanupPhantoms()" style="background:#fee2e2;border-color:#fca5a5">🧹 Počisti prazne</button>
       <button class="btn btn-soft" onclick="importIrenejFinals()" style="background:#fef3c7;border-color:#fbbf24">🎯 Uvozi Irenejeve podatke (25 dni)</button>
     </div>
   </div>
@@ -336,11 +337,15 @@ async function deleteEntry(time) {
 
 function renderEntries() {
   const el = document.getElementById('today-entries');
-  if (!todayData.entries.length) {
+  // Filter out invalid entries (missing time/orders/revenue from broken migration)
+  const validEntries = todayData.entries.filter(e => e && e.time && typeof e.orders !== 'undefined');
+  todayData.entries = validEntries;
+
+  if (!validEntries.length) {
     el.innerHTML = '<div class="empty">Ni vnosov. Dodaj prvega.</div>';
     return;
   }
-  el.innerHTML = todayData.entries.map(e => `
+  el.innerHTML = validEntries.map(e => `
     <div class="entry-row" style="margin-bottom:4px">
       <div class="entry-time">${e.time}</div>
       <div class="entry-data">${fmtNum(e.orders)} naročil · ${fmtCurrency(e.revenue)}</div>
@@ -435,19 +440,17 @@ async function computeForecast() {
 }
 
 function renderCharts(forecast) {
-  const entries = todayData.entries;
+  const entries = todayData.entries.filter(e => e && e.time && typeof e.orders !== 'undefined');
   if (!entries.length) {
     if (chartRev) { chartRev.destroy(); chartRev = null; }
     if (chartOrd) { chartOrd.destroy(); chartOrd = null; }
     return;
   }
 
-  // Labels = časi entry-jev + 24:00
   const labels = entries.map(e => e.time);
-  const ordersData = entries.map(e => e.orders);
-  const revenueData = entries.map(e => e.revenue);
+  const ordersData = entries.map(e => Number(e.orders) || 0);
+  const revenueData = entries.map(e => Number(e.revenue) || 0);
 
-  // Napoved konec dne
   if (forecast) {
     labels.push('24:00');
     ordersData.push(forecast.orders);
@@ -605,6 +608,18 @@ const IRENEJ_FINALS = [
   { date: "2026-05-09", orders: 1234, revenue: 33943.06 },
   { date: "2026-05-10", orders: 1406, revenue: 39459.64 },
 ];
+
+async function cleanupPhantoms() {
+  if (!confirm('Počistim prazne/poškodovane vnose iz vseh dnevnih fajlov?')) return;
+  try {
+    const r = await fetch('/forecast2-cleanup', { method:'POST' });
+    const data = await r.json();
+    if (!data.ok) { toast('Napaka: ' + (data.error||'unknown'), true); return; }
+    toast(`✓ Počiščeno ${data.removed_entries} vnosov v ${data.cleaned_days} dneh`);
+    loadToday();
+    loadHistory();
+  } catch(e) { toast('Napaka: ' + e.message, true); }
+}
 
 async function importIrenejFinals() {
   if (!confirm(`Uvozim ${IRENEJ_FINALS.length} dni končnih podatkov (16.4. - 10.5.2026)?\n\nObstoječi končni podatki za te dni se BODO PREPISALI.`)) return;
