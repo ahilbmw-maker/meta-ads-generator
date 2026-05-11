@@ -6547,33 +6547,33 @@ function inventuraRender() {
     const realIdx = invItems.indexOf(it);
     const bg = i % 2 === 0 ? 'var(--surface)' : 'var(--surface2)';
     const pozBadge = it.pozicija && it.pozicija !== 'Ni podatka'
-      ? `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:600;font-family:monospace">${it.pozicija}</span>`
-      : `<span style="color:var(--text-tertiary);font-size:11px">—</span>`;
+      ? `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:3px 8px;font-size:12px;font-weight:600;font-family:monospace">${it.pozicija}</span>`
+      : `<span style="color:var(--text-tertiary);font-size:12px">—</span>`;
     const qty = it.kolicina_dejansko !== undefined && it.kolicina_dejansko !== null ? it.kolicina_dejansko : '';
     const skuEsc = (it.sku||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return `<tr style="background:${bg};border-bottom:1px solid var(--border)">
-      <td style="padding:7px 10px;font-size:10px;color:var(--text-tertiary)">${i + 1}</td>
-      <td style="padding:7px 10px;font-size:11px;color:var(--text);">
-        <div style="display:flex;align-items:center;gap:5px">
+      <td style="padding:9px 12px;font-size:12px;color:var(--text-tertiary)">${i + 1}</td>
+      <td style="padding:9px 12px;font-size:13px;color:var(--text);">
+        <div style="display:flex;align-items:center;gap:6px">
           <span style="font-weight:700;font-family:monospace;white-space:nowrap">${it.sku}</span>
-          <button onclick="event.stopPropagation();invCopySku(this,'${skuEsc}')" style="flex-shrink:0;background:var(--surface2);border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:9px;font-weight:600;color:var(--text-secondary);padding:2px 6px;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:all 0.1s">📋</button>
+          <button onclick="event.stopPropagation();invCopySku(this,'${skuEsc}')" style="flex-shrink:0;background:var(--surface2);border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;color:var(--text-secondary);padding:3px 7px;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:all 0.1s">📋</button>
         </div>
       </td>
-      <td style="padding:7px 10px;font-size:11px;color:var(--text-secondary);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(it.naziv||'').replace(/"/g,'&quot;')}">${it.naziv || '—'}</td>
-      <td style="padding:7px 10px;text-align:center">${pozBadge}</td>
-      <td style="padding:5px 7px">
+      <td style="padding:9px 12px;font-size:13px;color:var(--text-secondary);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(it.naziv||'').replace(/"/g,'&quot;')}">${it.naziv || '—'}</td>
+      <td style="padding:9px 12px;text-align:center">${pozBadge}</td>
+      <td style="padding:6px 9px">
         <input type="text" value="${(it.komentar||'').replace(/"/g,'&quot;')}" placeholder="komentar..."
           oninput="invItems[${realIdx}].komentar=this.value;invAutoSave()"
-          style="width:100%;border:1px solid var(--border);border-radius:5px;padding:4px 7px;font-size:11px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--surface2);outline:none;min-width:90px">
+          style="width:100%;border:1px solid var(--border);border-radius:5px;padding:6px 9px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--surface2);outline:none;min-width:110px">
       </td>
-      <td style="padding:5px 7px;text-align:center">
+      <td style="padding:6px 9px;text-align:center">
         <input type="number" min="0" value="${qty}" placeholder="—"
           oninput="invItems[${realIdx}].kolicina_dejansko=this.value===''?undefined:Number(this.value);invAutoSave()"
-          style="width:52px;border:1px solid var(--border);border-radius:5px;padding:4px 6px;font-size:11px;font-family:'DM Sans',sans-serif;color:var(--text);background:${qty!==''?'#f0fdf4':'var(--surface2)'};outline:none;text-align:center"
+          style="width:60px;border:1px solid var(--border);border-radius:5px;padding:6px 8px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--text);background:${qty!==''?'#f0fdf4':'var(--surface2)'};outline:none;text-align:center"
           onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
       </td>
-      <td style="padding:7px 8px;text-align:center">
-        <button onclick="inventuraDelete(${realIdx})" title="Zbriši" style="background:none;border:1px solid #fca5a5;color:#ef4444;border-radius:4px;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:1;padding:0">✕</button>
+      <td style="padding:9px 10px;text-align:center">
+        <button onclick="inventuraDelete(${realIdx})" title="Zbriši" style="background:none;border:1px solid #fca5a5;color:#ef4444;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:14px;line-height:1;padding:0">✕</button>
       </td>
     </tr>`;
   }).join('');
