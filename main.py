@@ -7836,3 +7836,37 @@ async def forecast2_stats():
         }
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@app.post("/forecast2-bulk-finals")
+async def forecast2_bulk_finals(data: dict):
+    """Bulk import končnih podatkov za več dni naenkrat.
+    Body: {"finals": [{"date":"YYYY-MM-DD","orders":N,"revenue":N}, ...]}
+    """
+    try:
+        finals = data.get("finals", [])
+        saved = 0
+        errors = []
+        for item in finals:
+            date_iso = item.get("date", "")
+            if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_iso):
+                errors.append(f"Invalid date: {date_iso}")
+                continue
+            try:
+                orders = int(item.get("orders", 0))
+                revenue = float(item.get("revenue", 0))
+                day = _forecast2_load_day(date_iso)
+                day["final"] = {
+                    "orders": orders,
+                    "revenue": revenue,
+                    "_set_at": _lj_now().isoformat(),
+                    "_bulk": True,
+                }
+                _forecast2_save_day(date_iso, day)
+                saved += 1
+            except Exception as e:
+                errors.append(f"{date_iso}: {e}")
+
+        return {"ok": True, "saved": saved, "errors": errors}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
