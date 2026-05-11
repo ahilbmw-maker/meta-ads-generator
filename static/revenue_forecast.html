@@ -3,818 +3,621 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Napoved prometa</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<title>Forecast 2.0 — Napoved prometa</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#f2f2f5;--surface:#fff;--surface2:#ebebf0;
-  --border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.15);
-  --text:#111116;--text2:#55555f;--text3:#9999a8;
-  --green:#0a8c5a;--green-dim:rgba(10,140,90,0.1);--green-border:rgba(10,140,90,0.28);
-  --blue:#3a6fff;--blue-dim:rgba(58,111,255,0.1);--blue-border:rgba(58,111,255,0.3);
-  --radius:10px;--radius-lg:14px;
-}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.25rem 1rem 2rem;overflow-x:hidden}
-.wrap{width:100%}
-.hdr{margin-bottom:1.25rem}
-.hdr-title{font-size:18px;font-weight:600;letter-spacing:-0.3px}
-.hdr-sub{font-size:12px;color:var(--text3);margin-top:3px}
-
-/* Desktop layout: left inputs, right charts */
-.layout{display:grid;grid-template-columns:380px 1fr;gap:14px;align-items:start}
-.charts-col{display:flex;flex-direction:column;gap:12px}
-.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:900px){.charts-row{grid-template-columns:1fr}}
-@media(max-width:700px){
-  .layout{grid-template-columns:1fr}
-  body{padding:1rem 0.75rem 2rem}
-  .field-grid{grid-template-columns:1fr 1fr}
-  .metrics{grid-template-columns:1fr 1fr 1fr}
-  .mode-btn{font-size:11px;padding:8px 4px}
-  .flabel{font-size:10px}
-  .highlight{flex-direction:column;gap:8px}
-  .prog-wrap{text-align:left;min-width:unset;width:100%}
-}
-
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:10px}
-.mode-row{display:flex;gap:6px;margin-bottom:1.25rem}
-.mode-btn{flex:1;padding:9px 8px;font-size:12px;font-weight:500;cursor:pointer;border-radius:var(--radius);border:1.5px solid var(--border);background:var(--surface);color:var(--text2);font-family:'DM Sans',sans-serif;transition:all 0.15s}
-.mode-btn.on{border-color:var(--blue-border);background:var(--blue-dim);color:var(--blue)}
-.flabel{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;display:block}
-.field{margin-bottom:12px}
-input[type=number]{width:100%;height:46px;padding:0 14px;font-size:16px;font-family:'DM Sans',sans-serif;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text);transition:all 0.15s;text-align:center;-moz-appearance:textfield}
-input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
-input[type=number]:focus{outline:none;border-color:var(--blue-border);background:var(--surface);box-shadow:0 0 0 3px var(--blue-dim)}
-input::placeholder{color:var(--text3)}
-.time-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-bottom:8px}
-.time-sep{font-size:22px;font-weight:500;color:var(--text3);text-align:center}
-.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.now-btn{width:100%;height:40px;border-radius:var(--radius);border:1px solid var(--blue-border);background:var(--blue-dim);color:var(--blue);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;transition:all 0.15s}
-.now-btn:hover{background:var(--blue);color:white}
-.time-hint{font-size:11px;color:var(--text3);text-align:center;margin-bottom:8px}
-.add-btn{width:100%;height:44px;border-radius:var(--radius);border:none;background:var(--blue);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.15s;margin-top:4px}
-.add-btn:hover{background:#2d5fee}
-.add-btn:active{transform:scale(0.98)}
-
-/* Result cards */
-.highlight{background:var(--green-dim);border:1px solid var(--green-border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:10px}
-.hl-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.hl-val{font-size:34px;font-weight:600;color:var(--green);letter-spacing:-1px;line-height:1}
-.hl-lbl{font-size:12px;color:var(--green);opacity:0.8;margin-top:5px}
-.prog-wrap{text-align:right;min-width:120px}
-.prog-orders{font-size:13px;font-weight:600;color:var(--green)}
-.prog-bar{height:5px;background:rgba(10,140,90,0.2);border-radius:3px;overflow:hidden;margin-top:8px}
-.prog-fill{height:100%;background:var(--green);border-radius:3px;transition:width 0.4s}
-.prog-pct{font-size:11px;color:var(--green);opacity:0.7;margin-top:5px}
-.metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
-.metric{background:var(--surface2);border-radius:var(--radius);padding:0.875rem;text-align:center}
-.metric-val{font-size:20px;font-weight:500;color:var(--text)}
-.metric-lbl{font-size:10px;color:var(--text3);margin-top:4px;text-transform:uppercase;letter-spacing:0.4px;line-height:1.3}
-.metric-sub{font-size:10px;color:var(--text3);margin-top:3px}
-.info-box{background:var(--blue-dim);border:1px solid var(--blue-border);border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--blue);line-height:1.6}
-.empty{text-align:center;padding:2rem 1rem;color:var(--text3);font-size:13px}
-
-/* Chart panel */
-.chart-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;position:sticky;top:1rem}
-.chart-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
-.chart-title{font-size:13px;font-weight:600;color:var(--text)}
-.chart-clear{font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif}
-.chart-clear:hover{color:var(--red,#e03030)}
-.chart-wrap{position:relative;height:280px}
-.chart-empty{display:flex;align-items:center;justify-content:center;height:280px;color:var(--text3);font-size:13px;text-align:center;line-height:1.6}
-
-/* Log entries */
-.log-list{margin-top:1rem;display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto}
-.log-item{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--surface2);border-radius:7px;font-size:11px}
-.log-time{font-weight:600;color:var(--text);font-family:'DM Mono',monospace;flex-shrink:0}
-.log-napoved{color:var(--green);font-weight:600;flex:1;text-align:right}
-.log-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;flex-shrink:0}
-.log-del:hover{color:var(--red,#e03030)}
-
-.footer{text-align:center;font-size:11px;color:var(--text3);margin-top:1.5rem}
-.eod-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-top:12px}
-.eod-title{font-size:13px;font-weight:600;margin-bottom:4px}
-.eod-sub{font-size:11px;color:var(--text3);margin-bottom:12px}
-.eod-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
-.eod-date{font-size:12px;font-weight:500;color:var(--text2);min-width:90px}
-.eod-input{width:110px;height:36px;padding:0 10px;font-size:14px;font-family:"DM Sans",sans-serif;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text);text-align:center;-moz-appearance:textfield}
-.eod-input::-webkit-inner-spin-button,.eod-input::-webkit-outer-spin-button{-webkit-appearance:none}
-.eod-input:focus{outline:none;border-color:var(--blue-border);background:var(--surface);box-shadow:0 0 0 3px var(--blue-dim)}
-.eod-saved{font-size:11px;color:var(--green);margin-left:4px}
-.eod-save-btn{padding:8px 18px;background:var(--blue);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:"DM Sans",sans-serif;margin-top:10px;transition:all 0.15s}
-.eod-save-btn:hover{background:#2d5fee}
-.eod-toggle{font-size:11px;color:var(--blue);background:none;border:none;cursor:pointer;font-family:"DM Sans",sans-serif;text-decoration:underline;margin-top:6px}
+  :root {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface2: #f3f4f6;
+    --border: #e5e7eb;
+    --text: #111827;
+    --text-secondary: #6b7280;
+    --text-tertiary: #9ca3af;
+    --accent: #534AB7;
+    --accent-soft: #ede9fe;
+    --green: #22c55e;
+    --orange: #f97316;
+    --red: #ef4444;
+    --radius: 8px;
+    --shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:14px; background:#f9fafb; font-family:'DM Sans',-apple-system,sans-serif; color:var(--text); font-size:13px; line-height:1.4; }
+  .container { max-width: 1400px; margin: 0 auto; }
+  .header { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px }
+  h1 { font-size:20px; font-weight:700; margin:0 }
+  .subtitle { color:var(--text-secondary); font-size:12px; margin-top:2px }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px; }
+  .card-title { font-size:11px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+  .grid-main { display:grid; grid-template-columns: 360px minmax(0, 1fr); gap:14px; align-items:start; }
+  @media (max-width: 900px) { .grid-main { grid-template-columns: 1fr; } }
+  .grid-charts { display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px; }
+  @media (max-width: 800px) { .grid-charts { grid-template-columns: 1fr; } }
+  input, select, button { font-family:inherit; font-size:13px; }
+  input[type=number], input[type=text] {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); background:#fff; color:var(--text);
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .label { display:block; font-size:10px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+  .btn { padding: 9px 14px; border-radius: var(--radius); font-weight:600; font-size:13px; cursor:pointer; border:none; transition:opacity 0.15s; }
+  .btn:disabled { opacity:0.5; cursor:not-allowed }
+  .btn-primary { background:var(--accent); color:white; width:100%; }
+  .btn-primary:hover { opacity:0.9 }
+  .btn-soft { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .btn-soft:hover { background:#e5e7eb }
+  .mode-tabs { display:flex; gap:4px; background:var(--surface2); padding:3px; border-radius:var(--radius); margin-bottom:12px; }
+  .mode-btn { flex:1; padding:7px 10px; background:transparent; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; color:var(--text-secondary); }
+  .mode-btn.active { background:white; color:var(--accent); box-shadow:0 1px 2px rgba(0,0,0,0.06); }
+  .entry-row {
+    display:grid; grid-template-columns: auto 1fr auto; gap:8px; align-items:center;
+    padding:7px 10px; background:var(--surface2); border-radius:6px; font-size:12px;
+  }
+  .entry-row .entry-time { font-family:'SF Mono',Menlo,monospace; font-weight:600; color:var(--text); }
+  .entry-row .entry-data { color:var(--text-secondary); }
+  .entry-del { background:transparent; border:none; cursor:pointer; color:var(--text-tertiary); padding:2px 6px; font-size:14px; }
+  .entry-del:hover { color:var(--red); }
+  .info-pill { display:inline-block; padding:3px 8px; background:var(--accent-soft); color:var(--accent); border-radius:12px; font-size:11px; font-weight:600; }
+  .stat-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  .stat-box { padding:8px 10px; background:var(--surface2); border-radius:6px; }
+  .stat-label { font-size:10px; color:var(--text-secondary); text-transform:uppercase; font-weight:600; }
+  .stat-value { font-size:18px; font-weight:700; color:var(--text); margin-top:2px; }
+  .history-item {
+    display:grid; grid-template-columns:auto 1fr auto auto; gap:8px; padding:8px 10px;
+    background:var(--surface2); border-radius:6px; font-size:12px; align-items:center;
+  }
+  .history-date { font-family:'SF Mono',Menlo,monospace; font-weight:600; color:var(--text); }
+  .history-final { color:var(--text); font-weight:600; }
+  .history-entries { color:var(--text-tertiary); font-size:11px; }
+  .badge-green { background:rgba(34,197,94,0.1); color:var(--green); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; }
+  .badge-gray { background:var(--surface2); color:var(--text-tertiary); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; }
+  .empty { text-align:center; color:var(--text-tertiary); font-size:12px; padding:20px; }
+  .toast {
+    position:fixed; bottom:20px; right:20px; padding:10px 16px; background:var(--text); color:white;
+    border-radius:var(--radius); font-size:12px; font-weight:500; box-shadow:0 4px 12px rgba(0,0,0,0.15);
+    opacity:0; transform:translateY(10px); transition:all 0.2s; z-index:1000;
+  }
+  .toast.show { opacity:1; transform:translateY(0); }
+  .toast.error { background:var(--red); }
+  .help-text { font-size:11px; color:var(--text-secondary); margin-top:4px; }
+  .day-section { margin-bottom:16px; }
+  .day-section-title { font-weight:600; font-size:12px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
+  .final-form { display:grid; grid-template-columns: 1fr 1fr auto; gap:6px; align-items:end; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="hdr">
-    <div class="hdr-title">Napoved dnevnega prometa</div>
-    <div class="hdr-sub">Vpiši podatke in dodaj vnos — graf kaže trend čez dan</div>
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>📊 Forecast 2.0 — Napoved prometa</h1>
+      <div class="subtitle">Clean rewrite — vsak dan ima svoj fajl, brez prepisovanja</div>
+    </div>
+    <div>
+      <a href="/forecast-backup" target="_blank" class="btn btn-soft" style="text-decoration:none;display:inline-block">💾 Backup starega</a>
+      <button class="btn btn-soft" onclick="migrateOld()">📥 Migracija starega</button>
+    </div>
   </div>
 
-  <div class="layout">
-    <!-- LEFT: inputs + results -->
+  <div class="grid-main">
+    <!-- LEVO: Vnos -->
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title">Nov vnos (DANES)</div>
+        <div class="mode-tabs">
+          <button class="mode-btn active" id="mode-hourly" onclick="setMode('hourly')">Po urah</button>
+          <button class="mode-btn" id="mode-linear" onclick="setMode('linear')">Linearni</button>
+        </div>
+
+        <div id="form-hourly">
+          <div class="row" style="margin-bottom:8px">
+            <div>
+              <label class="label">Ura (HH:MM)</label>
+              <input type="text" id="input-time" placeholder="14:30" maxlength="5">
+            </div>
+            <div style="display:flex;align-items:flex-end">
+              <button class="btn btn-soft" style="width:100%" onclick="useCurrentTime()">⏰ Trenutni čas</button>
+            </div>
+          </div>
+          <div class="row" style="margin-bottom:8px">
+            <div>
+              <label class="label">Naročila do sedaj</label>
+              <input type="number" id="input-orders" placeholder="npr. 45" min="0">
+            </div>
+            <div>
+              <label class="label">Promet do sedaj (€)</label>
+              <input type="number" id="input-revenue" placeholder="npr. 1250" min="0" step="0.01">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addEntry()">➕ Dodaj vnos</button>
+        </div>
+      </div>
+
+      <!-- Današnji vnosi -->
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title">Vnosi za danes (<span id="today-date"></span>)</div>
+        <div id="today-entries">
+          <div class="empty">Ni vnosov. Dodaj prvega.</div>
+        </div>
+      </div>
+
+      <!-- Statistika -->
+      <div class="card">
+        <div class="card-title">Model — 7d & 22d povprečje</div>
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="stat-label">Pov. 7d naročil</div>
+            <div class="stat-value" id="stat-7d-orders">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Pov. 7d promet</div>
+            <div class="stat-value" id="stat-7d-revenue">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Pov. 22d naročil</div>
+            <div class="stat-value" id="stat-22d-orders">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Pov. 22d promet</div>
+            <div class="stat-value" id="stat-22d-revenue">—</div>
+          </div>
+        </div>
+        <div id="stat-info" class="help-text" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <!-- DESNO: Grafi + zgodovina -->
     <div>
       <div class="card">
-        <div class="mode-row">
-          <button class="mode-btn on" id="btn-linear" onclick="setMode('linear')">📈 Linearni</button>
-          <button class="mode-btn" id="btn-weighted" onclick="setMode('weighted')">⏰ Po urah (priporočeno)</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="card-title" style="margin-bottom:0">Napoved za danes</div>
+          <span class="info-pill" id="forecast-pill">—</span>
         </div>
-
-        <div class="field">
-          <span class="flabel">Čas od začetka dneva</span>
-          <div class="time-row">
-            <input type="number" id="hours" placeholder="hh" min="0" max="23" oninput="calc()">
-            <span class="time-sep">:</span>
-            <input type="number" id="mins" placeholder="mm" min="0" max="59" oninput="calc()">
-          </div>
-          <button class="now-btn" onclick="useNow()">
-            <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Uporabi trenutni čas (Ljubljana)
-          </button>
-          <div class="time-hint" id="time-hint"></div>
-        </div>
-
-        <div class="field-grid" style="margin-bottom:12px">
+        <div class="grid-charts">
           <div>
-            <span class="flabel">Naročila do sedaj</span>
-            <input type="number" id="orders" placeholder="npr. 150" min="0" oninput="calc()">
+            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px">PROMET (€)</div>
+            <div style="position:relative;height:240px"><canvas id="chartRevenue"></canvas></div>
           </div>
           <div>
-            <span class="flabel">Promet do sedaj (€)</span>
-            <input type="number" id="revenue" placeholder="npr. 2500" min="0" oninput="calc()">
+            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px">NAROČILA</div>
+            <div style="position:relative;height:240px"><canvas id="chartOrders"></canvas></div>
           </div>
         </div>
-
-        <button class="add-btn" onclick="addEntry()">
-          <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-          Dodaj vnos v graf
-        </button>
       </div>
 
-      <div id="result" style="display:none">
-        <div class="highlight">
-          <div class="hl-top">
+      <!-- Zgodovina -->
+      <div class="card" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="card-title" style="margin-bottom:0">Zgodovina (zadnjih 30 dni)</div>
+          <button class="btn btn-soft" style="font-size:11px;padding:5px 10px" onclick="loadHistory()">↺ Osveži</button>
+        </div>
+
+        <!-- Vnos končnih podatkov za prejšnji dan -->
+        <div style="padding:10px;background:var(--accent-soft);border-radius:var(--radius);margin-bottom:12px">
+          <div style="font-size:11px;font-weight:600;color:var(--accent);margin-bottom:6px">📝 VPIŠI KONČNE PODATKE ZA DAN</div>
+          <div class="final-form">
             <div>
-              <div class="hl-val" id="pred-promet">€0</div>
-              <div class="hl-lbl" id="hl-lbl">predviden dnevni promet</div>
+              <label class="label">Datum</label>
+              <input type="date" id="final-date">
             </div>
-            <div class="prog-wrap">
-              <div class="prog-orders" id="pred-narocila">0 naročil</div>
-              <div style="font-size:11px;color:var(--green);opacity:0.75;margin-top:2px">predviden dnevni</div>
-              <div class="prog-bar"><div class="prog-fill" id="prog" style="width:0%"></div></div>
-              <div class="prog-pct" id="prog-pct">0% dneva preteklo</div>
+            <div>
+              <label class="label">Naročila</label>
+              <input type="number" id="final-orders" placeholder="100" min="0">
             </div>
+            <div>
+              <label class="label">Promet (€)</label>
+              <input type="number" id="final-revenue" placeholder="2500" min="0" step="0.01">
+            </div>
+            <button class="btn btn-primary" onclick="setFinal()" style="margin-top:18px">Shrani</button>
           </div>
         </div>
-        <div class="metrics">
-          <div class="metric">
-            <div class="metric-val" id="nmin">0.00</div>
-            <div class="metric-lbl">naročil / minuto</div>
-          </div>
-          <div class="metric">
-            <div class="metric-val" id="avg-order">€0</div>
-            <div class="metric-lbl">povp. vrednost naročila</div>
-          </div>
-          <div class="metric">
-            <div class="metric-val" id="remaining">€0</div>
-            <div class="metric-lbl">preostali promet</div>
-            <div class="metric-sub" id="remaining-sub"></div>
-          </div>
-        </div>
-        <div id="weighted-info" style="display:none" class="info-box">
-          Uteženni model upošteva da je zdaj <strong id="hour-label"></strong> — napoved je prilagojena.
+
+        <div id="history-list">
+          <div class="empty">Nalagam…</div>
         </div>
       </div>
-
-      <div id="empty" class="empty">Vpiši čas, naročila in promet.</div>
     </div>
-
-    <!-- RIGHT: charts -->
-    <div class="charts-col">
-      <div class="charts-row">
-        <div class="chart-panel">
-          <div class="chart-hdr">
-            <span class="chart-title">Napoved prometa (€)</span>
-            <button class="chart-clear" onclick="clearEntries()">Počisti vse</button>
-          </div>
-          <div id="chart-wrap" class="chart-wrap" style="display:none">
-            <canvas id="myChart"></canvas>
-          </div>
-          <div id="chart-empty" class="chart-empty">Dodaj vsaj en vnos<br>da vidiš trend napovedi</div>
-        </div>
-
-        <div class="chart-panel">
-          <div class="chart-hdr">
-            <span class="chart-title">Napoved naročil</span>
-          </div>
-          <div id="chart-wrap2" class="chart-wrap" style="display:none">
-            <canvas id="myChart2"></canvas>
-          </div>
-          <div id="chart-empty2" class="chart-empty">Dodaj vsaj en vnos<br>da vidiš trend naročil</div>
-        </div>
-      </div>
-
-      <div class="chart-panel">
-        <div class="chart-hdr">
-          <span class="chart-title">Vnosi</span>
-          <select id="historyDateSelect" onchange="loadHistoryDate(this.value)" style="font-size:11px;padding:3px 6px;border:1px solid var(--border,#e5e7eb);border-radius:4px;background:var(--bg2,#f9fafb);color:var(--text,#111);cursor:pointer">
-            <option value="today">Danes</option>
-          </select>
-        </div>
-        <div class="log-list" id="logList"></div>
-        <div id="log-empty" style="text-align:center;padding:1rem;font-size:12px;color:var(--text3)">Še ni vnosov.</div>
-      </div>
-    </div>
-  </div>
-
-  <div id="eodSection" style="display:none">
-    <div class="eod-panel">
-      <div class="eod-title">📋 Končna naročila po dnevih</div>
-      <div class="eod-sub">Vpiši dejanska končna naročila za pretekle dni — model se bo bolje naučil "tail" prometa po 22h</div>
-      <div id="eodRows"></div>
-      <button class="eod-save-btn" onclick="saveEodData()">💾 Shrani končne vrednosti</button>
-      <div id="eodStatus" style="font-size:11px;margin-top:8px;color:var(--green);display:none"></div>
-    </div>
-  </div>
-  <div style="text-align:center;margin-top:8px">
-    <button class="eod-toggle" onclick="toggleEodPanel()">📋 Vpiši končna naročila po dnevih</button>
-  </div>
-
-  <div class="footer">
-    <div id="data-counter" style="margin-bottom:4px;font-size:11px"></div>
-    Model temelji na 7-dnevnem povprečju · 0 API klicev
   </div>
 </div>
 
+<div id="toast" class="toast"></div>
+
 <script>
-const API_BASE = window.location.origin.includes('siluxar') ? 'https://ads.slxanalytics.org' : '';
-const W_DEFAULT=[1.1,1.1,1.1,1.1,1.1,1.1,1.1,3.7,5.9,5.3,9.8,9.8,7.1,7.1,7.1,5.9,5.9,5.3,4.8,4.3,4.5,4.2,3.2,2.4];
-const HNAMES=['polnoč','1h','2h','3h','4h','5h','6h','7h zjutraj','8h zjutraj','9h zjutraj','10h','11h','12h','13h','14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'];
-const MIN_DAYS_PERSONAL = 7;
+let currentMode = 'hourly';
+let todayData = { entries: [], final: null };
+let stats = null;
+let chartRev = null;
+let chartOrd = null;
 
-// Aktivni weights — na začetku default, po učenju osebni
-let WN = W_DEFAULT.map(w=>w/W_DEFAULT.reduce((a,b)=>a+b,0));
-let personalModelActive = false;
-let historicalAvgOrdByHour = new Array(24).fill(0); // povprečna naročila ob vsaki uri
-let historicalAvgDailyOrd = 0; // povprečno dnevno naročil
+// ─── UTILS ──────────────────────────────────────────────────────
 
-function cumW(h,m){let s=0;for(let i=0;i<h;i++)s+=WN[i];s+=WN[Math.min(h,23)]*(m/60);return s;}
-
-// Izračuna hourly weights iz zgodovinskih podatkov
-function buildPersonalWeights(hist, eodData={}){
-  const hourTotals = new Array(24).fill(0);
-  const hourCounts = new Array(24).fill(0);
-  const days = Object.keys(hist);
-  
-  for(const day of days){
-    const dayEntries = hist[day];
-    if(!dayEntries || dayEntries.length < 2) continue;
-    
-    // Sortiraj vnose po uri
-    const sorted = [...dayEntries].sort((a,b) => (a.h*60+a.m) - (b.h*60+b.m));
-    
-    // Zadnji vnos = končne vrednosti dneva
-    const lastEntry = sorted[sorted.length-1];
-    const totalOrd = lastEntry.ord;
-    if(!totalOrd || totalOrd <= 0) continue;
-    
-    // Če imamo EOD podatek, dodamo še interval od zadnjega vnosa do polnoči
-    const eodOrd = eodData[day];
-    if(eodOrd && eodOrd > totalOrd){
-      const lastE = sorted[sorted.length-1];
-      const lastMin = lastE.h*60 + lastE.m;
-      const deltaOrd = eodOrd - totalOrd;
-      const deltaMin = 1440 - lastMin;
-      if(deltaMin > 0 && deltaOrd > 0){
-        const eodTotalOrd = eodOrd; // use EOD as new total
-        for(let h = lastE.h; h <= 23; h++){
-          const hStart = Math.max(lastMin, h*60);
-          const hEnd = Math.min(1440, (h+1)*60);
-          const fraction = (hEnd - hStart) / deltaMin;
-          hourTotals[h] += deltaOrd * fraction / eodTotalOrd;
-        }
-      }
-    }
-    
-    // Za vsak interval med vnosi izračunaj koliko naročil je prišlo v tisti uri
-    const effectiveTotalOrd = (eodData[day] && eodData[day] > totalOrd) ? eodData[day] : totalOrd;
-    let prevOrd = 0;
-    let prevMin = 0;
-    for(const e of sorted){
-      const curMin = e.h*60 + e.m;
-      const curOrd = e.ord;
-      const deltaOrd = curOrd - prevOrd;
-      const deltaMin = curMin - prevMin;
-      if(deltaMin <= 0 || deltaOrd < 0){ prevOrd=curOrd; prevMin=curMin; continue; }
-      
-      // Porazdeli delta naročila po urah tega intervala
-      const startH = Math.floor(prevMin/60);
-      const endH = Math.min(23, Math.floor((curMin-1)/60));
-      for(let h=startH; h<=endH; h++){
-        const hStart = Math.max(prevMin, h*60);
-        const hEnd = Math.min(curMin, (h+1)*60);
-        const fraction = (hEnd-hStart)/deltaMin;
-        hourTotals[h] += deltaOrd * fraction / effectiveTotalOrd;
-        hourCounts[h]++;
-      }
-      prevOrd=curOrd; prevMin=curMin;
-    }
-  }
-  
-  // Zgladimo z minimumom da ne dobimo 0 za nočne ure
-  const smoothed = hourTotals.map((v,i) => Math.max(v, W_DEFAULT[i]*0.1/W_DEFAULT.reduce((a,b)=>a+b,0)));
-  const total = smoothed.reduce((a,b)=>a+b,0);
-  if(total <= 0) return null;
-  return smoothed.map(v=>v/total);
+function getTodayLJ() {
+  const fmt = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Ljubljana', year:'numeric', month:'2-digit', day:'2-digit' });
+  return fmt.format(new Date()); // YYYY-MM-DD
 }
 
-// Izračuna povprečna naročila ob vsaki uri iz zgodovine
-function buildHistoricalAverages(hist, eodData={}){
-  const hourSums = new Array(24).fill(0);   // skupaj naročil ob tej uri čez vse dni
-  const hourDays = new Array(24).fill(0);   // koliko dni ima podatke za to uro
-  const dailyTotals = [];
-
-  for(const day of Object.keys(hist)){
-    const dayEntries = hist[day];
-    if(!dayEntries || dayEntries.length < 2) continue;
-    const sorted = [...dayEntries].sort((a,b) => (a.h*60+a.m) - (b.h*60+b.m));
-    const lastEntry = sorted[sorted.length-1];
-    const totalOrd = eodData[day] || lastEntry.ord;
-    if(!totalOrd || totalOrd <= 0) continue;
-    dailyTotals.push(totalOrd);
-
-    // Za vsak vnos — koliko naročil je bilo ob tej uri
-    for(const e of sorted){
-      hourSums[Math.min(e.h, 23)] += e.ord;
-      hourDays[Math.min(e.h, 23)]++;
-    }
-  }
-
-  const avgByHour = hourSums.map((s, i) => hourDays[i] > 0 ? s / hourDays[i] : 0);
-  const avgDaily = dailyTotals.length > 0 ? dailyTotals.reduce((a,b)=>a+b,0) / dailyTotals.length : 0;
-  return { avgByHour, avgDaily };
+function getCurrentTimeLJ() {
+  const fmt = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Ljubljana', hour:'2-digit', minute:'2-digit', hour12: false });
+  return fmt.format(new Date()); // HH:MM
 }
 
-async function loadPersonalModel(){
-  try{
-    const resp = await fetch(API_BASE + '/forecast-history');
-    const text = await resp.text();
-    let hist;
-    try{ hist = JSON.parse(text); } catch(e){ return 0; } // HTML = preview/offline, tiho neha
-    if(!hist || typeof hist !== 'object') return 0;
-    
-    // Naloži EOD podatke
-    let eodData = {};
-    try{
-      const eodResp = await fetch(API_BASE + '/forecast-eod');
-      const eodText = await eodResp.text();
-      eodData = JSON.parse(eodText);
-    }catch(e){}
-    
-    const days = Object.keys(hist).filter(d => {
-      const entries = hist[d];
-      return entries && entries.length >= 2;
-    });
-    
-    if(days.length >= MIN_DAYS_PERSONAL){
-      const personal = buildPersonalWeights(hist, eodData);
-      if(personal){
-        WN = personal;
-        personalModelActive = true;
-        // Izračunaj zgodovinska povprečja za ratio model
-        const avgs = buildHistoricalAverages(hist, eodData);
-        historicalAvgOrdByHour = avgs.avgByHour;
-        historicalAvgDailyOrd = avgs.avgDaily;
-        console.log('[forecast] Osebni model aktiven iz', days.length, 'dni, avg daily ord:', Math.round(historicalAvgDailyOrd));
-        return days.length;
-      }
-    }
-    return days.length;
-  }catch(e){
-    // tiho neha v preview okolju
-    return 0;
-  }
+function toast(msg, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.toggle('error', !!isError);
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
 }
 
-let mode='linear';
-let entries=[];
-let chart=null;
-let chart2=null;
-
-// Load from server, reset if new day
-function getTodayLJ(){
-  // Ljubljana timezone datum — vedno YYYY-MM-DD format
-  const now = new Date();
-  const lj = new Date(now.toLocaleString('en-US', {timeZone:'Europe/Ljubljana'}));
-  const y = lj.getFullYear();
-  const m = String(lj.getMonth()+1).padStart(2,'0');
-  const d = String(lj.getDate()).padStart(2,'0');
-  return `${y}-${m}-${d}`;
+function fmtCurrency(n) {
+  if (n == null) return '—';
+  return new Intl.NumberFormat('sl-SI', { style:'currency', currency:'EUR', maximumFractionDigits:0 }).format(n);
 }
 
-async function loadEntries(){
-  try{
-    const today = getTodayLJ();
-    const text = await fetch(API_BASE + '/forecast-entries').then(r=>r.text());
-    if(text.trim().startsWith('<')){ console.log('[forecast] entries endpoint not ready'); entries=[]; return; }
-    const data = JSON.parse(text);
-    // Samo naloži če je datum danes
-    if(data && data.date === today && Array.isArray(data.entries) && data.entries.length > 0){
-      entries = data.entries;
-      console.log('[forecast] loaded from server:', entries.length, 'entries');
-    } else {
-      console.log('[forecast] no entries for today (' + today + '), server has:', data?.date);
-      entries = [];
-    }
-  }catch(e){
-    console.warn('[forecast] loadEntries error:', e);
-    entries=[];
-  }
+function fmtNum(n) {
+  if (n == null) return '—';
+  return new Intl.NumberFormat('sl-SI').format(n);
 }
 
-async function saveEntries(replaceMode){
-  if(entries.length === 0 && !replaceMode){ console.log('[forecast] skip save — no entries'); return; }
-  const today = getTodayLJ();
-  try{
-    const r = await fetch(API_BASE + '/forecast-entries', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({date:today, entries, replace: !!replaceMode})
-    });
-    const txt = await r.text();
-    if(txt.trim().startsWith('<')){ console.warn('[forecast] save returned HTML'); return; }
-    console.log('[forecast] saved OK:', entries.length, 'entries', replaceMode?'(replace)':'(merge)');
-    collectHistoricalData(today).catch(()=>{});
-  }catch(e){ console.warn('[forecast] save error:', e); }
+function timeToMinutes(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
 }
 
-async function collectHistoricalData(today){
-  try{
-    const hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json());
-    hist[today] = entries.map(e=>({
-      h: parseInt(e.label.split(':')[0]),
-      m: parseInt(e.label.split(':')[1]),
-      ord: e.dejanskiOrd||0,
-      rev: e.dejanski||0
-    }));
-    const keys = Object.keys(hist).sort();
-    if(keys.length>30) delete hist[keys[0]];
-    await fetch(API_BASE + '/forecast-history', {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(hist)});
-    updateDataCounter(hist);
-  }catch(e){}
+// ─── MODE SWITCH ────────────────────────────────────────────────
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('mode-hourly').classList.toggle('active', mode === 'hourly');
+  document.getElementById('mode-linear').classList.toggle('active', mode === 'linear');
+  computeForecast();
 }
 
-async function updateDataCounter(hist){
-  try{
-    if(!hist) hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json());
-    const validDays = Object.keys(hist).filter(d => hist[d] && hist[d].length >= 2);
-    const days = validDays.length;
-    const el = document.getElementById('data-counter');
-    if(!el) return;
-    if(days<MIN_DAYS_PERSONAL){
-      el.textContent=`Zbiranje podatkov za učenje modela: ${days}/${MIN_DAYS_PERSONAL} dni`;
-      el.style.color='var(--text3)';
-    } else if(personalModelActive){
-      el.textContent=`🧠 Osebni model aktiven — naučen iz ${days} dni`;
-      el.style.color='var(--green)';
-    } else {
-      el.textContent=`✓ Dovolj podatkov za osebni model (${days} dni)`;
-      el.style.color='var(--green)';
-    }
-    // Populate history dropdown
-    const sel = document.getElementById('historyDateSelect');
-    if(sel){
-      const today = getTodayLJ();
-      const keys = Object.keys(hist).sort().reverse();
-      sel.innerHTML = '<option value="today">Danes</option>';
-      keys.forEach(k => {
-        if(k !== today){
-          const opt = document.createElement('option');
-          opt.value = k;
-          opt.textContent = k + ' (' + (hist[k]||[]).length + ')';
-          sel.appendChild(opt);
-        }
-      });
-    }
-  }catch(e){}
+// ─── VNOS ───────────────────────────────────────────────────────
+
+function useCurrentTime() {
+  document.getElementById('input-time').value = getCurrentTimeLJ();
 }
 
-async function loadHistoryDate(val){
-  if(val === 'today'){
-    await loadEntries();
-    renderLog();
-    redraw();
+async function addEntry() {
+  const time = document.getElementById('input-time').value.trim();
+  const orders = parseInt(document.getElementById('input-orders').value || 0);
+  const revenue = parseFloat(document.getElementById('input-revenue').value || 0);
+
+  if (!/^\d{1,2}:\d{2}$/.test(time)) {
+    toast('Neveljaven čas. Uporabi HH:MM.', true);
     return;
   }
-  try{
-    const hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json());
-    const dayData = hist[val] || [];
-    entries = dayData.map(e => ({
-      label: String(e.h).padStart(2,'0') + ':' + String(e.m).padStart(2,'0'),
-      dejanski: e.rev || 0,
-      dejanskiOrd: e.ord || 0
-    }));
-    renderLog();
-    redraw();
-  }catch(e){}
-}
-
-function setMode(m){
-  mode=m;
-  document.getElementById('btn-linear').classList.toggle('on',m==='linear');
-  document.getElementById('btn-weighted').classList.toggle('on',m==='weighted');
-  calc();
-}
-
-function useNow(){
-  const lj=new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Ljubljana'}));
-  document.getElementById('hours').value=lj.getHours();
-  document.getElementById('mins').value=lj.getMinutes();
-  calc();
-}
-
-function fmt(n){return new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);}
-function fmtN(n){return new Intl.NumberFormat('sl-SI',{maximumFractionDigits:2}).format(n);}
-
-let lastPredRev=0;
-let lastPredOrd=0;
-
-function calc(){
-  const h=parseInt(document.getElementById('hours').value)||0;
-  const m=parseInt(document.getElementById('mins').value)||0;
-  const totalMin=h*60+m;
-  const ord=parseFloat(document.getElementById('orders').value);
-  const rev=parseFloat(document.getElementById('revenue').value);
-  const hint=document.getElementById('time-hint');
-  hint.textContent=totalMin>0?totalMin+' minut skupaj':'';
-  if(!totalMin||!ord||!rev||ord<=0||rev<=0){
-    document.getElementById('result').style.display='none';
-    document.getElementById('empty').style.display='block';
-    lastPredRev=0;lastPredOrd=0;return;
-  }
-  const TMIN=1440,avg=rev/ord;
-  let predOrd,predRev;
-  if(mode==='linear'){
-    predOrd=Math.round((ord/totalMin)*TMIN);
-    predRev=(ord/totalMin)*TMIN*avg;
-    document.getElementById('weighted-info').style.display='none';
-    document.getElementById('hl-lbl').textContent='predviden dnevni promet (linearno)';
-  }else{
-    if(personalModelActive && historicalAvgDailyOrd > 0 && historicalAvgOrdByHour[Math.min(h,23)] > 0){
-      // Ratio model: danes/povprečje ob tej uri * povprečni dnevni total
-      const avgAtThisHour = historicalAvgOrdByHour[Math.min(h,23)];
-      const ratio = ord / avgAtThisHour;
-      predOrd = Math.round(ratio * historicalAvgDailyOrd);
-      predRev = predOrd * avg;
-      document.getElementById('weighted-info').style.display='block';
-      document.getElementById('hour-label').textContent=HNAMES[Math.min(h,23)];
-      document.getElementById('hl-lbl').textContent='predviden dnevni promet (osebni model 🧠)';
-    } else {
-      // Fallback: weights model
-      const cw=cumW(h,m);if(cw<=0)return;
-      predOrd=Math.round(ord/cw);predRev=predOrd*avg;
-      document.getElementById('weighted-info').style.display='block';
-      document.getElementById('hour-label').textContent=HNAMES[Math.min(h,23)];
-      document.getElementById('hl-lbl').textContent=personalModelActive?'predviden dnevni promet (osebni model 🧠)':'predviden dnevni promet (uteženni)';
-    }
-  }
-  lastPredRev=predRev;
-  lastPredOrd=predOrd;
-  const pct=Math.min(100,Math.round((totalMin/TMIN)*100));
-  const remMin=TMIN-totalMin,remH=Math.floor(remMin/60),remM=Math.round(remMin%60);
-  document.getElementById('pred-promet').textContent=fmt(predRev);
-  document.getElementById('pred-narocila').textContent=predOrd.toLocaleString('sl-SI')+' naročil';
-  document.getElementById('nmin').textContent=fmtN(ord/totalMin);
-  document.getElementById('avg-order').textContent=fmt(avg);
-  document.getElementById('remaining').textContent=fmt(Math.max(0,predRev-rev));
-  document.getElementById('remaining-sub').textContent='še '+remH+'h '+remM+'min';
-  document.getElementById('prog').style.width=pct+'%';
-  document.getElementById('prog-pct').textContent=pct+'% dneva preteklo';
-  document.getElementById('result').style.display='block';
-  document.getElementById('empty').style.display='none';
-}
-
-async function addEntry(){
-  if(!lastPredRev){alert('Najprej vpiši podatke.');return;}
-  const h=parseInt(document.getElementById('hours').value)||0;
-  const m=parseInt(document.getElementById('mins').value)||0;
-  const rev=parseFloat(document.getElementById('revenue').value)||0;
-  const ord=parseFloat(document.getElementById('orders').value)||0;
-  const label=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-
-  // Preveri duplikat — če že obstaja vnos za ta čas, posodobi
-  const existing = entries.findIndex(e => e.label === label);
-  const entry = {label, napoved:Math.round(lastPredRev), dejanski:Math.round(rev), napovedOrd:Math.round(lastPredOrd), dejanskiOrd:Math.round(ord), _date:getTodayLJ()};
-  if(existing >= 0){
-    entries[existing] = entry;
-  } else {
-    entries.push(entry);
-    // Sortiraj po uri
-    entries.sort((a,b) => a.label.localeCompare(b.label));
+  if (orders < 0 || revenue < 0) {
+    toast('Naročila in promet morata biti ≥ 0.', true);
+    return;
   }
 
-  const btn = document.querySelector('.add-btn');
-  if(btn){ btn.disabled=true; btn.textContent='Shranjujem...'; }
   try {
-    await saveEntries();
-    if(btn){ btn.style.background='#16a34a'; btn.textContent='✓ Shranjeno!'; }
-    setTimeout(()=>{ if(btn){ btn.style.background=''; btn.textContent='⊕ Dodaj vnos v graf'; btn.disabled=false; }}, 1500);
+    const r = await fetch('/forecast2-add-entry', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ time, orders, revenue })
+    });
+    const data = await r.json();
+    if (!data.ok) { toast('Napaka: ' + (data.error||'unknown'), true); return; }
+
+    todayData.entries = data.entries;
+    renderEntries();
+    computeForecast();
+    document.getElementById('input-time').value = '';
+    document.getElementById('input-orders').value = '';
+    document.getElementById('input-revenue').value = '';
+    toast('✓ Vnos shranjen');
   } catch(e) {
-    if(btn){ btn.disabled=false; btn.textContent='⊕ Dodaj vnos v graf'; }
-  }
-  renderChart();renderLog();
-}
-
-function clearEntries(){
-  if(!confirm('Pobrisati vse vnose za danes?')) return;
-  entries=[];
-  // Zbriši tudi na serverju
-  const today = getTodayLJ();
-  fetch(API_BASE + '/forecast-entries', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({date:today, entries:[]})
-  }).catch(()=>{});
-  if(chart){chart.destroy();chart=null;}
-  if(chart2){chart2.destroy();chart2=null;}
-  renderChart();renderLog();
-  document.getElementById('result').style.display='none';
-  document.getElementById('empty').style.display='block';
-}
-
-async function removeEntry(i){
-  const removed = entries[i];
-  entries.splice(i,1);
-  renderChart();
-  renderLog();
-  // Pošlji direktno delete na server — to bo dodalo v deleted-list
-  if(removed && removed.label){
-    try{
-      await fetch(API_BASE + '/forecast-entry-delete', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({label: removed.label})
-      });
-      console.log('[forecast] deleted', removed.label);
-    }catch(e){ console.warn('[forecast] delete error:', e); }
+    toast('Napaka: ' + e.message, true);
   }
 }
 
-function renderChart(){
-  const wrap=document.getElementById('chart-wrap'),empty=document.getElementById('chart-empty');
-  const wrap2=document.getElementById('chart-wrap2'),empty2=document.getElementById('chart-empty2');
-  const logEmpty=document.getElementById('log-empty');
+async function deleteEntry(time) {
+  if (!confirm(`Brišem vnos ob ${time}?`)) return;
+  try {
+    const r = await fetch('/forecast2-delete-entry', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ time })
+    });
+    const data = await r.json();
+    if (!data.ok) { toast('Napaka: ' + (data.error||'unknown'), true); return; }
 
-  if(!entries.length){
-    wrap.style.display='none';empty.style.display='flex';
-    wrap2.style.display='none';empty2.style.display='flex';
-    if(chart){chart.destroy();chart=null;}
-    if(chart2){chart2.destroy();chart2=null;}
+    todayData.entries = todayData.entries.filter(e => e.time !== time);
+    renderEntries();
+    computeForecast();
+    toast('✓ Izbrisano');
+  } catch(e) {
+    toast('Napaka: ' + e.message, true);
+  }
+}
+
+function renderEntries() {
+  const el = document.getElementById('today-entries');
+  if (!todayData.entries.length) {
+    el.innerHTML = '<div class="empty">Ni vnosov. Dodaj prvega.</div>';
     return;
   }
-
-  wrap.style.display='block';empty.style.display='none';
-  wrap2.style.display='block';empty2.style.display='none';
-
-  const labels=entries.map(e=>e.label);
-  const napovedi=entries.map(e=>e.napoved);
-  const dejanski=entries.map(e=>e.dejanski);
-  const napovediOrd=entries.map(e=>e.napovedOrd||0);
-  const dejanskiOrd=entries.map(e=>e.dejanskiOrd||0);
-
-  // Chart 1 — promet €
-  if(chart){chart.data.labels=labels;chart.data.datasets[0].data=napovedi;chart.data.datasets[1].data=dejanski;chart.update();}
-  else{
-    chart=new Chart(document.getElementById('myChart').getContext('2d'),{
-      type:'line',
-      data:{labels,datasets:[
-        {label:'Napoved (€)',data:napovedi,borderColor:'#0a8c5a',backgroundColor:'rgba(10,140,90,0.08)',tension:0.4,pointRadius:5,pointBackgroundColor:'#0a8c5a',borderWidth:2},
-        {label:'Dejanski (€)',data:dejanski,borderColor:'#3a6fff',backgroundColor:'rgba(58,111,255,0.08)',tension:0.4,pointRadius:5,pointBackgroundColor:'#3a6fff',borderWidth:2,borderDash:[5,4]}
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{position:'bottom',labels:{font:{family:'DM Sans',size:11},boxWidth:12,padding:10}}},
-        scales:{y:{ticks:{callback:v=>fmt(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}
-      }
-    });
-  }
-
-  // Chart 2 — naročila
-  if(chart2){chart2.data.labels=labels;chart2.data.datasets[0].data=napovediOrd;chart2.data.datasets[1].data=dejanskiOrd;chart2.update();}
-  else{
-    chart2=new Chart(document.getElementById('myChart2').getContext('2d'),{
-      type:'line',
-      data:{labels,datasets:[
-        {label:'Napoved naročil',data:napovediOrd,borderColor:'#0a8c5a',backgroundColor:'rgba(10,140,90,0.08)',tension:0.4,pointRadius:5,pointBackgroundColor:'#0a8c5a',borderWidth:2},
-        {label:'Dejanska naročila',data:dejanskiOrd,borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0.08)',tension:0.4,pointRadius:5,pointBackgroundColor:'#f59e0b',borderWidth:2,borderDash:[5,4]}
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{position:'bottom',labels:{font:{family:'DM Sans',size:11},boxWidth:12,padding:10}}},
-        scales:{y:{ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}
-      }
-    });
-  }
-}
-
-function renderLog(){
-  const el=document.getElementById('logList');
-  const logEmpty=document.getElementById('log-empty');
-  if(!entries.length){el.innerHTML='';if(logEmpty)logEmpty.style.display='block';return;}
-  if(logEmpty)logEmpty.style.display='none';
-  el.innerHTML=entries.map((e,i)=>`
-    <div class="log-item">
-      <span class="log-time">${e.label}</span>
-      <span style="font-size:11px;color:var(--text3)">${e.dejanskiOrd||0} naročil · ${fmt(e.dejanski)}</span>
-      <span class="log-napoved">${fmt(e.napoved)} · ${(e.napovedOrd||0).toLocaleString('sl-SI')} naročil</span>
-      <button class="log-del" onclick="removeEntry(${i})" title="Odstrani">×</button>
+  el.innerHTML = todayData.entries.map(e => `
+    <div class="entry-row" style="margin-bottom:4px">
+      <div class="entry-time">${e.time}</div>
+      <div class="entry-data">${fmtNum(e.orders)} naročil · ${fmtCurrency(e.revenue)}</div>
+      <button class="entry-del" onclick="deleteEntry('${e.time}')" title="Izbriši">✕</button>
     </div>`).join('');
 }
 
-// ─── END-OF-DAY PANEL ────────────────────────────────────────────────────────
+// ─── ALGORITMI ─────────────────────────────────────────────────
 
-function toggleEodPanel(){
-  const sec = document.getElementById('eodSection');
-  const open = sec.style.display === 'none';
-  sec.style.display = open ? 'block' : 'none';
-  if(open) renderEodRows();
+function computeLinearForecast(entries) {
+  if (!entries.length) return null;
+  const latest = entries[entries.length - 1];
+  const elapsed = timeToMinutes(latest.time);
+  if (elapsed <= 0) return null;
+  const total = 24 * 60;
+  const ratio = total / elapsed;
+  return {
+    orders: Math.round(latest.orders * ratio),
+    revenue: Math.round(latest.revenue * ratio),
+    method: 'Linearni',
+  };
 }
 
-async function renderEodRows(){
-  const hist = await fetch(API_BASE + '/forecast-history').then(r=>r.json()).catch(()=>({}));
-  const eodData = await fetch(API_BASE + '/forecast-eod').then(r=>r.json()).catch(()=>({}));
-  
-  // Zadnjih 14 dni (brez danes)
-  const today = getTodayLJ();
-  const dates = [];
-  for(let i=1; i<=14; i++){
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    dates.push(d.toLocaleDateString('sl-SI', {timeZone:'Europe/Ljubljana'}));
+function computeHourlyForecast(entries, recentDays) {
+  // Vzemi povprečno krivuljo iz preteklih dni
+  // recentDays je array {date, final:{orders,revenue}, entries:[{time,orders,revenue}]}
+  // Iz teh izračunaj — pri času X smo bili pri Y% končnih naročil v povprečju
+  if (!entries.length) return null;
+
+  // Filter dni ki imajo entries + final
+  const usable = recentDays.filter(d => d.entries && d.entries.length && d.final && d.final.orders > 0);
+  if (!usable.length) {
+    // Fallback na linearni
+    return computeLinearForecast(entries);
   }
-  
-  const el = document.getElementById('eodRows');
-  el.innerHTML = dates.map(date => {
-    const hasData = hist[date] && hist[date].length > 0;
-    const lastEntry = hasData ? hist[date][hist[date].length-1] : null;
-    const lastOrd = lastEntry ? lastEntry.ord : null;
-    const savedEod = eodData[date] || null;
-    const grayStyle = !hasData ? 'opacity:0.4' : '';
-    return `<div class="eod-row" style="${grayStyle}">
-      <span class="eod-date">${date}</span>
-      <input type="number" class="eod-input" id="eod_${date.replace(/\./g,'_')}" 
-        placeholder="${lastOrd ? lastOrd + ' (zadnji)' : 'naročila'}" 
-        value="${savedEod || ''}" min="0">
-      ${savedEod ? '<span class="eod-saved">✓ shranjeno</span>' : ''}
-      ${lastOrd && !savedEod ? '<span style="font-size:10px;color:var(--text3)">zadnji vnos: '+lastOrd+'</span>' : ''}
-    </div>`;
-  }).join('');
-}
 
-async function saveEodData(){
-  const eodData = await fetch(API_BASE + '/forecast-eod').then(r=>r.json()).catch(()=>({}));
-  
-  const today = getTodayLJ();
-  let saved = 0;
-  for(let i=1; i<=14; i++){
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const date = d.toLocaleDateString('sl-SI', {timeZone:'Europe/Ljubljana'});
-    const key = 'eod_' + date.replace(/\./g,'_');
-    const inp = document.getElementById(key);
-    if(inp && inp.value && parseInt(inp.value) > 0){
-      eodData[date] = parseInt(inp.value);
-      saved++;
+  const latest = entries[entries.length - 1];
+  const latestMin = timeToMinutes(latest.time);
+
+  // Za vsak pretekli dan — kolikšen delež končnih naročil/prometa smo dosegli v približno tem času?
+  const ratiosOrders = [];
+  const ratiosRevenue = [];
+  for (const day of usable) {
+    // Najdi entry najbližje času latestMin
+    let best = null;
+    let bestDiff = Infinity;
+    for (const e of day.entries) {
+      const diff = Math.abs(timeToMinutes(e.time) - latestMin);
+      if (diff < bestDiff) { bestDiff = diff; best = e; }
+    }
+    if (best && bestDiff < 60 && day.final.orders > 0) {  // znotraj 60 min
+      ratiosOrders.push(best.orders / day.final.orders);
+      if (day.final.revenue > 0) ratiosRevenue.push(best.revenue / day.final.revenue);
     }
   }
-  
-  await fetch(API_BASE + '/forecast-eod', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(eodData)
-  });
-  
-  const st = document.getElementById('eodStatus');
-  st.style.display = 'block';
-  st.textContent = '✓ Shranjeno ' + saved + ' dni — model se bo posodobil';
-  
-  // Reload personal model z novimi podatki
-  await loadPersonalModel();
-  await updateDataCounter();
-  calc();
-  renderEodRows();
+
+  if (!ratiosOrders.length) {
+    // Fallback na linearni
+    return computeLinearForecast(entries);
+  }
+
+  const avgRatioO = ratiosOrders.reduce((s,x) => s+x, 0) / ratiosOrders.length;
+  const avgRatioR = ratiosRevenue.length ? ratiosRevenue.reduce((s,x) => s+x, 0) / ratiosRevenue.length : avgRatioO;
+
+  return {
+    orders: avgRatioO > 0 ? Math.round(latest.orders / avgRatioO) : 0,
+    revenue: avgRatioR > 0 ? Math.round(latest.revenue / avgRatioR) : 0,
+    method: `Po urah (${ratiosOrders.length} dni)`,
+  };
 }
 
-// ─── END-OF-DAY PANEL ────────────────────────────────────────────────────────
+// ─── NAPOVED + GRAFI ──────────────────────────────────────────
 
-// Init
-(async()=>{
-  await loadPersonalModel();
-  await loadEntries();
-  renderChart();
-  renderLog();
-  await updateDataCounter();
+let historyCache = [];
 
-})();
+async function computeForecast() {
+  let forecast = null;
+  if (currentMode === 'linear') {
+    forecast = computeLinearForecast(todayData.entries);
+  } else {
+    forecast = computeHourlyForecast(todayData.entries, historyCache);
+  }
+
+  const pill = document.getElementById('forecast-pill');
+  if (forecast) {
+    pill.textContent = `${forecast.method}: ${fmtNum(forecast.orders)} naročil · ${fmtCurrency(forecast.revenue)}`;
+  } else {
+    pill.textContent = '— ni vnosov —';
+  }
+
+  renderCharts(forecast);
+}
+
+function renderCharts(forecast) {
+  const entries = todayData.entries;
+  if (!entries.length) {
+    if (chartRev) { chartRev.destroy(); chartRev = null; }
+    if (chartOrd) { chartOrd.destroy(); chartOrd = null; }
+    return;
+  }
+
+  // Labels = časi entry-jev + 24:00
+  const labels = entries.map(e => e.time);
+  const ordersData = entries.map(e => e.orders);
+  const revenueData = entries.map(e => e.revenue);
+
+  // Napoved konec dne
+  if (forecast) {
+    labels.push('24:00');
+    ordersData.push(forecast.orders);
+    revenueData.push(forecast.revenue);
+  }
+
+  if (chartRev) chartRev.destroy();
+  chartRev = new Chart(document.getElementById('chartRevenue'), {
+    type: 'line',
+    data: { labels, datasets: [{
+      label: 'Promet (€)',
+      data: revenueData,
+      borderColor: '#534AB7',
+      backgroundColor: 'rgba(83,74,183,0.1)',
+      tension: 0.3,
+      fill: true,
+      pointRadius: 4,
+      pointBackgroundColor: revenueData.map((_,i) => i === revenueData.length-1 && forecast ? '#f97316' : '#534AB7'),
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => v + ' €' } } }
+    }
+  });
+
+  if (chartOrd) chartOrd.destroy();
+  chartOrd = new Chart(document.getElementById('chartOrders'), {
+    type: 'line',
+    data: { labels, datasets: [{
+      label: 'Naročila',
+      data: ordersData,
+      borderColor: '#22c55e',
+      backgroundColor: 'rgba(34,197,94,0.1)',
+      tension: 0.3,
+      fill: true,
+      pointRadius: 4,
+      pointBackgroundColor: ordersData.map((_,i) => i === ordersData.length-1 && forecast ? '#f97316' : '#22c55e'),
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+}
+
+// ─── ZGODOVINA ────────────────────────────────────────────────
+
+async function loadHistory() {
+  try {
+    const r = await fetch('/forecast2-history?days=30');
+    const data = await r.json();
+    if (!data.ok) { toast('Napaka pri zgodovini', true); return; }
+
+    const days = Object.entries(data.days || {}).sort((a,b) => b[0].localeCompare(a[0]));
+    historyCache = days.map(([date, d]) => ({ date, entries: d.entries||[], final: d.final }));
+
+    const el = document.getElementById('history-list');
+    if (!days.length) {
+      el.innerHTML = '<div class="empty">Ni zgodovine. Migriraj iz starega sistema ali začni dodajati vnose.</div>';
+      return;
+    }
+    el.innerHTML = days.map(([date, d]) => {
+      const final = d.final;
+      const entries = d.entries || [];
+      const finalText = final ? `${fmtNum(final.orders)} naročil · ${fmtCurrency(final.revenue)}` : '<span class="badge-gray">Ni končnih</span>';
+      const entriesBadge = entries.length ? `<span class="badge-green">${entries.length} vnosov</span>` : `<span class="badge-gray">0 vnosov</span>`;
+      return `<div class="history-item" style="margin-bottom:4px">
+        <div class="history-date">${date}</div>
+        <div class="history-final">${finalText}</div>
+        <div>${entriesBadge}</div>
+        <button class="btn btn-soft" style="padding:3px 8px;font-size:11px" onclick="loadDay('${date}')">→</button>
+      </div>`;
+    }).join('');
+
+    computeForecast();
+    loadStats();
+  } catch(e) {
+    toast('Napaka: ' + e.message, true);
+  }
+}
+
+async function loadDay(date) {
+  document.getElementById('final-date').value = date;
+  const day = historyCache.find(d => d.date === date);
+  if (day && day.final) {
+    document.getElementById('final-orders').value = day.final.orders;
+    document.getElementById('final-revenue').value = day.final.revenue;
+  }
+}
+
+async function setFinal() {
+  const date = document.getElementById('final-date').value;
+  const orders = parseInt(document.getElementById('final-orders').value || 0);
+  const revenue = parseFloat(document.getElementById('final-revenue').value || 0);
+
+  if (!date) { toast('Izberi datum', true); return; }
+  if (orders < 0 || revenue < 0) { toast('Vrednosti morajo biti ≥ 0', true); return; }
+
+  try {
+    const r = await fetch('/forecast2-set-final', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ date, orders, revenue })
+    });
+    const data = await r.json();
+    if (!data.ok) { toast('Napaka: ' + (data.error||'unknown'), true); return; }
+    toast('✓ Končni podatki shranjeni za ' + date);
+    loadHistory();
+  } catch(e) {
+    toast('Napaka: ' + e.message, true);
+  }
+}
+
+async function loadStats() {
+  try {
+    const r = await fetch('/forecast2-stats');
+    const data = await r.json();
+    if (!data.ok) return;
+
+    document.getElementById('stat-7d-orders').textContent = fmtNum(data.avg_7d_orders);
+    document.getElementById('stat-7d-revenue').textContent = fmtCurrency(data.avg_7d_revenue);
+    document.getElementById('stat-22d-orders').textContent = fmtNum(data.avg_22d_orders);
+    document.getElementById('stat-22d-revenue').textContent = fmtCurrency(data.avg_22d_revenue);
+    document.getElementById('stat-info').textContent = `Model temelji na ${data.days_with_final} dneh s končnimi podatki.`;
+  } catch(e) {}
+}
+
+// ─── MIGRACIJA STAREGA ────────────────────────────────────────
+
+async function migrateOld() {
+  if (!confirm('Migriram stare podatke v nov sistem?\n\nObstoječi dnevi se NE prepišejo (varno).')) return;
+  try {
+    const r = await fetch('/forecast2-migrate', { method:'POST' });
+    const data = await r.json();
+    if (!data.ok) { toast('Napaka: ' + (data.error||'unknown'), true); return; }
+    toast(`✓ Migrirano ${data.migrated} dni (${data.skipped} preskočenih)`);
+    loadHistory();
+  } catch(e) {
+    toast('Napaka: ' + e.message, true);
+  }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────
+
+async function loadToday() {
+  try {
+    const r = await fetch('/forecast2-today');
+    const data = await r.json();
+    if (!data.ok) return;
+    todayData = { entries: data.entries || [], final: data.final };
+    document.getElementById('today-date').textContent = data.today;
+    renderEntries();
+    computeForecast();
+  } catch(e) { console.error(e); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('final-date').value = (() => {
+    // Včerajšnji datum
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0,10);
+  })();
+
+  loadToday();
+  loadHistory();
+
+  // Auto-refresh every 60s
+  setInterval(loadToday, 60 * 1000);
+});
 </script>
 </body>
 </html>
