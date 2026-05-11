@@ -84,7 +84,7 @@
   .help-text { font-size:11px; color:var(--text-secondary); margin-top:4px; }
   .day-section { margin-bottom:16px; }
   .day-section-title { font-weight:600; font-size:12px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
-  .final-form { display:grid; grid-template-columns: 1fr 1fr auto; gap:6px; align-items:end; }
+  .final-form { display:grid; grid-template-columns: 200px 1fr 1fr 120px; gap:10px; align-items:end; }
 </style>
 </head>
 <body>
@@ -216,7 +216,7 @@
               <label class="label">Promet (€)</label>
               <input type="number" id="final-revenue" placeholder="2500" min="0" step="0.01">
             </div>
-            <button class="btn btn-primary" onclick="setFinal()" style="margin-top:18px">Shrani</button>
+            <button class="btn btn-primary" onclick="setFinal()">Shrani</button>
           </div>
         </div>
 
@@ -558,6 +558,8 @@ function renderCharts(forecast) {
 
 // ─── ZGODOVINA ────────────────────────────────────────────────
 
+let historyShowAll = false;
+
 async function loadHistory() {
   try {
     const r = await fetch('/forecast2-history?days=30');
@@ -567,29 +569,42 @@ async function loadHistory() {
     const days = Object.entries(data.days || {}).sort((a,b) => b[0].localeCompare(a[0]));
     historyCache = days.map(([date, d]) => ({ date, entries: d.entries||[], final: d.final }));
 
-    const el = document.getElementById('history-list');
-    if (!days.length) {
-      el.innerHTML = '<div class="empty">Ni zgodovine. Migriraj iz starega sistema ali začni dodajati vnose.</div>';
-      return;
-    }
-    el.innerHTML = days.map(([date, d]) => {
-      const final = d.final;
-      const entries = d.entries || [];
-      const finalText = final ? `${fmtNum(final.orders)} naročil · ${fmtCurrency(final.revenue)}` : '<span class="badge-gray">Ni končnih</span>';
-      const entriesBadge = entries.length ? `<span class="badge-green">${entries.length} vnosov</span>` : `<span class="badge-gray">0 vnosov</span>`;
-      return `<div class="history-item" style="margin-bottom:4px">
-        <div class="history-date">${date}</div>
-        <div class="history-final">${finalText}</div>
-        <div>${entriesBadge}</div>
-        <button class="btn btn-soft" style="padding:3px 8px;font-size:11px" onclick="loadDay('${date}')">→</button>
-      </div>`;
-    }).join('');
-
+    renderHistory(days);
     computeForecast();
     loadStats();
   } catch(e) {
     toast('Napaka: ' + e.message, true);
   }
+}
+
+function renderHistory(days) {
+  const el = document.getElementById('history-list');
+  if (!days.length) {
+    el.innerHTML = '<div class="empty">Ni zgodovine. Migriraj iz starega sistema ali začni dodajati vnose.</div>';
+    return;
+  }
+  const showDays = historyShowAll ? days : days.slice(0, 3);
+  const remaining = days.length - 3;
+
+  let html = showDays.map(([date, d]) => {
+    const final = d.final;
+    const entries = d.entries || [];
+    const finalText = final ? `${fmtNum(final.orders)} naročil · ${fmtCurrency(final.revenue)}` : '<span class="badge-gray">Ni končnih</span>';
+    const entriesBadge = entries.length ? `<span class="badge-green">${entries.length} vnosov</span>` : `<span class="badge-gray">0 vnosov</span>`;
+    return `<div class="history-item" style="margin-bottom:4px">
+      <div class="history-date">${date}</div>
+      <div class="history-final">${finalText}</div>
+      <div>${entriesBadge}</div>
+      <button class="btn btn-soft" style="padding:3px 8px;font-size:11px" onclick="loadDay('${date}')">→</button>
+    </div>`;
+  }).join('');
+
+  if (!historyShowAll && remaining > 0) {
+    html += `<button class="btn btn-soft" style="width:100%;margin-top:6px" onclick="historyShowAll=true;loadHistory()">⬇ Prikaži več (${remaining})</button>`;
+  } else if (historyShowAll && days.length > 3) {
+    html += `<button class="btn btn-soft" style="width:100%;margin-top:6px" onclick="historyShowAll=false;loadHistory()">⬆ Pokaži manj</button>`;
+  }
+  el.innerHTML = html;
 }
 
 async function loadDay(date) {
