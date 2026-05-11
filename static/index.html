@@ -1014,16 +1014,7 @@ input[type="text"].error { border-color: var(--red) !important; }
   </div>
   <!-- ═══ FORECAST PAGE ═══ -->
   <div class="page" id="page-forecast">
-    <div style="display:flex;gap:8px;padding:8px 16px;background:var(--bg-secondary);border-bottom:1px solid var(--border)">
-      <button class="fc-tab-btn active" id="fcTab-v1" onclick="switchFcTab('v1')" style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">Stari forecast</button>
-      <button class="fc-tab-btn" id="fcTab-v2" onclick="switchFcTab('v2')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🆕 Forecast 2.0</button>
-    </div>
-    <div id="fcSub-v1" style="display:block">
-      <iframe src="/static/revenue_forecast.html" style="width:100%;height:calc(100vh - 6rem);border:none" allow="clipboard-write"></iframe>
-    </div>
-    <div id="fcSub-v2" style="display:none">
-      <iframe src="/static/revenue_forecast2.html" style="width:100%;height:calc(100vh - 6rem);border:none" allow="clipboard-write"></iframe>
-    </div>
+    <iframe src="/static/revenue_forecast.html" style="width:100%;height:calc(100vh - 4rem);border:none;border-radius:var(--radius-lg)" allow="clipboard-write"></iframe>
   </div>
 
   <!-- ═══ CALCULATOR PAGE ═══ -->
@@ -2970,20 +2961,6 @@ function closeMenu(){
 }
 const PAGES = ['home','meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads','orodja','analiza','knjigovodstvo','zaloga','sporocanje','odprema'];
 let currentIdx = 0;
-
-function switchFcTab(tab) {
-  ['v1', 'v2'].forEach(t => {
-    const btn = document.getElementById('fcTab-' + t);
-    const sub = document.getElementById('fcSub-' + t);
-    if (t === tab) {
-      if (btn) { btn.style.background = 'var(--accent)'; btn.style.color = 'white'; btn.style.border = 'none'; btn.classList.add('active'); }
-      if (sub) sub.style.display = 'block';
-    } else {
-      if (btn) { btn.style.background = 'transparent'; btn.style.color = 'var(--text-secondary)'; btn.style.border = '1px solid var(--border)'; btn.classList.remove('active'); }
-      if (sub) sub.style.display = 'none';
-    }
-  });
-}
 
 function switchCalcTab(tab) {
   ['calc', 'pricecheck'].forEach(t => {
