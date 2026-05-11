@@ -98,6 +98,7 @@
       <a href="/forecast-backup" target="_blank" class="btn btn-soft" style="text-decoration:none;display:inline-block">💾 Backup starega</a>
       <button class="btn btn-soft" onclick="migrateOld()">📥 Migracija starega</button>
       <button class="btn btn-soft" onclick="cleanupPhantoms()" style="background:#fee2e2;border-color:#fca5a5">🧹 Počisti prazne</button>
+      <button class="btn btn-soft" onclick="importHistoricalFinals()" style="background:#dcfce7;border-color:#86efac">📚 Uvozi Q1+Q2 (105 dni)</button>
       <button class="btn btn-soft" onclick="importIrenejFinals()" style="background:#fef3c7;border-color:#fbbf24">🎯 Uvozi Irenejeve podatke (25 dni)</button>
     </div>
   </div>
@@ -858,6 +859,134 @@ function renderWeekdayAnalysis(finals) {
   html += '</div>';
   document.getElementById('weekday-table').innerHTML = html;
 }
+
+// ─── HISTORICAL FINALS (1.1. – 15.4.2026) ─────────────────────
+const HISTORICAL_FINALS = [
+  { date: "2026-01-01", orders: 980, revenue: 18552.94 },
+  { date: "2026-01-02", orders: 1274, revenue: 26583.55 },
+  { date: "2026-01-03", orders: 1358, revenue: 25324.59 },
+  { date: "2026-01-04", orders: 1578, revenue: 31210.01 },
+  { date: "2026-01-05", orders: 1446, revenue: 32797.38 },
+  { date: "2026-01-06", orders: 1415, revenue: 29725.97 },
+  { date: "2026-01-07", orders: 1454, revenue: 32300.83 },
+  { date: "2026-01-08", orders: 1500, revenue: 37516.92 },
+  { date: "2026-01-09", orders: 1443, revenue: 30329.10 },
+  { date: "2026-01-10", orders: 1509, revenue: 31046.46 },
+  { date: "2026-01-11", orders: 1484, revenue: 28567.09 },
+  { date: "2026-01-12", orders: 1423, revenue: 33576.35 },
+  { date: "2026-01-13", orders: 1311, revenue: 35576.95 },
+  { date: "2026-01-14", orders: 1393, revenue: 32597.50 },
+  { date: "2026-01-15", orders: 1330, revenue: 30120.34 },
+  { date: "2026-01-16", orders: 1224, revenue: 28026.45 },
+  { date: "2026-01-17", orders: 1283, revenue: 25317.87 },
+  { date: "2026-01-18", orders: 1495, revenue: 31703.57 },
+  { date: "2026-01-19", orders: 1273, revenue: 29626.67 },
+  { date: "2026-01-20", orders: 1274, revenue: 33056.26 },
+  { date: "2026-01-21", orders: 1198, revenue: 28370.98 },
+  { date: "2026-01-22", orders: 1155, revenue: 24813.00 },
+  { date: "2026-01-23", orders: 1152, revenue: 27052.39 },
+  { date: "2026-01-24", orders: 1196, revenue: 24964.28 },
+  { date: "2026-01-25", orders: 1263, revenue: 26322.18 },
+  { date: "2026-01-26", orders: 1222, revenue: 29598.58 },
+  { date: "2026-01-27", orders: 1132, revenue: 25726.50 },
+  { date: "2026-01-28", orders: 1142, revenue: 25683.50 },
+  { date: "2026-01-29", orders: 1227, revenue: 27926.09 },
+  { date: "2026-01-30", orders: 1140, revenue: 24807.88 },
+  { date: "2026-01-31", orders: 1262, revenue: 26693.49 },
+  { date: "2026-02-01", orders: 1376, revenue: 28189.66 },
+  { date: "2026-02-02", orders: 1256, revenue: 37622.66 },
+  { date: "2026-02-03", orders: 1291, revenue: 28988.91 },
+  { date: "2026-02-04", orders: 1271, revenue: 28840.48 },
+  { date: "2026-02-05", orders: 1350, revenue: 31341.04 },
+  { date: "2026-02-06", orders: 1222, revenue: 28909.96 },
+  { date: "2026-02-07", orders: 1332, revenue: 28256.05 },
+  { date: "2026-02-08", orders: 1286, revenue: 26760.64 },
+  { date: "2026-02-09", orders: 1363, revenue: 31809.47 },
+  { date: "2026-02-10", orders: 1250, revenue: 34103.42 },
+  { date: "2026-02-11", orders: 1184, revenue: 28734.03 },
+  { date: "2026-02-12", orders: 1125, revenue: 28814.68 },
+  { date: "2026-02-13", orders: 923, revenue: 20988.35 },
+  { date: "2026-02-14", orders: 1070, revenue: 21516.63 },
+  { date: "2026-02-15", orders: 1341, revenue: 28465.96 },
+  { date: "2026-02-16", orders: 1153, revenue: 26686.90 },
+  { date: "2026-02-17", orders: 1172, revenue: 32430.27 },
+  { date: "2026-02-18", orders: 1165, revenue: 27150.41 },
+  { date: "2026-02-19", orders: 1009, revenue: 22174.88 },
+  { date: "2026-02-20", orders: 1080, revenue: 23408.09 },
+  { date: "2026-02-21", orders: 1195, revenue: 24436.49 },
+  { date: "2026-02-22", orders: 1302, revenue: 27385.12 },
+  { date: "2026-02-23", orders: 1279, revenue: 32997.62 },
+  { date: "2026-02-24", orders: 1177, revenue: 31954.54 },
+  { date: "2026-02-25", orders: 1095, revenue: 24918.52 },
+  { date: "2026-02-26", orders: 1071, revenue: 27181.89 },
+  { date: "2026-02-27", orders: 999, revenue: 23955.29 },
+  { date: "2026-02-28", orders: 989, revenue: 21828.91 },
+  { date: "2026-03-01", orders: 1165, revenue: 25090.73 },
+  { date: "2026-03-02", orders: 1138, revenue: 29045.69 },
+  { date: "2026-03-03", orders: 1088, revenue: 27111.89 },
+  { date: "2026-03-04", orders: 1076, revenue: 30374.89 },
+  { date: "2026-03-05", orders: 1010, revenue: 23439.05 },
+  { date: "2026-03-06", orders: 938, revenue: 22282.92 },
+  { date: "2026-03-07", orders: 807, revenue: 16076.62 },
+  { date: "2026-03-08", orders: 1000, revenue: 21675.11 },
+  { date: "2026-03-09", orders: 1082, revenue: 28138.93 },
+  { date: "2026-03-10", orders: 1055, revenue: 28868.62 },
+  { date: "2026-03-11", orders: 1138, revenue: 28611.08 },
+  { date: "2026-03-12", orders: 1118, revenue: 27296.54 },
+  { date: "2026-03-13", orders: 1122, revenue: 24694.26 },
+  { date: "2026-03-14", orders: 1043, revenue: 22107.10 },
+  { date: "2026-03-15", orders: 1269, revenue: 26896.08 },
+  { date: "2026-03-16", orders: 1176, revenue: 31482.72 },
+  { date: "2026-03-17", orders: 1192, revenue: 33542.61 },
+  { date: "2026-03-18", orders: 1142, revenue: 29142.47 },
+  { date: "2026-03-19", orders: 1100, revenue: 25185.23 },
+  { date: "2026-03-20", orders: 976, revenue: 22378.78 },
+  { date: "2026-03-21", orders: 960, revenue: 20137.17 },
+  { date: "2026-03-22", orders: 1302, revenue: 28408.18 },
+  { date: "2026-03-23", orders: 1216, revenue: 30062.48 },
+  { date: "2026-03-24", orders: 1125, revenue: 31912.64 },
+  { date: "2026-03-25", orders: 1128, revenue: 27829.91 },
+  { date: "2026-03-26", orders: 1263, revenue: 28896.00 },
+  { date: "2026-03-27", orders: 1360, revenue: 31050.08 },
+  { date: "2026-03-28", orders: 1330, revenue: 28284.87 },
+  { date: "2026-03-29", orders: 1294, revenue: 29042.09 },
+  { date: "2026-03-30", orders: 1309, revenue: 31926.96 },
+  { date: "2026-03-31", orders: 1143, revenue: 34066.36 },
+  { date: "2026-04-01", orders: 1097, revenue: 26757.84 },
+  { date: "2026-04-02", orders: 1000, revenue: 24402.59 },
+  { date: "2026-04-03", orders: 869, revenue: 20861.92 },
+  { date: "2026-04-04", orders: 828, revenue: 18178.66 },
+  { date: "2026-04-05", orders: 952, revenue: 22676.14 },
+  { date: "2026-04-06", orders: 1035, revenue: 24899.20 },
+  { date: "2026-04-07", orders: 1053, revenue: 33133.70 },
+  { date: "2026-04-08", orders: 1056, revenue: 29697.88 },
+  { date: "2026-04-09", orders: 1033, revenue: 27697.00 },
+  { date: "2026-04-10", orders: 1113, revenue: 28441.69 },
+  { date: "2026-04-11", orders: 1181, revenue: 28654.11 },
+  { date: "2026-04-12", orders: 1159, revenue: 27608.95 },
+  { date: "2026-04-13", orders: 1216, revenue: 32022.76 },
+  { date: "2026-04-14", orders: 1316, revenue: 39505.94 },
+  { date: "2026-04-15", orders: 1314, revenue: 33993.27 },
+];
+
+async function importHistoricalFinals() {
+  if (!confirm(`Uvozim ${HISTORICAL_FINALS.length} dni iz Q1+Q2 (1.1. - 15.4.2026)?\n\nObstoječi končni podatki za te dni se BODO PREPISALI.`)) return;
+  try {
+    const r = await fetch('/forecast2-bulk-finals', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ finals: HISTORICAL_FINALS })
+    });
+    const data = await r.json();
+    if (!data.ok) { toast('Napaka: ' + (data.error||'unknown'), true); return; }
+    toast(`✓ Uvoženih ${data.saved} dni`);
+    historyShowAll = false;
+    loadHistory();
+    loadStats();
+  } catch(e) {
+    toast('Napaka: ' + e.message, true);
+  }
+}
+// ─── /HISTORICAL FINALS ──────────────────────────────────────
 
 // ─── BULK IMPORT IRENEJEVIH PODATKOV ──────────────────────────
 
