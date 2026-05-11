@@ -1476,19 +1476,19 @@ function analyzeDemo() {
   .calc-preset:hover,.calc-preset.active { background:#4f6ef7;color:#fff;border-color:#4f6ef7; }
   .calc-countries { display:flex;flex-direction:column;gap:0; }
   .calc-country-row {
-    display:grid;grid-template-columns:46px 1fr 60px auto;gap:6px;
-    align-items:center;padding:7px 4px;border-bottom:1px solid #f4f6fb;
+    display:grid;grid-template-columns:54px 1fr 70px auto;gap:8px;
+    align-items:center;padding:9px 4px;border-bottom:1px solid #f4f6fb;
     transition:background 0.1s;
   }
   .calc-country-row:hover { background:#f8fafd; }
   .calc-country-row:last-child { border-bottom:none; }
-  .calc-flag { font-size:11px;font-weight:700;color:#475569;line-height:1.2; }
-  .calc-flag small { display:block;color:#8896b0;font-weight:400;font-size:10px; }
-  .calc-price-in { border:1px solid #e2e8f2;border-radius:5px;padding:5px 7px;font-size:13px;font-family:inherit;color:#0f172a;background:#f8fafd;outline:none;width:100%;text-align:right;font-weight:600; }
+  .calc-flag { font-size:13px;font-weight:700;color:#475569;line-height:1.2; }
+  .calc-flag small { display:block;color:#8896b0;font-weight:400;font-size:11px; }
+  .calc-price-in { border:1px solid #e2e8f2;border-radius:5px;padding:7px 9px;font-size:15px;font-family:inherit;color:#0f172a;background:#f8fafd;outline:none;width:100%;text-align:right;font-weight:600; }
   .calc-price-in:focus { border-color:#4f6ef7;background:#fff; }
-  .calc-nova { font-size:10px;color:#8896b0;text-align:right;line-height:1.2; }
-  .calc-nova strong { display:block;font-size:11px;color:#4f6ef7;font-weight:600; }
-  .calc-copy-btn { background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:10px;padding:3px 7px;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap; }
+  .calc-nova { font-size:12px;color:#8896b0;text-align:right;line-height:1.2;font-weight:600; }
+  .calc-nova strong { font-size:13px;color:#4f6ef7;font-weight:700; }
+  .calc-copy-btn { background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:12px;padding:5px 10px;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap; }
   .calc-copy-btn:hover { background:#dcfce7; }
   .calc-copy-btn.copied { background:#4f6ef7;border-color:#4f6ef7;color:#fff; }
 </style>
@@ -1634,7 +1634,7 @@ function calcUpdateRow(code, nc, rvc, popust) {
   const novaCms = fin / c.vat / (1 - popust);
 
   const cms = document.getElementById('ccms-' + code);
-  if (cms) cms.innerHTML = `<strong style="font-size:11px">${calcFormatPrice(novaCms, 'EUR')}</strong>`;
+  if (cms) cms.innerHTML = `<strong>${calcFormatPrice(novaCms, 'EUR')}</strong>`;
 }
 
 function calcCopyRow(code, curr, btn) {
