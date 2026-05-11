@@ -405,51 +405,74 @@ function computeLinearForecast(entries) {
 }
 
 function computeHourlyForecast(entries, recentDays) {
-  // Vzemi povprečno krivuljo iz preteklih dni
-  // recentDays je array {date, final:{orders,revenue}, entries:[{time,orders,revenue}]}
-  // Iz teh izračunaj — pri času X smo bili pri Y% končnih naročil v povprečju
   if (!entries.length) return null;
 
-  // Filter dni ki imajo entries + final
   const usable = recentDays.filter(d => d.entries && d.entries.length && d.final && d.final.orders > 0);
-  if (!usable.length) {
-    // Fallback na linearni
-    return computeLinearForecast(entries);
-  }
-
   const latest = entries[entries.length - 1];
   const latestMin = timeToMinutes(latest.time);
 
-  // Za vsak pretekli dan — kolikšen delež končnih naročil/prometa smo dosegli v približno tem času?
-  const ratiosOrders = [];
-  const ratiosRevenue = [];
-  for (const day of usable) {
-    // Najdi entry najbližje času latestMin
-    let best = null;
-    let bestDiff = Infinity;
-    for (const e of day.entries) {
-      const diff = Math.abs(timeToMinutes(e.time) - latestMin);
-      if (diff < bestDiff) { bestDiff = diff; best = e; }
+  // Če imamo dni z urnimi entry-ji — uporabi tisto razmerje
+  if (usable.length) {
+    const ratiosOrders = [];
+    const ratiosRevenue = [];
+    for (const day of usable) {
+      let best = null;
+      let bestDiff = Infinity;
+      for (const e of day.entries) {
+        const diff = Math.abs(timeToMinutes(e.time) - latestMin);
+        if (diff < bestDiff) { bestDiff = diff; best = e; }
+      }
+      if (best && bestDiff < 60 && day.final.orders > 0) {
+        ratiosOrders.push(best.orders / day.final.orders);
+        if (day.final.revenue > 0) ratiosRevenue.push(best.revenue / day.final.revenue);
+      }
     }
-    if (best && bestDiff < 60 && day.final.orders > 0) {  // znotraj 60 min
-      ratiosOrders.push(best.orders / day.final.orders);
-      if (day.final.revenue > 0) ratiosRevenue.push(best.revenue / day.final.revenue);
+    if (ratiosOrders.length) {
+      const avgRatioO = ratiosOrders.reduce((s,x) => s+x, 0) / ratiosOrders.length;
+      const avgRatioR = ratiosRevenue.length ? ratiosRevenue.reduce((s,x) => s+x, 0) / ratiosRevenue.length : avgRatioO;
+      return {
+        orders: avgRatioO > 0 ? Math.round(latest.orders / avgRatioO) : 0,
+        revenue: avgRatioR > 0 ? Math.round(latest.revenue / avgRatioR) : 0,
+        method: `Po urah (${ratiosOrders.length} dni z urnimi vnosi)`,
+      };
     }
   }
 
-  if (!ratiosOrders.length) {
-    // Fallback na linearni
-    return computeLinearForecast(entries);
+  // FALLBACK: uporabi 7d povprečje + razmerje kjer smo trenutno
+  // Predpostavka: pri času X dnevni potek je relativno enak, končnih naročil = avg7d
+  // Razmerje: orders/avg7d * (24h/elapsed_h)... ampak to je linearni
+  //
+  // Boljši pristop: blend 7d povprečja + linearne projekcije
+  // - linearna projekcija = orders * (24h / elapsed_h)
+  // - 7d avg končnih
+  // - obtežimo: zgodaj zjutraj zaupamo bolj 7d povprečju, kasneje linearni
+  const finals = recentDays.filter(d => d.final && d.final.orders > 0).map(d => d.final);
+  if (finals.length) {
+    const recent7 = finals.slice(0, 7);
+    const avg7Orders = recent7.reduce((s, f) => s + f.orders, 0) / recent7.length;
+    const avg7Revenue = recent7.reduce((s, f) => s + f.revenue, 0) / recent7.length;
+
+    // Elapsed ratio
+    const totalMin = 24 * 60;
+    const elapsedRatio = latestMin / totalMin;
+
+    // Blending weight — zgodaj zjutraj zaupamo avg, kasneje linearni
+    // 0:00 → 100% avg, 12:00 → 50%/50%, 24:00 → 100% linearni
+    const linearWeight = Math.min(0.95, elapsedRatio);  // cap at 95% — ohrani malo avg vpliva
+    const avgWeight = 1 - linearWeight;
+
+    const linearO = elapsedRatio > 0 ? latest.orders / elapsedRatio : avg7Orders;
+    const linearR = elapsedRatio > 0 ? latest.revenue / elapsedRatio : avg7Revenue;
+
+    return {
+      orders: Math.round(linearO * linearWeight + avg7Orders * avgWeight),
+      revenue: Math.round(linearR * linearWeight + avg7Revenue * avgWeight),
+      method: `Hibrid (${(linearWeight*100).toFixed(0)}% trenutni potek + ${(avgWeight*100).toFixed(0)}% 7d pov.)`,
+    };
   }
 
-  const avgRatioO = ratiosOrders.reduce((s,x) => s+x, 0) / ratiosOrders.length;
-  const avgRatioR = ratiosRevenue.length ? ratiosRevenue.reduce((s,x) => s+x, 0) / ratiosRevenue.length : avgRatioO;
-
-  return {
-    orders: avgRatioO > 0 ? Math.round(latest.orders / avgRatioO) : 0,
-    revenue: avgRatioR > 0 ? Math.round(latest.revenue / avgRatioR) : 0,
-    method: `Po urah (${ratiosOrders.length} dni)`,
-  };
+  // Zadnji fallback — linearni
+  return computeLinearForecast(entries);
 }
 
 // ─── NAPOVED + GRAFI ──────────────────────────────────────────
