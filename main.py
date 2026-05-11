@@ -7530,3 +7530,309 @@ async def knj_load(filename: str):
         return {"ok": False, "error": "Ni najden"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+# ═══════════════════════════════════════════════════════════════════
+# FORECAST 2.0 — Clean rewrite (paralelni sistem)
+# ═══════════════════════════════════════════════════════════════════
+
+FORECAST2_DIR = DATA_DIR / "forecast2"
+FORECAST2_DIR.mkdir(exist_ok=True, parents=True)
+
+# Struktura: /data/forecast2/YYYY-MM-DD.json
+# Vsebina: {"entries":[{"time":"HH:MM","orders":N,"revenue":N,"_ts":timestamp}], "final":{"orders":N,"revenue":N}}
+#
+# Vsak dan = svoj fajl. Ne mešamo več datumov.
+
+def _lj_now():
+    """Aktualni čas v Ljubljani."""
+    from datetime import datetime
+    try:
+        import pytz
+        return datetime.now(pytz.timezone("Europe/Ljubljana"))
+    except:
+        return datetime.utcnow()
+
+def _lj_today():
+    return _lj_now().strftime("%Y-%m-%d")
+
+def _forecast2_path(date_iso: str) -> Path:
+    """Pot do datoteke za določen datum."""
+    # Sanity check format YYYY-MM-DD
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_iso):
+        raise ValueError(f"Invalid date format: {date_iso}")
+    return FORECAST2_DIR / f"{date_iso}.json"
+
+def _forecast2_load_day(date_iso: str) -> dict:
+    """Naloži en dan. Vrne {entries:[], final:{}} če ne obstaja."""
+    p = _forecast2_path(date_iso)
+    if not p.exists():
+        return {"date": date_iso, "entries": [], "final": None}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"[fc2] load error {date_iso}: {e}")
+        return {"date": date_iso, "entries": [], "final": None}
+
+def _forecast2_save_day(date_iso: str, data: dict):
+    """Shrani en dan."""
+    p = _forecast2_path(date_iso)
+    p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+# ─── BACKUP STAREGA SISTEMA ────────────────────────────────────────
+
+@app.get("/forecast-backup")
+async def forecast_backup():
+    """Vrne ves stari forecast state kot JSON za backup."""
+    backup = {
+        "timestamp": _lj_now().isoformat(),
+        "entries_file": {},
+        "history_file": {},
+        "deleted_file": {},
+    }
+    try:
+        if FORECAST_ENTRIES_FILE.exists():
+            backup["entries_file"] = json.loads(FORECAST_ENTRIES_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        backup["entries_file_error"] = str(e)
+    try:
+        if FORECAST_HISTORY_FILE.exists():
+            backup["history_file"] = json.loads(FORECAST_HISTORY_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        backup["history_file_error"] = str(e)
+    try:
+        if FORECAST_DELETED_FILE.exists():
+            backup["deleted_file"] = json.loads(FORECAST_DELETED_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        backup["deleted_file_error"] = str(e)
+    return backup
+
+# ─── MIGRACIJA STAREGA SISTEMA → V NOV ───────────────────────────
+
+@app.post("/forecast2-migrate")
+async def forecast2_migrate():
+    """Migracija starega forecast_history.json v nov format (en fajl per dan)."""
+    migrated_days = 0
+    skipped_days = 0
+    errors = []
+
+    if not FORECAST_HISTORY_FILE.exists():
+        return {"ok": True, "message": "Stara zgodovina ne obstaja", "migrated": 0}
+
+    try:
+        hist = json.loads(FORECAST_HISTORY_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        return {"ok": False, "error": f"Cannot read history: {e}"}
+
+    for key, val in hist.items():
+        # Pretvori format datuma → ISO (YYYY-MM-DD)
+        date_iso = None
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', key):
+            date_iso = key
+        elif '.' in key:
+            parts = [p.strip().strip('.') for p in key.split('.') if p.strip()]
+            if len(parts) == 3:
+                try:
+                    d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
+                    date_iso = f"{y}-{m:02d}-{d:02d}"
+                except:
+                    pass
+
+        if not date_iso:
+            errors.append(f"Cannot parse date key: {key}")
+            skipped_days += 1
+            continue
+
+        # Če ciljni dan že obstaja, ne prepisuj (varnost)
+        target = _forecast2_path(date_iso)
+        if target.exists():
+            skipped_days += 1
+            continue
+
+        # Pretvori val v nov format
+        # val je lahko različnih formatov — število, dict, list...
+        day_data = {"date": date_iso, "entries": [], "final": None}
+
+        if isinstance(val, dict):
+            # Možen format: {"orders": N, "revenue": N} ali entries: [...]
+            if "entries" in val and isinstance(val["entries"], list):
+                day_data["entries"] = val["entries"]
+            if "final" in val:
+                day_data["final"] = val["final"]
+            if "orders" in val or "revenue" in val:
+                day_data["final"] = {
+                    "orders": val.get("orders", 0),
+                    "revenue": val.get("revenue", 0),
+                }
+        elif isinstance(val, (int, float)):
+            day_data["final"] = {"orders": 0, "revenue": val}
+        elif isinstance(val, list):
+            day_data["entries"] = val
+
+        try:
+            _forecast2_save_day(date_iso, day_data)
+            migrated_days += 1
+        except Exception as e:
+            errors.append(f"{date_iso}: {e}")
+
+    return {
+        "ok": True,
+        "migrated": migrated_days,
+        "skipped": skipped_days,
+        "errors": errors[:20],
+    }
+
+# ─── ENDPOINTI ─────────────────────────────────────────────────────
+
+@app.get("/forecast2-today")
+async def forecast2_today():
+    """Vrne entries za današnji dan."""
+    today = _lj_today()
+    data = _forecast2_load_day(today)
+    return {"ok": True, "today": today, **data}
+
+@app.post("/forecast2-add-entry")
+async def forecast2_add_entry(data: dict):
+    """Doda nov entry za današnji dan (ali za določen datum)."""
+    try:
+        time_str = data.get("time", "")
+        orders = int(data.get("orders", 0))
+        revenue = float(data.get("revenue", 0))
+        date_iso = data.get("date") or _lj_today()
+
+        # Validacija
+        if not re.match(r'^\d{1,2}:\d{2}$', time_str):
+            return {"ok": False, "error": "Invalid time format (use HH:MM)"}
+
+        # Normaliziraj čas
+        h, m = time_str.split(":")
+        time_norm = f"{int(h):02d}:{int(m):02d}"
+
+        day = _forecast2_load_day(date_iso)
+
+        # Če entry s tem časom že obstaja, ga zamenjaj (ne podvoji)
+        day["entries"] = [e for e in day["entries"] if e.get("time") != time_norm]
+        day["entries"].append({
+            "time": time_norm,
+            "orders": orders,
+            "revenue": revenue,
+            "_ts": _lj_now().isoformat(),
+        })
+        # Sortiraj po času
+        day["entries"].sort(key=lambda e: e.get("time", ""))
+
+        _forecast2_save_day(date_iso, day)
+        print(f"[fc2] saved entry {date_iso} @ {time_norm}: orders={orders}, revenue={revenue}")
+        return {"ok": True, "date": date_iso, "entries": day["entries"]}
+    except Exception as e:
+        print(f"[fc2] add-entry error: {e}")
+        return {"ok": False, "error": str(e)}
+
+@app.post("/forecast2-delete-entry")
+async def forecast2_delete_entry(data: dict):
+    """Briše entry po času."""
+    try:
+        time_str = data.get("time", "")
+        date_iso = data.get("date") or _lj_today()
+
+        day = _forecast2_load_day(date_iso)
+        before = len(day["entries"])
+        day["entries"] = [e for e in day["entries"] if e.get("time") != time_str]
+        after = len(day["entries"])
+
+        if before == after:
+            return {"ok": False, "error": "Entry not found"}
+
+        _forecast2_save_day(date_iso, day)
+        return {"ok": True, "deleted": before - after}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.post("/forecast2-set-final")
+async def forecast2_set_final(data: dict):
+    """Nastavi končna naročila/promet za določen dan."""
+    try:
+        date_iso = data.get("date", "")
+        orders = int(data.get("orders", 0))
+        revenue = float(data.get("revenue", 0))
+
+        if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_iso):
+            return {"ok": False, "error": "Invalid date format (YYYY-MM-DD)"}
+
+        day = _forecast2_load_day(date_iso)
+        day["final"] = {
+            "orders": orders,
+            "revenue": revenue,
+            "_set_at": _lj_now().isoformat(),
+        }
+        _forecast2_save_day(date_iso, day)
+        return {"ok": True, "date": date_iso, "final": day["final"]}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.get("/forecast2-history")
+async def forecast2_history(days: int = 60):
+    """Vrne zgodovino zadnjih N dni — vsak dan z entries + final."""
+    try:
+        from datetime import timedelta
+        today = _lj_now().date()
+        result = {}
+        for i in range(days):
+            d = today - timedelta(days=i)
+            iso = d.strftime("%Y-%m-%d")
+            data = _forecast2_load_day(iso)
+            if data["entries"] or data["final"]:
+                result[iso] = data
+        return {"ok": True, "days": result}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.get("/forecast2-day/{date_iso}")
+async def forecast2_day(date_iso: str):
+    """Vrne podrobnosti za določen dan."""
+    try:
+        data = _forecast2_load_day(date_iso)
+        return {"ok": True, **data}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.get("/forecast2-stats")
+async def forecast2_stats():
+    """Statistika — koliko dni imamo final podatke."""
+    try:
+        from datetime import timedelta
+        today = _lj_now().date()
+        days_with_final = 0
+        days_with_entries = 0
+        finals = []
+        for i in range(90):
+            d = today - timedelta(days=i)
+            iso = d.strftime("%Y-%m-%d")
+            data = _forecast2_load_day(iso)
+            if data["final"]:
+                days_with_final += 1
+                finals.append({
+                    "date": iso,
+                    "orders": data["final"].get("orders", 0),
+                    "revenue": data["final"].get("revenue", 0),
+                })
+            if data["entries"]:
+                days_with_entries += 1
+
+        # Povprečje zadnjih 7 in 22 dni
+        recent_7 = finals[:7]
+        recent_22 = finals[:22]
+
+        return {
+            "ok": True,
+            "today": today.strftime("%Y-%m-%d"),
+            "days_with_final": days_with_final,
+            "days_with_entries": days_with_entries,
+            "avg_7d_orders": round(sum(f["orders"] for f in recent_7) / max(1, len(recent_7)), 1),
+            "avg_7d_revenue": round(sum(f["revenue"] for f in recent_7) / max(1, len(recent_7)), 0),
+            "avg_22d_orders": round(sum(f["orders"] for f in recent_22) / max(1, len(recent_22)), 1),
+            "avg_22d_revenue": round(sum(f["revenue"] for f in recent_22) / max(1, len(recent_22)), 0),
+            "finals_count": len(finals),
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
