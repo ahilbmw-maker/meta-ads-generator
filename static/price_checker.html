@@ -248,6 +248,7 @@
 </head>
 <body>
 
+<div class="pricechecker-content">
 <div style="position:sticky;top:0;z-index:50;background:var(--bg)">
 <div class="header">
   <div class="logo">price<span>checker</span><em>// maaarket</em></div>
@@ -374,7 +375,6 @@
         <th onclick="sortBy('currency')" style="cursor:pointer">Valuta ↕</th>
         <th onclick="sortBy('store')" style="cursor:pointer">Trgovina ↕</th>
         <th onclick="sortBy('status')" style="cursor:pointer">Status ↕</th>
-        <th>Razlog</th>
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
@@ -782,7 +782,7 @@ function renderTable(rows) {
   tbody.innerHTML = '';
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--muted)">Ni zadetkov</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--muted)">Ni zadetkov</td></tr>`;
     return;
   }
 
@@ -837,7 +837,6 @@ function renderTable(rows) {
       <td><span style="color:var(--muted);font-size:15px">${row.currency}</span></td>
       <td style="color:var(--muted);font-size:15px">${row.store}</td>
       <td>${statusBadge}</td>
-      <td>${reasons}</td>
     `;
     tbody.appendChild(tr);
   }
@@ -1042,7 +1041,6 @@ function renderMultiView(rows) {
         <td style="color:var(--muted);font-size:15px">${r.currency}</td>
         <td style="color:var(--muted);font-size:15px">${r.store}</td>
         <td>${statusBadge}</td>
-        <td>${reasons}</td>
       </tr>`;
     }).join('');
 
@@ -1064,7 +1062,7 @@ function renderMultiView(rows) {
       <div class="group-rows">
         <table>
           <thead><tr style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">
-            <th style="padding:6px 16px;width:30px">✓</th><th>SKU</th><th>Cena</th><th>NC</th><th>Razlika</th><th>Marža</th><th>Val.</th><th>Trgovina</th><th>Status</th><th>Razlog</th>
+            <th style="padding:6px 16px;width:30px">✓</th><th>SKU</th><th>Cena</th><th>NC</th><th>Razlika</th><th>Marža</th><th>Val.</th><th>Trgovina</th><th>Status</th>
           </tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
@@ -1450,81 +1448,69 @@ function analyzeDemo() {
 </script>
 <!-- ── KALKULATOR SLIDE-IN PANEL ── -->
 <style>
-  .calc-overlay { position:fixed;inset:0;background:rgba(15,23,42,0.35);z-index:100;opacity:0;pointer-events:none;transition:opacity 0.25s; }
-  .calc-overlay.open { opacity:1;pointer-events:all; }
+  /* Body adjusts when calc is open */
+  body.calc-open .pricechecker-content { margin-right: 380px; transition: margin-right 0.25s; }
+  .pricechecker-content { transition: margin-right 0.25s; }
   .calc-panel {
-    position:fixed;top:0;right:0;bottom:0;width:680px;max-width:100vw;
-    background:#fff;box-shadow:-8px 0 40px rgba(0,0,0,0.12);
-    z-index:101;transform:translateX(100%);transition:transform 0.28s cubic-bezier(.4,0,.2,1);
-    display:flex;flex-direction:column;overflow:hidden;
+    position:fixed;top:0;right:0;bottom:0;width:380px;
+    background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,0.08);
+    z-index:50;transform:translateX(100%);transition:transform 0.25s cubic-bezier(.4,0,.2,1);
+    display:flex;flex-direction:column;overflow:hidden;border-left:1px solid #e2e8f2;
   }
   .calc-panel.open { transform:translateX(0); }
   .calc-panel-hdr {
     display:flex;align-items:center;justify-content:space-between;
-    padding:16px 22px;border-bottom:1px solid #edf0f7;
+    padding:14px 16px;border-bottom:1px solid #edf0f7;
     background:#fff;flex-shrink:0;
   }
-  .calc-panel-hdr h3 { font-size:17px;font-weight:700;color:#0f172a;margin:0; }
-  .calc-close { background:none;border:1px solid #e2e8f2;color:#475569;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center; }
+  .calc-panel-hdr h3 { font-size:15px;font-weight:700;color:#0f172a;margin:0; }
+  .calc-close { background:none;border:1px solid #e2e8f2;color:#475569;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center; }
   .calc-close:hover { background:#f4f6fb; }
-  .calc-body { flex:1;overflow-y:auto;padding:18px 22px; }
-  .calc-section { margin-bottom:18px; }
-  .calc-label { font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:#8896b0;margin-bottom:7px; }
-  .calc-row { display:flex;align-items:center;gap:8px;margin-bottom:8px; }
-  .calc-input { border:1px solid #e2e8f2;border-radius:8px;padding:10px 14px;font-size:16px;font-family:inherit;color:#0f172a;background:#f8fafd;outline:none;transition:border-color 0.15s;width:100%; }
+  .calc-body { flex:1;overflow-y:auto;padding:14px 16px; }
+  .calc-section { margin-bottom:14px; }
+  .calc-label { font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#8896b0;margin-bottom:6px; }
+  .calc-row { display:flex;align-items:center;gap:8px;margin-bottom:6px; }
+  .calc-input { border:1px solid #e2e8f2;border-radius:6px;padding:6px 10px;font-size:14px;font-family:inherit;color:#0f172a;background:#f8fafd;outline:none;width:80px;text-align:center;font-weight:600; }
   .calc-input:focus { border-color:#4f6ef7;background:#fff; }
-  .calc-presets { display:flex;flex-wrap:wrap;gap:6px;margin-top:6px; }
-  .calc-preset { background:#f4f6fb;border:1px solid #e2e8f2;color:#475569;font-size:13px;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:500; }
+  .calc-preset { background:#f4f6fb;border:1px solid #e2e8f2;color:#475569;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:500; }
   .calc-preset:hover,.calc-preset.active { background:#4f6ef7;color:#fff;border-color:#4f6ef7; }
   .calc-countries { display:flex;flex-direction:column;gap:0; }
   .calc-country-row {
-    display:grid;grid-template-columns:60px 1fr 110px auto;gap:10px;
-    align-items:center;padding:10px 10px;border-bottom:1px solid #f4f6fb;
+    display:grid;grid-template-columns:46px 1fr 60px auto;gap:6px;
+    align-items:center;padding:7px 4px;border-bottom:1px solid #f4f6fb;
     transition:background 0.1s;
   }
   .calc-country-row:hover { background:#f8fafd; }
   .calc-country-row:last-child { border-bottom:none; }
-  .calc-flag { font-size:13px;font-weight:700;color:#475569;line-height:1.2; }
-  .calc-flag small { display:block;color:#8896b0;font-weight:400;font-size:11px; }
-  .calc-price-in { border:1px solid #e2e8f2;border-radius:6px;padding:7px 10px;font-size:16px;font-family:inherit;color:#0f172a;background:#f8fafd;outline:none;width:100%;text-align:right;font-weight:600; }
+  .calc-flag { font-size:11px;font-weight:700;color:#475569;line-height:1.2; }
+  .calc-flag small { display:block;color:#8896b0;font-weight:400;font-size:10px; }
+  .calc-price-in { border:1px solid #e2e8f2;border-radius:5px;padding:5px 7px;font-size:13px;font-family:inherit;color:#0f172a;background:#f8fafd;outline:none;width:100%;text-align:right;font-weight:600; }
   .calc-price-in:focus { border-color:#4f6ef7;background:#fff; }
-  .calc-nova { font-size:11px;color:#8896b0;text-align:right;line-height:1.3; }
-  .calc-nova strong { display:block;font-size:15px;color:#4f6ef7;font-weight:700; }
-  .calc-copy-btn { background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:13px;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap; }
+  .calc-nova { font-size:10px;color:#8896b0;text-align:right;line-height:1.2; }
+  .calc-nova strong { display:block;font-size:11px;color:#4f6ef7;font-weight:600; }
+  .calc-copy-btn { background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:10px;padding:3px 7px;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap; }
   .calc-copy-btn:hover { background:#dcfce7; }
   .calc-copy-btn.copied { background:#4f6ef7;border-color:#4f6ef7;color:#fff; }
 </style>
 
-<div class="calc-overlay" id="calcOverlay" onclick="calcClose()"></div>
+</div><!-- /pricechecker-content -->
+
 <div class="calc-panel" id="calcPanel">
   <div class="calc-panel-hdr">
     <h3>💰 Kalkulator cen</h3>
     <button class="calc-close" onclick="calcClose()">✕</button>
   </div>
   <div class="calc-body">
-    <!-- Popust -->
-    <div class="calc-section">
-      <div class="calc-label">Popust %</div>
-      <div class="calc-row">
-        <input class="calc-input" type="number" id="calcPopust" value="25" step="1" min="0" max="90" oninput="calcUpdate()" onfocus="this.select()" style="text-align:center;font-weight:600">
+    <!-- Popust + Zaokroži v isti vrstici -->
+    <div class="calc-section" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="calc-label" style="margin:0">Popust %</div>
+        <input class="calc-input" type="number" id="calcPopust" value="25" step="1" min="0" max="90" oninput="calcUpdate()" onfocus="this.select()" style="width:60px;padding:5px 8px;font-size:13px">
+        <button class="calc-preset active" onclick="calcSetPopust(25)" style="font-size:11px;padding:3px 8px">25%</button>
       </div>
-      <div class="calc-presets" id="calcPresets">
-        <button class="calc-preset" onclick="calcSetPopust(10)">10%</button>
-        <button class="calc-preset" onclick="calcSetPopust(15)">15%</button>
-        <button class="calc-preset" onclick="calcSetPopust(20)">20%</button>
-        <button class="calc-preset active" onclick="calcSetPopust(25)">25%</button>
-        <button class="calc-preset" onclick="calcSetPopust(30)">30%</button>
-        <button class="calc-preset" onclick="calcSetPopust(35)">35%</button>
-        <button class="calc-preset" onclick="calcSetPopust(40)">40%</button>
-        <button class="calc-preset" onclick="calcSetPopust(50)">50%</button>
-      </div>
-    </div>
-    <!-- Zaokroži -->
-    <div class="calc-section" style="display:flex;align-items:center;justify-content:space-between">
-      <div class="calc-label" style="margin:0">Zaokroževanje (X.99)</div>
-      <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
-        <input type="checkbox" id="calcRound" checked onchange="calcUpdate()" style="cursor:pointer;width:16px;height:16px;accent-color:#4f6ef7">
-        <span style="font-size:13px;color:#475569">Vklop</span>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+        <input type="checkbox" id="calcRound" checked onchange="calcUpdate()" style="cursor:pointer;width:14px;height:14px;accent-color:#4f6ef7">
+        <span style="font-size:11px;color:#475569">X.99</span>
       </label>
     </div>
     <!-- Rezultati po državah -->
@@ -1553,12 +1539,12 @@ const CALC_COUNTRIES = [
 ];
 
 function calcOpen() {
-  document.getElementById('calcOverlay').classList.add('open');
+  document.body.classList.add('calc-open');
   document.getElementById('calcPanel').classList.add('open');
   calcUpdate();
 }
 function calcClose() {
-  document.getElementById('calcOverlay').classList.remove('open');
+  document.body.classList.remove('calc-open');
   document.getElementById('calcPanel').classList.remove('open');
 }
 
@@ -1648,7 +1634,7 @@ function calcUpdateRow(code, nc, rvc, popust) {
   const novaCms = fin / c.vat / (1 - popust);
 
   const cms = document.getElementById('ccms-' + code);
-  if (cms) cms.innerHTML = `<span style="font-size:10px">NOVA CMS</span><strong>${calcFormatPrice(novaCms, 'EUR')}</strong>`;
+  if (cms) cms.innerHTML = `<strong style="font-size:11px">${calcFormatPrice(novaCms, 'EUR')}</strong>`;
 }
 
 function calcCopyRow(code, curr, btn) {
