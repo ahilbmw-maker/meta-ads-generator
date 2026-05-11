@@ -7870,3 +7870,26 @@ async def forecast2_bulk_finals(data: dict):
         return {"ok": True, "saved": saved, "errors": errors}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@app.post("/forecast2-cleanup")
+async def forecast2_cleanup():
+    """Počisti phantom entries v vseh dnevnih fajlih."""
+    try:
+        cleaned_days = 0
+        removed_entries = 0
+        for fp in FORECAST2_DIR.glob("*.json"):
+            try:
+                data = json.loads(fp.read_text(encoding="utf-8"))
+                entries = data.get("entries", [])
+                valid = [e for e in entries if e and isinstance(e, dict) and e.get("time") and "orders" in e]
+                if len(valid) != len(entries):
+                    data["entries"] = valid
+                    fp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+                    cleaned_days += 1
+                    removed_entries += (len(entries) - len(valid))
+            except Exception as e:
+                print(f"[fc2 cleanup] error {fp}: {e}")
+        return {"ok": True, "cleaned_days": cleaned_days, "removed_entries": removed_entries}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
