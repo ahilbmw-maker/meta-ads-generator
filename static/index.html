@@ -87,7 +87,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 }
 
 /* ── SIDEBAR ── */
-.sidebar { width: var(--sidebar); flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1.25rem 0.75rem; gap: 4px; min-height: 100vh; }
+.sidebar { width: var(--sidebar); flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1.25rem 0.75rem; gap: 4px; height: 100vh; position: sticky; top: 0; overflow-y: auto; }
 .sidebar-logo { display: flex; align-items: center; gap: 8px; padding: 0 0.5rem 1.25rem; border-bottom: 1px solid var(--border); margin-bottom: 0.75rem; }
 .sidebar-logo-icon { width: 28px; height: 28px; border-radius: 7px; background: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .sidebar-logo-icon svg { width: 14px; height: 14px; fill: white; }
