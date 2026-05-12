@@ -1180,7 +1180,7 @@ input[type="text"].error { border-color: var(--red) !important; }
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
                 <span style="font-size:11px;color:var(--text-secondary)">Kreativ</span>
-                <span style="font-size:11px;font-weight:600;color:var(--text)">12 / produkt</span>
+                <span style="font-size:11px;font-weight:600;color:var(--text)">16 / produkt</span>
               </div>
             </div>
           </div>
@@ -1195,7 +1195,7 @@ input[type="text"].error { border-color: var(--red) !important; }
 
         <!-- DESNO: 3 sloti -->
         <div style="display:flex;flex-direction:column;gap:8px">
-          <p style="font-size:11px;color:var(--text-secondary);margin:0 0 2px;line-height:1.5">Fetch do 3 maaarket izdelke → pripravi request → Claude kliče Higgsfield MCP → 12 kreativ/produkt</p>
+          <p style="font-size:11px;color:var(--text-secondary);margin:0 0 2px;line-height:1.5">Fetch do 3 maaarket izdelke → pripravi request → Claude kliče Higgsfield MCP → 16 kreativ/produkt</p>
 
           <!-- Slot 0 -->
           <div class="card" id="hfSlot0" style="padding:12px">
@@ -7869,33 +7869,60 @@ function hfUpdateGenBtn() {
   btn.style.cursor = ready === 0 ? 'not-allowed' : 'pointer';
   document.getElementById('hfGenTxt').textContent = ready === 0
     ? 'Generiraj v Claude ↗'
-    : `Generiraj ${ready * 12} kreativ (${ready} × 12) ↗`;
+    : `Generiraj ${ready * 16} kreativ (${ready} × 16) ↗`;
 }
 
 function hfGenerate() {
   const ready = hfSlots.filter(Boolean);
   if (!ready.length) return;
 
-  let msg = `SI FB ad creative specialist za maaarket.si.\n\n`;
+  let msg = `Si FB ad creative specialist za maaarket.si.\n\n`;
   msg += `NAVODILA:\n`;
   msg += `1. Fetchaj URL → preberi naslov, opis, sales count, rating, oglede\n`;
   msg += `2. Brand = zadnja CamelCase beseda v naslovu\n`;
-  msg += `3. Sestavi prompte A+B+C po sistemu spodaj\n`;
-  msg += `4. Pokliči Higgsfield MCP 3× (model: nano-banana-2, ratio: 1:1, count: 4)\n`;
-  msg += `5. Slike so direktno z api.maaarket.si — Higgsfield fetchne sam\n`;
-  msg += `6. Ko končaš napiši: DONE [brand]\n\n`;
+  msg += `3. Sestavi prompte A+B+C+D po sistemu spodaj\n`;
+  msg += `4. Pokliči Higgsfield MCP: model=nano-banana-2, ratio=1:1\n`;
+  msg += `   - A, B, C: count=4\n`;
+  msg += `   - D1, D2, D3, D4: count=1 vsak\n`;
+  msg += `5. Ko končaš napiši: DONE [brand]\n\n`;
 
-  msg += `PROMPT SISTEM:\n`;
-  msg += `A = lifestyle/rezultat ozadje → copy: "Feature, Feature, Benefit."\n`;
-  msg += `B = problem vs rešitev ozadje → copy: "Problem? Brand, Rešitev."\n`;
-  msg += `C = close-up/akcija ozadje → copy: "Verb, Verb, Done."\n\n`;
+  msg += `PROMPT SISTEM:\n\n`;
 
-  msg += `PROMPT TEMPLATE:\n`;
+  msg += `A = MAIN + LIFESTYLE\n`;
+  msg += `- Ozadje: "kako izgleda rezultat/po uporabi" — aspiracijsko\n`;
+  msg += `- Copy format: "Feature, Feature, Benefit."\n`;
+  msg += `- count: 4\n\n`;
+
+  msg += `B = HIGH-CONVERT + PROBLEM/SOLUTION\n`;
+  msg += `- Ozadje: kontrast problem vs rešitev\n`;
+  msg += `- Copy format: "Problem? Brand, Rešitev."\n`;
+  msg += `- count: 4\n\n`;
+
+  msg += `C = SCROLL STOPPER + CLOSE-UP\n`;
+  msg += `- Ozadje: satisfying akcija ali close-up detajl\n`;
+  msg += `- Copy format: "Verb, Verb, Done." (3 besede max)\n`;
+  msg += `- count: 4\n\n`;
+
+  msg += `D = TEXT HOOK (brez branda, brez logotipa)\n`;
+  msg += `- Ozadje: vzame najboljši vibe iz A, B ali C\n`;
+  msg += `- Na sliki SAMO EN velik bold tekst — nič drugega\n`;
+  msg += `- D1 Transformation: pred/po psihologija (npr. "YOUR SPACE TRANSFORMED")\n`;
+  msg += `- D2 Problem: boli točka (npr. "STILL DOING IT THE HARD WAY?")\n`;
+  msg += `- D3 Social Proof: številke/zaupanje (npr. "2,335 PEOPLE CAN'T BE WRONG")\n`;
+  msg += `- D4 Urgency: akcija zdaj (npr. "YOU NEED THIS. NOW.")\n`;
+  msg += `- count: 1 vsak (4× skupaj)\n\n`;
+
+  msg += `PROMPT TEMPLATES:\n\n`;
+
+  msg += `Za A, B, C:\n`;
   msg += `"Iz teh slikc mi ustvari novo kreativo za FB oglase. Poskusi bolj z intenzivnim \"[VIBE]\" ozadjem. Na sliki ne pisat nobenega texta/besedila razen ime naprave z velikimi črkami \"[BRAND]\" lahko kjer uspeš oz. je smiselno (prepoznas kakšne angleške nazive) tudi narediš ven logotip iz imena. Uporabi logotip iz slikc (exact). Izpostavi (lahko v ikoni, textu - v angleškem jeziku) da je: [COPY]."\n\n`;
+
+  msg += `Za D1, D2, D3, D4:\n`;
+  msg += `"Iz teh slikc ustvari FB ad kreativo z ENIM samim velikim bold tekstom na sliki: '[TEKST]'. Brez logotipa, brez branda, brez nobenega drugega besedila. Ozadje: [VIBE]. Tekst dominanten, čist, bold."\n\n`;
 
   msg += `═══════════════════════════════════════════════\n\n`;
 
-  msg += `Generiraj Higgsfield kreative za ${ready.length} produkt${ready.length > 1 ? 'e' : ''}. Za vsakega naredi 12 kreativ (model: nano-banana-2, ratio 1:1).\n\n`;
+  msg += `Generiraj Higgsfield kreative za ${ready.length} produkt${ready.length > 1 ? 'e' : ''}. Za vsakega naredi 16 kreativ (model: nano-banana-2, ratio 1:1).\n\n`;
 
   ready.forEach((s, i) => {
     msg += `--- PRODUKT ${i+1} ---\n`;
@@ -7905,7 +7932,7 @@ function hfGenerate() {
     msg += `Slike (${s.images.length}):\n${s.images.join('\n')}\n\n`;
   });
 
-  msg += `Za vsak produkt: fetch stran za opis → naredi prompte A+B+C → generiraj 4×3=12 kreativ. Ko končaš enega napiši "DONE [brand]" in greš na naslednjega.`;
+  msg += `Za vsak produkt: fetch stran za opis → naredi prompte A+B+C+D → generiraj 16 kreativ. Ko končaš napiši "DONE [brand]".`;
 
   navigator.clipboard.writeText(msg).then(() => {
     const btn = document.getElementById('hfGenBtn');
