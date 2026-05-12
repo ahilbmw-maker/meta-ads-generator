@@ -1180,7 +1180,7 @@ input[type="text"].error { border-color: var(--red) !important; }
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
                 <span style="font-size:11px;color:var(--text-secondary)">Kreativ</span>
-                <span style="font-size:11px;font-weight:600;color:var(--text)">16 / produkt</span>
+                <span style="font-size:11px;font-weight:600;color:var(--text)">12 / produkt</span>
               </div>
             </div>
           </div>
@@ -1195,7 +1195,7 @@ input[type="text"].error { border-color: var(--red) !important; }
 
         <!-- DESNO: 3 sloti -->
         <div style="display:flex;flex-direction:column;gap:8px">
-          <p style="font-size:11px;color:var(--text-secondary);margin:0 0 2px;line-height:1.5">Fetch do 3 maaarket izdelke → pripravi request → Claude kliče Higgsfield MCP → 16 kreativ/produkt</p>
+          <p style="font-size:11px;color:var(--text-secondary);margin:0 0 2px;line-height:1.5">Fetch do 3 maaarket izdelke → pripravi request → Claude kliče Higgsfield MCP → 12 kreativ/produkt</p>
 
           <!-- Slot 0 -->
           <div class="card" id="hfSlot0" style="padding:12px">
@@ -7869,13 +7869,34 @@ function hfUpdateGenBtn() {
   btn.style.cursor = ready === 0 ? 'not-allowed' : 'pointer';
   document.getElementById('hfGenTxt').textContent = ready === 0
     ? 'Generiraj v Claude ↗'
-    : `Generiraj ${ready * 16} kreativ (${ready} × 16) ↗`;
+    : `Generiraj ${ready * 12} kreativ (${ready} × 12) ↗`;
 }
 
 function hfGenerate() {
   const ready = hfSlots.filter(Boolean);
   if (!ready.length) return;
-  let msg = `Generiraj Higgsfield kreative za ${ready.length} produkt${ready.length > 1 ? 'e' : ''}. Za vsakega naredi 16 kreativ (model: nano_banana_2, ratio 1:1).\n\n`;
+
+  let msg = `SI FB ad creative specialist za maaarket.si.\n\n`;
+  msg += `NAVODILA:\n`;
+  msg += `1. Fetchaj URL → preberi naslov, opis, sales count, rating, oglede\n`;
+  msg += `2. Brand = zadnja CamelCase beseda v naslovu\n`;
+  msg += `3. Sestavi prompte A+B+C po sistemu spodaj\n`;
+  msg += `4. Pokliči Higgsfield MCP 3× (model: nano_banana_2, ratio: 1:1, count: 4)\n`;
+  msg += `5. Slike so direktno z api.maaarket.si — Higgsfield fetchne sam\n`;
+  msg += `6. Ko končaš napiši: DONE [brand]\n\n`;
+
+  msg += `PROMPT SISTEM:\n`;
+  msg += `A = lifestyle/rezultat ozadje → copy: "Feature, Feature, Benefit."\n`;
+  msg += `B = problem vs rešitev ozadje → copy: "Problem? Brand, Rešitev."\n`;
+  msg += `C = close-up/akcija ozadje → copy: "Verb, Verb, Done."\n\n`;
+
+  msg += `PROMPT TEMPLATE:\n`;
+  msg += `"Iz teh slikc mi ustvari novo kreativo za FB oglase. Poskusi bolj z intenzivnim \"[VIBE]\" ozadjem. Na sliki ne pisat nobenega texta/besedila razen ime naprave z velikimi črkami \"[BRAND]\" lahko kjer uspeš oz. je smiselno (prepoznas kakšne angleške nazive) tudi narediš ven logotip iz imena. Uporabi logotip iz slikc (exact). Izpostavi (lahko v ikoni, textu - v angleškem jeziku) da je: [COPY]."\n\n`;
+
+  msg += `═══════════════════════════════════════════════\n\n`;
+
+  msg += `Generiraj Higgsfield kreative za ${ready.length} produkt${ready.length > 1 ? 'e' : ''}. Za vsakega naredi 12 kreativ (model: nano_banana_2, ratio 1:1).\n\n`;
+
   ready.forEach((s, i) => {
     msg += `--- PRODUKT ${i+1} ---\n`;
     msg += `Brand: ${s.brand}\n`;
@@ -7883,7 +7904,9 @@ function hfGenerate() {
     msg += `Naslov: ${s.title}\n`;
     msg += `Slike (${s.images.length}):\n${s.images.join('\n')}\n\n`;
   });
-  msg += `Za vsak produkt: fetch stran za opis → naredi prompte A+B+C → generiraj 4×3=16 kreativ. Ko končaš enega napiši "DONE [brand]" in greš na naslednjega.`;
+
+  msg += `Za vsak produkt: fetch stran za opis → naredi prompte A+B+C → generiraj 4×3=12 kreativ. Ko končaš enega napiši "DONE [brand]" in greš na naslednjega.`;
+
   navigator.clipboard.writeText(msg).then(() => {
     const btn = document.getElementById('hfGenBtn');
     const orig = btn.innerHTML;
