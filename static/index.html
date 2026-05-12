@@ -7875,7 +7875,7 @@ function hfUpdateGenBtn() {
 function hfGenerate() {
   const ready = hfSlots.filter(Boolean);
   if (!ready.length) return;
-  let msg = `Generiraj Higgsfield kreative za ${ready.length} produkt${ready.length > 1 ? 'e' : ''}. Za vsakega naredi 13 kreativ (model: nano_banana_2, ratio 1:1).\n\n`;
+  let msg = `Generiraj Higgsfield kreative za ${ready.length} produkt${ready.length > 1 ? 'e' : ''}. Za vsakega naredi 16 kreativ (model: nano_banana_2, ratio 1:1).\n\n`;
   ready.forEach((s, i) => {
     msg += `--- PRODUKT ${i+1} ---\n`;
     msg += `Brand: ${s.brand}\n`;
@@ -7883,10 +7883,7 @@ function hfGenerate() {
     msg += `Naslov: ${s.title}\n`;
     msg += `Slike (${s.images.length}):\n${s.images.join('\n')}\n\n`;
   });
-  msg += `Za vsak produkt: fetch stran za opis → naredi prompte A+B+C+D → generiraj 13 kreativ:\n`;
-  msg += `- A: 3× count:1 — isti vibe, vsaka slika drugačen zorni kot / kompozicija / element v ospredju\n`;
-  msg += `- B: 3× count:1 — isti vibe, vsaka slika drugačen zorni kot / kompozicija / element v ospredju\n`;
-  msg += `- C: 3× count:1 — isti vibe, vsaka slika drugačen zorni kot / kompozicija / element v ospredju\n`;
+  msg += `Za vsak produkt: fetch stran za opis → naredi prompte A+B+C+D → generiraj 4×4=16 kreativ.\n`;
   msg += `- D: 4× count:1 — vsaka slika DRUGAČNA TEZA (D1: Transformation, D2: Problem, D3: Social Proof, D4: Urgency) — brez branda, samo teza kot glavni tekst na sliki\n`;
   msg += `Ko končaš napiši "DONE [brand]" in greš na naslednjega.`;
   navigator.clipboard.writeText(msg).then(() => {
