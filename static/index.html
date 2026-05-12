@@ -1189,6 +1189,10 @@ input[type="text"].error { border-color: var(--red) !important; }
             style="padding:9px;background:#16a34a;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;opacity:0.35;transition:opacity 0.15s">
             <span id="hfGenTxt">Generiraj v Claude ↗</span>
           </button>
+          <button id="hfGenOldBtn" onclick="hfGenerateOld()" disabled
+            style="padding:9px;background:#f59e0b;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;opacity:0.35;transition:opacity 0.15s">
+            <span id="hfGenOldTxt">OLD prompt ↗</span>
+          </button>
           <div style="font-size:11px;color:var(--text-tertiary);text-align:center">Kopira → prilepi v Claude chat</div>
           <div id="hfGenStatus" style="display:none;padding:8px 10px;border-radius:var(--radius);font-size:11px;background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a"></div>
         </div>
@@ -7870,6 +7874,16 @@ function hfUpdateGenBtn() {
   document.getElementById('hfGenTxt').textContent = ready === 0
     ? 'Generiraj v Claude ↗'
     : `Generiraj ${ready * 12} kreativ (${ready} × 12) ↗`;
+
+  const btnOld = document.getElementById('hfGenOldBtn');
+  if (btnOld) {
+    btnOld.disabled = ready === 0;
+    btnOld.style.opacity = ready === 0 ? '0.35' : '1';
+    btnOld.style.cursor = ready === 0 ? 'not-allowed' : 'pointer';
+    document.getElementById('hfGenOldTxt').textContent = ready === 0
+      ? 'OLD prompt ↗'
+      : `OLD prompt — ${ready * 12} kreativ ↗`;
+  }
 }
 
 function hfGenerate() {
@@ -7945,6 +7959,29 @@ function hfGenerate() {
     document.getElementById('hfGenStatus').style.display = 'block';
     document.getElementById('hfGenStatus').textContent = `✓ ${ready.length} produkt${ready.length>1?'i':''} kopirani — prilepi v Claude chat za generacijo.`;
     setTimeout(() => { btn.innerHTML = orig; btn.style.background = '#16a34a'; }, 4000);
+  });
+}
+
+function hfGenerateOld() {
+  const ready = hfSlots.filter(Boolean);
+  if (!ready.length) return;
+  let msg = `Generiraj Higgsfield kreative za ${ready.length} produkt${ready.length > 1 ? 'e' : ''}. Za vsakega naredi 12 kreativ (model: nano-banana-2, ratio 1:1).\n\n`;
+  ready.forEach((s, i) => {
+    msg += `--- PRODUKT ${i+1} ---\n`;
+    msg += `Brand: ${s.brand}\n`;
+    msg += `URL: ${s.url}\n`;
+    msg += `Naslov: ${s.title}\n`;
+    msg += `Slike (${s.images.length}):\n${s.images.join('\n')}\n\n`;
+  });
+  msg += `Za vsak produkt: fetch stran za opis → naredi prompte A+B+C → generiraj 4×3=12 kreativ. Ko končaš enega napiši "DONE [brand]" in greš na naslednjega.`;
+  navigator.clipboard.writeText(msg).then(() => {
+    const btn = document.getElementById('hfGenOldBtn');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span>✓ Kopirano (OLD)! Prilepi v Claude</span>';
+    btn.style.background = '#d97706';
+    document.getElementById('hfGenStatus').style.display = 'block';
+    document.getElementById('hfGenStatus').textContent = `✓ OLD prompt ${ready.length} produkt${ready.length>1?'i':''} kopirani — prilepi v Claude chat.`;
+    setTimeout(() => { btn.innerHTML = orig; btn.style.background = '#f59e0b'; }, 4000);
   });
 }
 // ── /KREATIVE TABS + HIGGSFIELD ───────────────────────────────
