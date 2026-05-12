@@ -1670,6 +1670,9 @@ input[type="text"].error { border-color: var(--red) !important; }
           <button onclick="vadsZipToAsana()" id="vadsZipAsanaBtn" style="display:none;padding:9px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px">
             📦 → Asana
           </button>
+          <button onclick="vadsToGoogleDrive()" id="vadsGDriveBtn" style="display:none;padding:9px 16px;background:#0f9d58;color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px">
+            📁 → Google Drive
+          </button>
           <span id="vadsBulkStatus" style="font-size:11px;color:var(--text-tertiary);align-self:center"></span>
         </div>
         <div id="vadsEmpty" class="card" style="text-align:center;padding:3rem;color:var(--text-tertiary)">
@@ -3045,6 +3048,112 @@ function homeUpdateDate() {
 
 // ── META COUNTERS ──
 function change(t, d) { metaState[t] = Math.min(MAX, Math.max(1, metaState[t]+d)); updateMeta(); }
+
+async function vadsToGoogleDrive() {
+  const audioBlobs = window._vadsAudioBlobs || {};
+  if (!Object.keys(audioBlobs).length) {
+    alert('Najprej generiraj audio.');
+    return;
+  }
+  const sku = (document.getElementById('vadsSku')?.value || '').trim().toUpperCase();
+  if (!sku) {
+    alert('Vpiši SKU.');
+    return;
+  }
+
+  const btn = document.getElementById('vadsGDriveBtn');
+  const origText = btn.innerHTML;
+  const bulkStatus = document.getElementById('vadsBulkStatus');
+
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Pripravljam...';
+
+  try {
+    // Pripravi merge tasks (enak format kot vadsBuildZipBlob ampak namesto v ZIP pošljemo direkt v Drive)
+    if (!window.JSZip) { await new Promise((res,rej) => { const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+
+    const srts = window._vadsSrts || {};
+    const tasks = [];
+    for (const [lang, blob] of Object.entries(audioBlobs)) {
+      for (let vi = 0; vi < vadsVideoFiles.length; vi++) {
+        tasks.push({lang, audioBlob: blob, videoFile: vadsVideoFiles[vi], vi});
+      }
+    }
+    const total = tasks.length;
+    let uploaded = 0;
+    let folderLink = null;
+    const errors = [];
+
+    const PARALLEL = 2;
+    const runTask = async (task) => {
+      const {lang, audioBlob, videoFile, vi} = task;
+      try {
+        // 1. Merge video + audio + srt
+        const mergeFd = new FormData();
+        mergeFd.append('video', videoFile, videoFile.name);
+        mergeFd.append('audio', audioBlob, 'audio.mp3');
+        mergeFd.append('lang', lang);
+        if (srts[lang]) {
+          mergeFd.append('srt', new Blob([srts[lang]], {type: 'text/plain'}), 'subs.srt');
+        }
+        const mergeRes = await fetch('/merge-video-audio', {method: 'POST', body: mergeFd});
+        if (!mergeRes.ok) throw new Error('Merge failed: ' + mergeRes.status);
+        const videoBlob = await mergeRes.blob();
+
+        // 2. Upload merged video to Drive
+        const uploadFd = new FormData();
+        uploadFd.append('video', videoBlob, 'video.mp4');
+        uploadFd.append('sku_name', sku);
+        uploadFd.append('country_code', lang);
+        uploadFd.append('video_version', String(vi + 1));
+        const upRes = await fetch('/drive-upload-video-binary', {method: 'POST', body: uploadFd});
+        const upData = await upRes.json();
+        if (!upData.ok) throw new Error(upData.error || 'Upload failed');
+        if (upData.folder_link) folderLink = upData.folder_link;
+        uploaded++;
+      } catch (e) {
+        errors.push(`${lang}_v${vi+1}: ${e.message}`);
+      }
+      btn.innerHTML = `⏳ ${uploaded}/${total} naloženo...`;
+      if (bulkStatus) bulkStatus.textContent = `Drive upload: ${uploaded}/${total}` + (errors.length ? ` (${errors.length} napak)` : '');
+    };
+
+    const queue = [...tasks];
+    const workers = Array(PARALLEL).fill(null).map(async () => {
+      while (queue.length) { const t = queue.shift(); if (t) await runTask(t); }
+    });
+    await Promise.all(workers);
+
+    if (errors.length) {
+      btn.innerHTML = `⚠ ${uploaded}/${total} (${errors.length} napak)`;
+      console.error('Drive upload errors:', errors);
+    } else {
+      btn.innerHTML = '✓ Naloženo!';
+    }
+
+    if (folderLink) {
+      const msg = `✓ ${uploaded} videov naloženo v Drive (SKU: ${sku}).\n\nFolder link:\n${folderLink}\n\nKopiral sem ga v clipboard.`;
+      try { await navigator.clipboard.writeText(folderLink); } catch(e) {}
+      if (bulkStatus) {
+        bulkStatus.innerHTML = `✓ ${uploaded}/${total} naloženo · <a href="${folderLink}" target="_blank" style="color:var(--accent)">📁 Odpri Drive mapo</a> · link kopiran`;
+      }
+      alert(msg);
+    }
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = origText;
+    }, 4000);
+  } catch (e) {
+    console.error(e);
+    btn.innerHTML = '✗ Napaka';
+    if (bulkStatus) bulkStatus.textContent = '✗ ' + e.message;
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = origText;
+    }, 3000);
+  }
+}
 
 async function vadsZipToAsana() {
   const audioBlobs = window._vadsAudioBlobs || {};
@@ -6065,6 +6174,7 @@ async function vadsGenerateAllAudio() {
   if (zipBtn && window._vadsAudioBlobs && Object.keys(window._vadsAudioBlobs).length > 0) {
     zipBtn.style.display = 'flex';
     const zaBtn = document.getElementById('vadsZipAsanaBtn'); if (zaBtn) zaBtn.style.display = 'flex';
+    const gdBtn = document.getElementById('vadsGDriveBtn'); if (gdBtn) gdBtn.style.display = 'flex';
   }
 }
 
