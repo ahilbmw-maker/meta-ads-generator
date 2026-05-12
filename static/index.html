@@ -7883,9 +7883,54 @@ function hfGenerate() {
     msg += `Naslov: ${s.title}\n`;
     msg += `Slike (${s.images.length}):\n${s.images.join('\n')}\n\n`;
   });
-  msg += `Za vsak produkt: fetch stran za opis → naredi prompte A+B+C+D → generiraj 4×4=16 kreativ.\n`;
-  msg += `- D: 4× count:1 — vsaka slika DRUGAČNA TEZA (D1: Transformation, D2: Problem, D3: Social Proof, D4: Urgency) — brez branda, samo teza kot glavni tekst na sliki. POMEMBNO: tekst se NE SME PODVAJATI na isti sliki (ne dva napisa, ne ponavljanje istih besed na vrhu in dnu) — SAMO EN tekst na sliko.\n`;
-  msg += `Ko končaš napiši "DONE [brand]" in greš na naslednjega.`;
+
+  msg += `═══════════════════════════════════════════════\n`;
+  msg += `KAKO GENERIRATI (sledi navodilom dosledno):\n`;
+  msg += `═══════════════════════════════════════════════\n\n`;
+
+  msg += `KORAK 1: Fetchaj URL za opis izdelka (preberi stran).\n`;
+  msg += `KORAK 2: Iz fetched podatkov in slik izlušči:\n`;
+  msg += `  • Product name (kratko, "[BRAND]" formula)\n`;
+  msg += `  • 3 bullet points (kratko, v angleščini, npr. "Steel frame, holds 20kg, organise any room instantly")\n`;
+  msg += `  • Glavna Transformation teza (npr. "messy room to organised space", "tired skin to glowing skin")\n\n`;
+
+  msg += `KORAK 3: Generiraj 4 PROMPT VARIANTE × 4 kreative = 16 kreativ (count:4 v vsakem klicu)\n\n`;
+
+  msg += `── PROMPT A (4 kreative iste vibe) ──\n`;
+  msg += `Naredi novo kreativo za FB oglase. Poskusi bolj z intenzivnim "[TRANSFORMATION VIBE]" ozadjem.\n`;
+  msg += `Na sliki ne pisat nobenega texta/besedila razen ime naprave z velikimi črkami "[BRAND]" lahko kjer uspeš oz. je smiselno (prepoznaš kakšne angleške nazive) tudi narediš ven logotip iz imena.\n`;
+  msg += `Uporabi logotip iz slik (exact).\n`;
+  msg += `Izpostavi (lahko v ikoni, textu - v angleškem jeziku) da je: [BULLET 1], [BULLET 2], [BULLET 3].\n\n`;
+
+  msg += `── PROMPT B (4 kreative — variacija vibe-a) ──\n`;
+  msg += `Enak format kot A, ampak drug zorni kot / setting / scena. Lahko poskusiš:\n`;
+  msg += `  • Drugo prizorišče (kuhinja vs dnevna soba vs spalnica)\n`;
+  msg += `  • Drug lifestyle (mama z otroki vs minimalist vs gen Z)\n`;
+  msg += `  • Drugačno svetlobo (jutranje svetlo vs večerno toplo)\n\n`;
+
+  msg += `── PROMPT C (4 kreative — še ena variacija vibe-a) ──\n`;
+  msg += `Enak format kot A/B, ampak DRUGAČNA estetika:\n`;
+  msg += `  • Bolj close-up product shot z lifestyle ozadjem\n`;
+  msg += `  • ALI bolj wide angle s celo scene\n`;
+  msg += `  • ALI before/after split kompozicija\n\n`;
+
+  msg += `── PROMPT D (4 ločeni klici, count:1, vsak DRUGAČNA teza) ──\n`;
+  msg += `Generiraj 4 kreative — vsaka z DRUGAČNIM glavnim tekstom na sliki (BREZ branda, samo teza):\n`;
+  msg += `  D1: Transformation → "[TEZA 1]" (npr. "YOUR SPACE TRANSFORMED", "GLOW UP YOUR SKIN")\n`;
+  msg += `  D2: Problem       → "[TEZA 2]" (npr. "NO MORE WASTED SPACE", "STOP BREAKING NAILS")\n`;
+  msg += `  D3: Social Proof  → "[TEZA 3]" (npr. "2,335 HOMES ORGANISED" — uporabi realno številko ali "10,000+ HAPPY CUSTOMERS")\n`;
+  msg += `  D4: Urgency       → "[TEZA 4]" (npr. "GET YOURS TODAY", "LIMITED STOCK")\n\n`;
+
+  msg += `Format vsake D variante:\n`;
+  msg += `"Iz teh slikc mi ustvari novo kreativo za FB oglase. Poskusi bolj z intenzivnim '[VIBE RELEVANTEN ZA TEZO]' ozadjem.\n`;
+  msg += `Ustvari super lep prodajni napis '[TEZA TEKST]'.\n`;
+  msg += `Izpostavi (lahko v ikoni, textu - v angleškem jeziku) da je: [BULLET 1], [BULLET 2], [BULLET 3]."\n\n`;
+  msg += `POMEMBNO za D: tekst se NE SME PODVAJATI na isti sliki (ne dva napisa, ne ponavljanje istih besed na vrhu in dnu) — SAMO EN tekst na sliko.\n\n`;
+
+  msg += `═══════════════════════════════════════════════\n`;
+  msg += `Ko končaš en produkt napiši "DONE [brand]" in greš na naslednjega.\n`;
+  msg += `═══════════════════════════════════════════════`;
+
   navigator.clipboard.writeText(msg).then(() => {
     const btn = document.getElementById('hfGenBtn');
     const orig = btn.innerHTML;
