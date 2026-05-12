@@ -7884,7 +7884,7 @@ function hfGenerate() {
     msg += `Slike (${s.images.length}):\n${s.images.join('\n')}\n\n`;
   });
   msg += `Za vsak produkt: fetch stran za opis → naredi prompte A+B+C+D → generiraj 4×4=16 kreativ.\n`;
-  msg += `- D: 4× count:1 — vsaka slika DRUGAČNA TEZA (D1: Transformation, D2: Problem, D3: Social Proof, D4: Urgency) — brez branda, samo teza kot glavni tekst na sliki\n`;
+  msg += `- D: 4× count:1 — vsaka slika DRUGAČNA TEZA (D1: Transformation, D2: Problem, D3: Social Proof, D4: Urgency) — brez branda, samo teza kot glavni tekst na sliki. POMEMBNO: tekst se NE SME PODVAJATI na isti sliki (ne dva napisa, ne ponavljanje istih besed na vrhu in dnu) — SAMO EN tekst na sliko.\n`;
   msg += `Ko končaš napiši "DONE [brand]" in greš na naslednjega.`;
   navigator.clipboard.writeText(msg).then(() => {
     const btn = document.getElementById('hfGenBtn');
