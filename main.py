@@ -7917,3 +7917,69 @@ async def forecast2_cleanup():
         return {"ok": True, "cleaned_days": cleaned_days, "removed_entries": removed_entries}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+# ═══════════════════════════════════════════════
+# GOOGLE DRIVE VIDEO UPLOAD (ad localization workflow)
+# ═══════════════════════════════════════════════
+try:
+    from drive_uploader import upload_video_to_drive, get_or_create_sku_folder, list_sku_folders
+    DRIVE_AVAILABLE = True
+except ImportError as e:
+    print(f"[drive] uploader not available: {e}")
+    DRIVE_AVAILABLE = False
+
+
+class DriveUploadRequest(BaseModel):
+    video_url: str
+    sku_name: str
+    country_code: str
+    video_version: int = 1
+
+
+@app.post("/drive-upload-video")
+async def drive_upload_video(req: DriveUploadRequest):
+    """Upload lokaliziran video v Google Drive SKU mapo.
+    Returns: file_id, filename, file_link, folder_link."""
+    if not DRIVE_AVAILABLE:
+        return {"ok": False, "error": "Drive uploader not configured"}
+    try:
+        result = upload_video_to_drive(
+            video_url=req.video_url,
+            sku_name=req.sku_name,
+            country_code=req.country_code,
+            video_version=req.video_version
+        )
+        return {"ok": True, **result}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+class DriveFolderRequest(BaseModel):
+    sku_name: str
+
+
+@app.post("/drive-folder")
+async def drive_folder(req: DriveFolderRequest):
+    """Get or create folder for SKU. Returns folder_id and share_link."""
+    if not DRIVE_AVAILABLE:
+        return {"ok": False, "error": "Drive uploader not configured"}
+    try:
+        info = get_or_create_sku_folder(req.sku_name)
+        return {"ok": True, **info}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/drive-folders")
+async def drive_folders_list():
+    """List all SKU folders with their share links."""
+    if not DRIVE_AVAILABLE:
+        return {"ok": False, "error": "Drive uploader not configured"}
+    try:
+        folders = list_sku_folders()
+        return {"ok": True, "folders": folders}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
