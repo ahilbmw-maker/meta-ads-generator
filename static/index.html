@@ -7875,7 +7875,7 @@ function hfUpdateGenBtn() {
 function hfGenerate() {
   const ready = hfSlots.filter(Boolean);
   if (!ready.length) return;
-  let msg = `Generiraj Higgsfield kreative za ${ready.length} produkt${ready.length > 1 ? 'e' : ''}. Za vsakega naredi 16 kreativ (model: nano_banana_2, ratio 1:1).\n\n`;
+  let msg = `Generiraj Higgsfield kreative za ${ready.length} produkt${ready.length > 1 ? 'e' : ''}. Za vsakega naredi 16 kreativ (ratio 1:1). Modeli: A+B+C uporabljajo nano_banana_2, D uporablja nano_banana_pro (boljši za tekst na sliki).\n\n`;
   ready.forEach((s, i) => {
     msg += `--- PRODUKT ${i+1} ---\n`;
     msg += `Brand: ${s.brand}\n`;
