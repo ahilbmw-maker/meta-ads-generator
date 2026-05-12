@@ -7876,22 +7876,55 @@ function hfGenerate() {
   const ready = hfSlots.filter(Boolean);
   if (!ready.length) return;
 
-  let msg = `SI FB ad creative specialist za maaarket.si.\n\n`;
+  let msg = `Si FB ad creative specialist za maaarket.si.\n\n`;
   msg += `NAVODILA:\n`;
   msg += `1. Fetchaj URL → preberi naslov, opis, sales count, rating, oglede\n`;
   msg += `2. Brand = zadnja CamelCase beseda v naslovu\n`;
-  msg += `3. Sestavi prompte A+B+C po sistemu spodaj\n`;
-  msg += `4. Pokliči Higgsfield MCP 3× (model: nano-banana-2, ratio: 1:1, count: 4)\n`;
-  msg += `5. Slike so direktno z api.maaarket.si — Higgsfield fetchne sam\n`;
+  msg += `3. Napiši produkt brief po spodnjem formatu\n`;
+  msg += `4. Sestavi prompte A+B+C na podlagi briefa\n`;
+  msg += `5. Pokliči Higgsfield MCP 3× (model: nano-banana-2, ratio: 1:1, count: 4)\n`;
   msg += `6. Ko končaš napiši: DONE [brand]\n\n`;
 
-  msg += `PROMPT SISTEM:\n`;
-  msg += `A = lifestyle/rezultat ozadje → copy: "Feature, Feature, Benefit."\n`;
-  msg += `B = problem vs rešitev ozadje → copy: "Problem? Brand, Rešitev."\n`;
-  msg += `C = close-up/akcija ozadje → copy: "Verb, Verb, Done."\n\n`;
+  msg += `KORAK 3 — PRODUKT BRIEF FORMAT:\n\n`;
+  msg += `🧠 PRODUCT: [BRAND] ([kratek opis — max 1 vrstica])\n\n`;
+  msg += `👉 WHAT IT IS: "[kategorija]"\n`;
+  msg += `problem: [kaj boli kupca]\n`;
+  msg += `solution: [kako produkt reši]\n\n`;
+  msg += `👉 THIS PRODUCT:\n`;
+  msg += `[feature 1]\n`;
+  msg += `[feature 2]\n`;
+  msg += `[feature 3]\n`;
+  msg += `[sales count] sold — [1 beseda qualifier]\n\n`;
+  msg += `🔥 MAIN VERSION → [copy A]\n`;
+  msg += `💣 HIGH-CONVERT → [copy B]\n`;
+  msg += `🪓 ULTRA SIMPLE → [copy C]\n\n`;
+  msg += `🎨 BACKGROUND / VIBE\n\n`;
+  msg += `🥇 BEST → [vibe A — max 3 besede v angleščini]\n`;
+  msg += `👉 [1 vrstica opis ozadja]\n\n`;
+  msg += `🥈 SECOND → [vibe B — max 3 besede v angleščini]\n`;
+  msg += `👉 [1 vrstica opis ozadja]\n\n`;
+  msg += `🥉 SCROLL STOPPER → [vibe C — max 3 besede v angleščini]\n`;
+  msg += `👉 [1 vrstica opis ozadja]\n\n`;
 
-  msg += `PROMPT TEMPLATE:\n`;
-  msg += `"Iz teh slikc mi ustvari novo kreativo za FB oglase. Poskusi bolj z intenzivnim \"[VIBE]\" ozadjem. Na sliki ne pisat nobenega texta/besedila razen ime naprave z velikimi črkami \"[BRAND]\" lahko kjer uspeš oz. je smiselno (prepoznas kakšne angleške nazive) tudi narediš ven logotip iz imena. Uporabi logotip iz slikc (exact). Izpostavi (lahko v ikoni, textu - v angleškem jeziku) da je: [COPY]."\n\n`;
+  msg += `PROMPT SISTEM:\n\n`;
+
+  msg += `A = MAIN + LIFESTYLE\n`;
+  msg += `- Vibe: 🥇 BEST iz briefa — ALWAYS IN ENGLISH, max 3 words\n`;
+  msg += `- Copy: 🔥 MAIN VERSION iz briefa\n`;
+  msg += `- Format: "Feature, Feature, Benefit."\n\n`;
+
+  msg += `B = HIGH-CONVERT + PROBLEM/SOLUTION\n`;
+  msg += `- Vibe: 🥈 SECOND iz briefa — ALWAYS IN ENGLISH, max 3 words\n`;
+  msg += `- Copy: 💣 HIGH-CONVERT iz briefa\n`;
+  msg += `- Format: "Problem? Brand, Solution."\n\n`;
+
+  msg += `C = SCROLL STOPPER + CLOSE-UP\n`;
+  msg += `- Vibe: 🥉 SCROLL STOPPER iz briefa — ALWAYS IN ENGLISH, max 3 words\n`;
+  msg += `- Copy: 🪓 ULTRA SIMPLE iz briefa\n`;
+  msg += `- Format: "Verb, Verb, Done."\n\n`;
+
+  msg += `PROMPT TEMPLATE (za vse 3):\n`;
+  msg += `"Iz teh slikc mi ustvari novo kreativo za FB oglase. Poskusi bolj z intenzivnim \"[VIBE]\" ozadjem. Na sliki ne pisat nobenega texta/besedila razen ime naprave z velikimi črkami \"[BRAND]\" — SAMO ENKRAT, ne ponavljaj. Uporabi logotip iz slikc (exact). Izpostavi (lahko v ikoni, textu - v angleškem jeziku) da je: [COPY]. POMEMBNO: vsak tekst se sme pojaviti samo enkrat na sliki."\n\n`;
 
   msg += `═══════════════════════════════════════════════\n\n`;
 
