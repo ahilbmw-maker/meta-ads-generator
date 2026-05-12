@@ -623,6 +623,11 @@ input[type="text"].error { border-color: var(--red) !important; }
     <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
     Odprema
   </div>
+  <div class="nav-item nav-storage" id="nav-storage" onclick="switchPage('storage')">
+    <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+    Storage
+    <span style="margin-left:auto;font-size:13px">💾</span>
+  </div>
 </nav>
 
 <!-- MAIN -->
@@ -747,6 +752,11 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div class="ht-icon">🚚</div>
             <div class="ht-name">Odprema</div>
             <div class="ht-desc">Geoapify validacija Econt BG</div>
+          </div>
+          <div class="home-tile" style="border-left-color:#0f9d58" onclick="switchPage('storage')">
+            <div class="ht-icon">💾</div>
+            <div class="ht-name">Storage</div>
+            <div class="ht-desc">Video output mape · disk usage</div>
           </div>
           <div class="home-tile" style="border-left-color:#534AB7" onclick="switchPage('sporocanje')">
             <div class="ht-icon">💬</div>
@@ -2908,6 +2918,46 @@ input[type="text"].error { border-color: var(--red) !important; }
     </div>
   </div><!-- /page-odprema -->
 
+  <!-- ═══ STORAGE PAGE ═══ -->
+  <div class="page" id="page-storage">
+    <div style="padding:14px;display:flex;flex-direction:column;gap:14px">
+
+      <!-- Header sa stats -->
+      <div id="storage-header" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+          <div>
+            <h1 style="font-size:22px;font-weight:800;letter-spacing:-0.02em;margin:0">💾 Storage</h1>
+            <div style="font-size:12px;color:var(--text-tertiary);margin-top:3px">Video output mape (/data/video_outputs/)</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input id="storageSearch" type="text" placeholder="🔍 Iskanje SKU..." oninput="storageFilter()" style="padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:12px;font-family:inherit;width:200px">
+            <button onclick="storageLoad()" style="padding:7px 14px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🔄 Osveži</button>
+          </div>
+        </div>
+        <div id="storage-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px">
+          <!-- filled by JS -->
+        </div>
+      </div>
+
+      <!-- Bulk action bar -->
+      <div id="storage-bulkbar" style="display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--radius);padding:10px 16px;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div style="font-size:12px;color:#92400e;font-weight:600">
+          <span id="storage-selcount">0</span> SKU izbranih
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="storageBulkDelete()" style="padding:7px 14px;background:#dc2626;color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🗑 Briši izbrane</button>
+          <button onclick="storageClearSelection()" style="padding:7px 14px;background:white;color:#92400e;border:1px solid #fcd34d;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Prekliči</button>
+        </div>
+      </div>
+
+      <!-- SKU list -->
+      <div id="storage-list" style="display:flex;flex-direction:column;gap:8px">
+        <div style="text-align:center;padding:3rem;color:var(--text-tertiary);font-size:13px">Nalagam...</div>
+      </div>
+
+    </div>
+  </div><!-- /page-storage -->
+
 <!-- BULK ACTION BAR — fixed dno, samo za odprema -->
 <div id="odp-bulk-bar" style="display:none;position:fixed;bottom:0;left:var(--sidebar-width, 200px);right:0;z-index:100;background:var(--surface);border-top:1px solid var(--border);padding:10px 20px;align-items:center;gap:10px;box-shadow:0 -2px 8px rgba(0,0,0,0.08)">
   <span id="odp-bulk-count" style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap">0 označenih</span>
@@ -2974,7 +3024,7 @@ function closeMenu(){
   document.querySelector('.sidebar').classList.remove('open');
   document.getElementById('overlay').classList.remove('open');
 }
-const PAGES = ['home','meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads','orodja','analiza','knjigovodstvo','zaloga','sporocanje','odprema'];
+const PAGES = ['home','meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads','orodja','analiza','knjigovodstvo','zaloga','sporocanje','odprema','storage'];
 let currentIdx = 0;
 
 function switchCalcTab(tab) {
@@ -3004,7 +3054,7 @@ function switchPage(page) {
   // Wide layout
   const mainEl = document.querySelector('.main');
   if(mainEl) {
-    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative' || page==='lokalizacija' || page==='narocilnice' || page==='videoads' || page==='orodja' || page==='analiza' || page==='knjigovodstvo' || page==='zaloga' || page==='odprema' || page==='sporocanje') {
+    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative' || page==='lokalizacija' || page==='narocilnice' || page==='videoads' || page==='orodja' || page==='analiza' || page==='knjigovodstvo' || page==='zaloga' || page==='odprema' || page==='sporocanje' || page==='storage') {
       mainEl.classList.add('wide');
     } else if(page==='meta') {
       const formVisible = document.getElementById('metaFormSection').style.display !== 'none';
@@ -3019,6 +3069,7 @@ function switchPage(page) {
   if (page === 'sporocanje') { if(typeof spLoadCommon==='function') spLoadCommon(); if(typeof spLoadMacros==='function') spLoadMacros(); }
   if (page === 'knjigovodstvo') { if(typeof knjLoadHistory==='function') knjLoadHistory(); }
   if (page === 'zaloga') { if(typeof lokLoadCacheStatus==='function') lokLoadCacheStatus(); }
+  if (page === 'storage') { if(typeof storageLoad==='function') storageLoad(); }
   if (page === 'narocilnice') { setTimeout(() => { narcVecjaInitDrop(); narcDvojnikiInitDrop(); }, 100); }
   if (page === 'odprema') { odpLoadHistory(); }
   else { const b = document.getElementById('odp-bulk-bar'); if(b) b.style.display='none'; }
@@ -6918,6 +6969,184 @@ const ODP_SUSPENDED = new Set([
 
 // ODP_VALID_ZIPS — dinamično iz /econt-valid-zips (geo baza)
 let ODP_VALID_ZIPS = new Set();
+
+// ═══════════════════════════════════════════════
+// STORAGE PAGE — Video output mape management
+// ═══════════════════════════════════════════════
+let storageData = null;
+let storageSelected = new Set();
+
+async function storageLoad() {
+  const listEl = document.getElementById('storage-list');
+  listEl.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-tertiary);font-size:13px">⏳ Nalagam...</div>';
+  try {
+    const r = await fetch('/storage-list');
+    const d = await r.json();
+    if (!d.ok) {
+      listEl.innerHTML = '<div style="text-align:center;padding:3rem;color:#dc2626;font-size:13px">❌ ' + (d.error || 'Napaka') + '</div>';
+      return;
+    }
+    storageData = d;
+    storageSelected.clear();
+    storageRender();
+  } catch(e) {
+    listEl.innerHTML = '<div style="text-align:center;padding:3rem;color:#dc2626;font-size:13px">❌ ' + e.message + '</div>';
+  }
+}
+
+function storageRender() {
+  if (!storageData) return;
+  const stats = storageData.stats;
+  const skus = storageData.skus;
+
+  // Render stats
+  const fmtMb = (mb) => mb >= 1024 ? (mb/1024).toFixed(2) + ' GB' : mb.toFixed(1) + ' MB';
+  const diskPct = stats.disk_total_mb > 0 ? Math.round((stats.disk_used_mb / stats.disk_total_mb) * 100) : 0;
+  const statHtml = `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px">
+      <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">SKU mape</div>
+      <div style="font-size:20px;font-weight:700;margin-top:2px">${stats.sku_count}</div>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px">
+      <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Videov skupaj</div>
+      <div style="font-size:20px;font-weight:700;margin-top:2px">${stats.total_videos}</div>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px">
+      <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Velikost (videi)</div>
+      <div style="font-size:20px;font-weight:700;margin-top:2px;color:var(--accent)">${fmtMb(stats.total_size_mb)}</div>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px">
+      <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Render disk</div>
+      <div style="font-size:14px;font-weight:700;margin-top:2px">${fmtMb(stats.disk_used_mb)} / ${fmtMb(stats.disk_total_mb)}</div>
+      <div style="height:4px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden"><div style="height:100%;background:${diskPct>80?'#dc2626':diskPct>60?'#f59e0b':'#22c55e'};width:${diskPct}%"></div></div>
+    </div>
+  `;
+  document.getElementById('storage-stats').innerHTML = statHtml;
+
+  // Filter
+  const q = (document.getElementById('storageSearch')?.value || '').toLowerCase().trim();
+  const filtered = q ? skus.filter(s => s.sku.toLowerCase().includes(q)) : skus;
+
+  if (!filtered.length) {
+    document.getElementById('storage-list').innerHTML = `<div style="text-align:center;padding:3rem;color:var(--text-tertiary);font-size:13px">${skus.length === 0 ? '📭 Ni shranjenih SKU map. Naredi video preko Video Ads → ads.slx Download link.' : '🔍 Ni rezultatov za "' + q + '"'}</div>`;
+    return;
+  }
+
+  // Country code emoji
+  const flagMap = {si:'🇸🇮',hr:'🇭🇷',rs:'🇷🇸',hu:'🇭🇺',pl:'🇵🇱',cz:'🇨🇿',sk:'🇸🇰',gr:'🇬🇷',bg:'🇧🇬',ro:'🇷🇴',it:'🇮🇹',de:'🇩🇪',at:'🇦🇹',ba:'🇧🇦',mk:'🇲🇰'};
+  const fmtDate = (ts) => {
+    const d = new Date(ts * 1000);
+    return d.toLocaleString('sl-SI', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  };
+
+  let html = '';
+  for (const s of filtered) {
+    const isSel = storageSelected.has(s.sku);
+    // Country breakdown
+    const langs = new Set();
+    for (const v of s.videos) {
+      const m = v.filename.match(/^video_([a-z]{2})_v/);
+      if (m) langs.add(m[1]);
+    }
+    const flagsHtml = [...langs].sort().map(l => `<span title="${l}" style="font-size:14px">${flagMap[l] || l}</span>`).join(' ');
+
+    html += `
+      <div class="storage-row" data-sku="${s.sku}" style="background:var(--surface);border:1px solid ${isSel ? 'var(--accent)' : 'var(--border)'};border-radius:var(--radius);transition:all 0.15s;overflow:hidden">
+        <div style="display:grid;grid-template-columns:30px 1fr auto auto auto;gap:14px;align-items:center;padding:12px 16px;cursor:pointer" onclick="storageToggleExpand('${s.sku}')">
+          <input type="checkbox" ${isSel ? 'checked' : ''} onclick="event.stopPropagation();storageToggleSelect('${s.sku}')" style="cursor:pointer;width:16px;height:16px;accent-color:var(--accent)">
+          <div>
+            <div style="font-size:14px;font-weight:700;font-family:monospace;color:var(--text)">${s.sku}</div>
+            <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">${flagsHtml} · ${s.video_count} videov · ${fmtDate(s.modified)}</div>
+          </div>
+          <div style="font-size:13px;font-weight:600;color:var(--accent);font-family:monospace">${s.size_mb} MB</div>
+          <a href="/d/${s.sku}" target="_blank" onclick="event.stopPropagation()" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;color:var(--text);text-decoration:none">🔗 Download stran</a>
+          <button onclick="event.stopPropagation();storageDeleteSku('${s.sku}')" style="padding:6px 10px;background:transparent;border:1px solid #fca5a5;border-radius:6px;font-size:11px;font-weight:600;color:#dc2626;cursor:pointer;font-family:inherit">🗑</button>
+        </div>
+        <div class="storage-files" id="storage-files-${s.sku}" style="display:none;border-top:1px solid var(--border);background:var(--surface2);padding:10px 16px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px">
+            ${s.videos.map(v => `
+              <a href="/video-batch/${s.sku}/${v.filename}" download="${v.filename}" style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;text-decoration:none;color:var(--text);font-size:11px;font-family:monospace;transition:all 0.1s">
+                <span>${v.filename}</span><span style="color:var(--text-tertiary)">${v.size_mb} MB</span>
+              </a>
+            `).join('')}
+          </div>
+        </div>
+      </div>`;
+  }
+  document.getElementById('storage-list').innerHTML = html;
+  storageUpdateBulkBar();
+}
+
+function storageFilter() {
+  storageRender();
+}
+
+function storageToggleExpand(sku) {
+  const el = document.getElementById('storage-files-' + sku);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function storageToggleSelect(sku) {
+  if (storageSelected.has(sku)) storageSelected.delete(sku);
+  else storageSelected.add(sku);
+  storageUpdateBulkBar();
+  // Update row border without full re-render
+  const row = document.querySelector(`.storage-row[data-sku="${sku}"]`);
+  if (row) row.style.borderColor = storageSelected.has(sku) ? 'var(--accent)' : 'var(--border)';
+}
+
+function storageUpdateBulkBar() {
+  const count = storageSelected.size;
+  const bar = document.getElementById('storage-bulkbar');
+  document.getElementById('storage-selcount').textContent = count;
+  bar.style.display = count > 0 ? 'flex' : 'none';
+}
+
+function storageClearSelection() {
+  storageSelected.clear();
+  storageRender();
+}
+
+async function storageDeleteSku(sku) {
+  if (!confirm(`Zbriši SKU mapo "${sku}" in vse videote v njej?`)) return;
+  try {
+    const r = await fetch('/video-batch/' + encodeURIComponent(sku), {method: 'DELETE'});
+    const d = await r.json();
+    if (d.ok) {
+      storageSelected.delete(sku);
+      storageLoad();
+    } else {
+      alert('Napaka: ' + (d.error || 'unknown'));
+    }
+  } catch(e) {
+    alert('Napaka: ' + e.message);
+  }
+}
+
+async function storageBulkDelete() {
+  const skus = [...storageSelected];
+  if (!skus.length) return;
+  if (!confirm(`Zbriši ${skus.length} SKU mape (${skus.join(', ')})?\n\nTo dejanje je trajno.`)) return;
+  try {
+    const r = await fetch('/storage-bulk-delete', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({skus})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      storageSelected.clear();
+      storageLoad();
+      if (d.errors && d.errors.length) {
+        alert('Nekateri SKU niso bili izbrisani:\n' + d.errors.join('\n'));
+      }
+    } else {
+      alert('Napaka pri brisanju.');
+    }
+  } catch(e) {
+    alert('Napaka: ' + e.message);
+  }
+}
 
 async function odpLoadValidZips() {
   try {
