@@ -7957,6 +7957,77 @@ async def drive_upload_video(req: DriveUploadRequest):
         return {"ok": False, "error": str(e)}
 
 
+@app.post("/drive-upload-video-binary")
+async def drive_upload_video_binary(
+    video: UploadFile = File(...),
+    sku_name: str = Form(...),
+    country_code: str = Form(...),
+    video_version: int = Form(1)
+):
+    """Upload binary video file directly (from frontend after merge).
+    Returns: file_id, filename, file_link, folder_link."""
+    if not DRIVE_AVAILABLE:
+        return {"ok": False, "error": "Drive uploader not configured"}
+    try:
+        import tempfile
+        from drive_uploader import get_or_create_sku_folder, _get_drive_service
+        from googleapiclient.http import MediaFileUpload
+
+        # Save uploaded video to temp file
+        suffix = '.mp4'
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            content = await video.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        try:
+            folder_info = get_or_create_sku_folder(sku_name)
+            folder_id = folder_info['folder_id']
+            filename = f"video_{country_code.lower()}_v{video_version}.mp4"
+
+            service = _get_drive_service()
+
+            # Check if file exists, replace if so
+            existing = service.files().list(
+                q=f"name = '{filename}' and '{folder_id}' in parents and trashed = false",
+                fields='files(id, name)'
+            ).execute()
+
+            media = MediaFileUpload(tmp_path, mimetype='video/mp4', resumable=True)
+
+            if existing.get('files'):
+                file_id = existing['files'][0]['id']
+                file = service.files().update(
+                    fileId=file_id,
+                    media_body=media,
+                    fields='id, name, webViewLink'
+                ).execute()
+            else:
+                file_metadata = {'name': filename, 'parents': [folder_id]}
+                file = service.files().create(
+                    body=file_metadata,
+                    media_body=media,
+                    fields='id, name, webViewLink'
+                ).execute()
+
+            return {
+                "ok": True,
+                "file_id": file.get('id'),
+                "filename": file.get('name'),
+                "file_link": file.get('webViewLink'),
+                "folder_link": folder_info['share_link']
+            }
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
 class DriveFolderRequest(BaseModel):
     sku_name: str
 
