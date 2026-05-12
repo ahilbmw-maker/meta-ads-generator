@@ -15,7 +15,7 @@ try:
     import openpyxl
 except ImportError:
     openpyxl = None
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -7990,8 +7990,8 @@ async def video_batch_meta(sku: str):
 
 
 @app.get("/video-batch/{sku}/{filename}")
-async def video_batch_file(sku: str, filename: str):
-    """Serve individual MP4 file for download."""
+async def video_batch_file(sku: str, filename: str, request: Request = None):
+    """Serve individual MP4 file for download with HTTP Range support (fast partial downloads)."""
     sku_safe = _safe_sku(sku)
     # Sanitize filename
     if '/' in filename or '\\' in filename or '..' in filename:
@@ -7999,10 +7999,68 @@ async def video_batch_file(sku: str, filename: str):
     target = VIDEO_OUTPUTS_DIR / sku_safe / filename
     if not target.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(
-        path=str(target),
+
+    file_size = target.stat().st_size
+    range_header = request.headers.get('range') if request else None
+
+    # Async streaming with bigger chunks (1MB instead of default 64KB)
+    CHUNK_SIZE = 1024 * 1024  # 1MB
+
+    if range_header:
+        # Parse "bytes=START-END"
+        try:
+            range_str = range_header.replace('bytes=', '').strip()
+            start_str, end_str = range_str.split('-')
+            start = int(start_str) if start_str else 0
+            end = int(end_str) if end_str else file_size - 1
+            end = min(end, file_size - 1)
+        except Exception:
+            start, end = 0, file_size - 1
+
+        async def range_iter():
+            with open(target, 'rb') as f:
+                f.seek(start)
+                remaining = end - start + 1
+                while remaining > 0:
+                    chunk = f.read(min(CHUNK_SIZE, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+
+        headers = {
+            'Content-Range': f'bytes {start}-{end}/{file_size}',
+            'Accept-Ranges': 'bytes',
+            'Content-Length': str(end - start + 1),
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Cache-Control': 'public, max-age=3600',
+        }
+        return StreamingResponse(
+            range_iter(),
+            status_code=206,
+            media_type='video/mp4',
+            headers=headers,
+        )
+
+    # Full download with streaming
+    async def file_iter():
+        with open(target, 'rb') as f:
+            while True:
+                chunk = f.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                yield chunk
+
+    headers = {
+        'Content-Length': str(file_size),
+        'Accept-Ranges': 'bytes',
+        'Content-Disposition': f'attachment; filename="{filename}"',
+        'Cache-Control': 'public, max-age=3600',
+    }
+    return StreamingResponse(
+        file_iter(),
         media_type='video/mp4',
-        filename=filename
+        headers=headers,
     )
 
 
