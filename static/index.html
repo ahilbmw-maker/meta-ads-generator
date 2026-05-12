@@ -7881,7 +7881,7 @@ function hfGenerate() {
   msg += `1. Fetchaj URL → preberi naslov, opis, sales count, rating, oglede\n`;
   msg += `2. Brand = zadnja CamelCase beseda v naslovu\n`;
   msg += `3. Sestavi prompte A+B+C po sistemu spodaj\n`;
-  msg += `4. Pokliči Higgsfield MCP 3× (model: nano_banana_2, ratio: 1:1, count: 4)\n`;
+  msg += `4. Pokliči Higgsfield MCP 3× (model: nano-banana-2, ratio: 1:1, count: 4)\n`;
   msg += `5. Slike so direktno z api.maaarket.si — Higgsfield fetchne sam\n`;
   msg += `6. Ko končaš napiši: DONE [brand]\n\n`;
 
@@ -7895,7 +7895,7 @@ function hfGenerate() {
 
   msg += `═══════════════════════════════════════════════\n\n`;
 
-  msg += `Generiraj Higgsfield kreative za ${ready.length} produkt${ready.length > 1 ? 'e' : ''}. Za vsakega naredi 12 kreativ (model: nano_banana_2, ratio 1:1).\n\n`;
+  msg += `Generiraj Higgsfield kreative za ${ready.length} produkt${ready.length > 1 ? 'e' : ''}. Za vsakega naredi 12 kreativ (model: nano-banana-2, ratio 1:1).\n\n`;
 
   ready.forEach((s, i) => {
     msg += `--- PRODUKT ${i+1} ---\n`;
