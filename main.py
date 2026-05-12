@@ -15,10 +15,10 @@ try:
     import openpyxl
 except ImportError:
     openpyxl = None
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from pydantic import BaseModel
 import anthropic
 
@@ -7920,137 +7920,213 @@ async def forecast2_cleanup():
 
 
 # ═══════════════════════════════════════════════
-# GOOGLE DRIVE VIDEO UPLOAD (ad localization workflow)
+# VIDEO OUTPUTS DISK STORAGE (ad localization workflow)
 # ═══════════════════════════════════════════════
-try:
-    from drive_uploader import upload_video_to_drive, get_or_create_sku_folder, list_sku_folders
-    DRIVE_AVAILABLE = True
-except ImportError as e:
-    print(f"[drive] uploader not available: {e}")
-    DRIVE_AVAILABLE = False
+VIDEO_OUTPUTS_DIR = Path("/data/video_outputs")
+VIDEO_OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-class DriveUploadRequest(BaseModel):
-    video_url: str
-    sku_name: str
-    country_code: str
-    video_version: int = 1
+def _safe_sku(name: str) -> str:
+    """Sanitize SKU name for filesystem."""
+    import re as _re
+    s = _re.sub(r'[^A-Za-z0-9_\-]', '', name).upper()
+    return s or 'UNKNOWN'
 
 
-@app.post("/drive-upload-video")
-async def drive_upload_video(req: DriveUploadRequest):
-    """Upload lokaliziran video v Google Drive SKU mapo.
-    Returns: file_id, filename, file_link, folder_link."""
-    if not DRIVE_AVAILABLE:
-        return {"ok": False, "error": "Drive uploader not configured"}
-    try:
-        result = upload_video_to_drive(
-            video_url=req.video_url,
-            sku_name=req.sku_name,
-            country_code=req.country_code,
-            video_version=req.video_version
-        )
-        return {"ok": True, **result}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"ok": False, "error": str(e)}
-
-
-@app.post("/drive-upload-video-binary")
-async def drive_upload_video_binary(
+@app.post("/video-save-to-disk")
+async def video_save_to_disk(
     video: UploadFile = File(...),
     sku_name: str = Form(...),
     country_code: str = Form(...),
     video_version: int = Form(1)
 ):
-    """Upload binary video file directly (from frontend after merge).
-    Returns: file_id, filename, file_link, folder_link."""
-    if not DRIVE_AVAILABLE:
-        return {"ok": False, "error": "Drive uploader not configured"}
+    """Shrani merged video v /data/video_outputs/{SKU}/video_{lang}_v{n}.mp4
+    Returns: filename, download_url"""
     try:
-        import tempfile
-        from drive_uploader import get_or_create_sku_folder, _get_drive_service
-        from googleapiclient.http import MediaFileUpload
+        sku = _safe_sku(sku_name)
+        lang = country_code.lower().strip()
+        if not lang:
+            return {"ok": False, "error": "Missing country_code"}
 
-        # Save uploaded video to temp file
-        suffix = '.mp4'
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            content = await video.read()
-            tmp.write(content)
-            tmp_path = tmp.name
+        sku_dir = VIDEO_OUTPUTS_DIR / sku
+        sku_dir.mkdir(parents=True, exist_ok=True)
 
-        try:
-            folder_info = get_or_create_sku_folder(sku_name)
-            folder_id = folder_info['folder_id']
-            filename = f"video_{country_code.lower()}_v{video_version}.mp4"
+        filename = f"video_{lang}_v{video_version}.mp4"
+        target = sku_dir / filename
 
-            service = _get_drive_service()
+        content_bytes = await video.read()
+        target.write_bytes(content_bytes)
 
-            # Check if file exists, replace if so
-            existing = service.files().list(
-                q=f"name = '{filename}' and '{folder_id}' in parents and trashed = false",
-                fields='files(id, name)'
-            ).execute()
-
-            media = MediaFileUpload(tmp_path, mimetype='video/mp4', resumable=True)
-
-            if existing.get('files'):
-                file_id = existing['files'][0]['id']
-                file = service.files().update(
-                    fileId=file_id,
-                    media_body=media,
-                    fields='id, name, webViewLink'
-                ).execute()
-            else:
-                file_metadata = {'name': filename, 'parents': [folder_id]}
-                file = service.files().create(
-                    body=file_metadata,
-                    media_body=media,
-                    fields='id, name, webViewLink'
-                ).execute()
-
-            return {
-                "ok": True,
-                "file_id": file.get('id'),
-                "filename": file.get('name'),
-                "file_link": file.get('webViewLink'),
-                "folder_link": folder_info['share_link']
-            }
-        finally:
-            try:
-                os.unlink(tmp_path)
-            except Exception:
-                pass
+        return {
+            "ok": True,
+            "filename": filename,
+            "size": len(content_bytes),
+            "download_url": f"/video-batch/{sku}/{filename}"
+        }
     except Exception as e:
         import traceback
         traceback.print_exc()
         return {"ok": False, "error": str(e)}
 
 
-class DriveFolderRequest(BaseModel):
-    sku_name: str
+@app.get("/video-batch/{sku}")
+async def video_batch_meta(sku: str):
+    """List all videos for a SKU."""
+    sku_safe = _safe_sku(sku)
+    sku_dir = VIDEO_OUTPUTS_DIR / sku_safe
+    if not sku_dir.exists():
+        return {"ok": False, "error": "SKU not found"}
+
+    videos = []
+    for f in sorted(sku_dir.glob("*.mp4")):
+        videos.append({
+            "filename": f.name,
+            "size": f.stat().st_size,
+            "size_mb": round(f.stat().st_size / 1024 / 1024, 2),
+            "url": f"/video-batch/{sku_safe}/{f.name}",
+            "modified": f.stat().st_mtime
+        })
+    return {"ok": True, "sku": sku_safe, "videos": videos, "count": len(videos)}
 
 
-@app.post("/drive-folder")
-async def drive_folder(req: DriveFolderRequest):
-    """Get or create folder for SKU. Returns folder_id and share_link."""
-    if not DRIVE_AVAILABLE:
-        return {"ok": False, "error": "Drive uploader not configured"}
+@app.get("/video-batch/{sku}/{filename}")
+async def video_batch_file(sku: str, filename: str):
+    """Serve individual MP4 file for download."""
+    sku_safe = _safe_sku(sku)
+    # Sanitize filename
+    if '/' in filename or '\\' in filename or '..' in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    target = VIDEO_OUTPUTS_DIR / sku_safe / filename
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(
+        path=str(target),
+        media_type='video/mp4',
+        filename=filename
+    )
+
+
+@app.get("/video-batch/{sku}/zip-all")
+async def video_batch_zip(sku: str):
+    """Download all videos for SKU as ZIP."""
+    import zipfile
+    import io
+    sku_safe = _safe_sku(sku)
+    sku_dir = VIDEO_OUTPUTS_DIR / sku_safe
+    if not sku_dir.exists():
+        raise HTTPException(status_code=404, detail="SKU not found")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for f in sorted(sku_dir.glob("*.mp4")):
+            zf.write(f, arcname=f.name)
+    buf.seek(0)
+
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        iter([buf.read()]),
+        media_type='application/zip',
+        headers={'Content-Disposition': f'attachment; filename="{sku_safe}_videos.zip"'}
+    )
+
+
+@app.delete("/video-batch/{sku}")
+async def video_batch_delete(sku: str):
+    """Delete all videos for SKU."""
+    import shutil
+    sku_safe = _safe_sku(sku)
+    sku_dir = VIDEO_OUTPUTS_DIR / sku_safe
+    if not sku_dir.exists():
+        return {"ok": False, "error": "SKU not found"}
     try:
-        info = get_or_create_sku_folder(req.sku_name)
-        return {"ok": True, **info}
+        shutil.rmtree(sku_dir)
+        return {"ok": True, "deleted": sku_safe}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
 
-@app.get("/drive-folders")
-async def drive_folders_list():
-    """List all SKU folders with their share links."""
-    if not DRIVE_AVAILABLE:
-        return {"ok": False, "error": "Drive uploader not configured"}
-    try:
-        folders = list_sku_folders()
-        return {"ok": True, "folders": folders}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
+@app.get("/d/{sku}", response_class=HTMLResponse)
+async def video_download_page(sku: str):
+    """Public download page for SKU videos - what advertiser sees."""
+    sku_safe = _safe_sku(sku)
+    sku_dir = VIDEO_OUTPUTS_DIR / sku_safe
+    if not sku_dir.exists():
+        return HTMLResponse(content=f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Ni videov za {sku_safe}</title>
+<style>body{{font-family:system-ui,sans-serif;background:#fafbfd;color:#0f172a;padding:3rem;text-align:center}}</style></head>
+<body><h1>📁 Ni videov za SKU: {sku_safe}</h1>
+<p>SKU mapa še ne obstaja ali so videi že bili izbrisani.</p></body></html>""", status_code=404)
+
+    videos = []
+    for f in sorted(sku_dir.glob("*.mp4")):
+        size_mb = round(f.stat().st_size / 1024 / 1024, 2)
+        videos.append({"filename": f.name, "size_mb": size_mb, "url": f"/video-batch/{sku_safe}/{f.name}"})
+
+    if not videos:
+        return HTMLResponse(content=f"<h1>Ni videov za {sku_safe}</h1>", status_code=404)
+
+    # Country code emoji mapping
+    flag_map = {
+        'si': '🇸🇮 Slovenija', 'hr': '🇭🇷 Hrvaška', 'rs': '🇷🇸 Srbija', 'hu': '🇭🇺 Madžarska',
+        'pl': '🇵🇱 Poljska', 'cz': '🇨🇿 Češka', 'sk': '🇸🇰 Slovaška', 'gr': '🇬🇷 Grčija',
+        'bg': '🇧🇬 Bolgarija', 'ro': '🇷🇴 Romunija', 'it': '🇮🇹 Italija', 'de': '🇩🇪 Nemčija',
+        'at': '🇦🇹 Avstrija', 'ba': '🇧🇦 BiH', 'mk': '🇲🇰 N. Makedonija'
+    }
+
+    def fname_to_label(fn: str) -> str:
+        # video_si_v1.mp4 -> 🇸🇮 Slovenija — v1
+        import re as _re
+        m = _re.match(r'video_([a-z]{2})_v(\d+)\.mp4', fn)
+        if m:
+            lang, v = m.group(1), m.group(2)
+            country = flag_map.get(lang, lang.upper())
+            return f"{country} — verzija {v}"
+        return fn
+
+    cards = ""
+    for v in videos:
+        label = fname_to_label(v['filename'])
+        cards += f"""
+        <div class="vcard">
+          <div class="vlabel">{label}</div>
+          <div class="vmeta"><span class="vfn">{v['filename']}</span><span class="vsize">{v['size_mb']} MB</span></div>
+          <a href="{v['url']}" download="{v['filename']}" class="vbtn">⬇ Prenesi</a>
+        </div>"""
+
+    return HTMLResponse(content=f"""<!DOCTYPE html>
+<html lang="sl"><head><meta charset="utf-8">
+<title>📁 {sku_safe} — Video Ads</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  *{{box-sizing:border-box;margin:0;padding:0}}
+  body{{font-family:'DM Sans',-apple-system,system-ui,sans-serif;background:#fafbfd;color:#0f172a;padding:2rem 1rem;min-height:100vh}}
+  .container{{max-width:900px;margin:0 auto}}
+  .header{{background:white;border:1px solid #e2e8f2;border-radius:12px;padding:1.5rem 2rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}}
+  h1{{font-size:24px;font-weight:700;letter-spacing:-0.02em}}
+  .subtitle{{font-size:13px;color:#64748b;margin-top:4px}}
+  .zipbtn{{background:#7c3aed;color:white;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px;border:none;cursor:pointer;font-family:inherit}}
+  .zipbtn:hover{{background:#6d28d9}}
+  .grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}}
+  .vcard{{background:white;border:1px solid #e2e8f2;border-radius:10px;padding:1.25rem;transition:all 0.15s}}
+  .vcard:hover{{border-color:#4f6ef7;transform:translateY(-1px);box-shadow:0 4px 12px rgba(79,110,247,0.08)}}
+  .vlabel{{font-size:15px;font-weight:700;margin-bottom:8px;color:#0f172a}}
+  .vmeta{{display:flex;justify-content:space-between;font-size:11px;color:#8896b0;margin-bottom:14px;font-family:monospace}}
+  .vfn{{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+  .vsize{{flex-shrink:0;margin-left:8px}}
+  .vbtn{{display:block;text-align:center;background:#4f6ef7;color:white;padding:9px 14px;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;transition:background 0.15s}}
+  .vbtn:hover{{background:#3f5dd6}}
+  .footer{{text-align:center;margin-top:2rem;font-size:11px;color:#94a3b8}}
+</style></head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>📁 {sku_safe}</h1>
+      <div class="subtitle">{len(videos)} videov za prenos · Maaarket Ads</div>
+    </div>
+    <a href="/video-batch/{sku_safe}/zip-all" class="zipbtn">📦 Prenesi vse kot ZIP</a>
+  </div>
+  <div class="grid">{cards}</div>
+  <div class="footer">ads.slxanalytics.org · Maaarket Video Ads</div>
+</div>
+</body></html>""")
