@@ -2514,6 +2514,14 @@ input[type="text"].error { border-color: var(--red) !important; }
   <div class="page" id="page-zaloga">
     <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
 
+      <!-- XML CACHE STATUS BAR -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
+        <div style="font-size:11px;color:var(--text-tertiary)">
+          XML cache (Meta feed): <span id="lokCacheStatus">nalagam...</span>
+        </div>
+        <button onclick="lokForceRefresh(this)" style="padding:6px 12px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:var(--radius);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">🔄 Force refresh XML</button>
+      </div>
+
       <!-- STICKY TOOLBAR: upload + iskalnik + filter -->
       <div style="position:sticky;top:0;z-index:30;background:var(--bg);padding-bottom:6px">
         <div style="display:flex;gap:10px;align-items:center;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
@@ -3003,6 +3011,7 @@ function switchPage(page) {
   if (page === 'zaloga') { zalogaLoad(); }
   if (page === 'sporocanje') { if(typeof spLoadCommon==='function') spLoadCommon(); if(typeof spLoadMacros==='function') spLoadMacros(); }
   if (page === 'knjigovodstvo') { if(typeof knjLoadHistory==='function') knjLoadHistory(); }
+  if (page === 'zaloga') { if(typeof lokLoadCacheStatus==='function') lokLoadCacheStatus(); }
   if (page === 'narocilnice') { setTimeout(() => { narcVecjaInitDrop(); narcDvojnikiInitDrop(); }, 100); }
   if (page === 'odprema') { odpLoadHistory(); }
   else { const b = document.getElementById('odp-bulk-bar'); if(b) b.style.display='none'; }
@@ -4686,6 +4695,46 @@ document.addEventListener('paste', e => {
     }
   }
 });
+
+async function lokLoadCacheStatus() {
+  try {
+    const r = await fetch('/cache-status');
+    const d = await r.json();
+    if (d.last_fetch) {
+      const dt = new Date(d.last_fetch);
+      const fmt = dt.toLocaleString('sl-SI', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      const total = Object.values(d.products_per_lang || {}).reduce((s,n) => s+n, 0);
+      const staleTxt = d.stale ? ' · <span style="color:#ef4444">⚠ zastareli</span>' : ' · <span style="color:#22c55e">✓ svež</span>';
+      document.getElementById('lokCacheStatus').innerHTML = `${fmt} · ${total.toLocaleString('sl-SI')} izdelkov${staleTxt}`;
+    } else {
+      document.getElementById('lokCacheStatus').textContent = 'še ni bilo';
+    }
+  } catch(e) {
+    document.getElementById('lokCacheStatus').textContent = 'napaka';
+  }
+}
+
+async function lokForceRefresh(btn) {
+  if (!confirm('Naloži XML feed-e zdaj? To lahko traja 30-60 sekund.')) return;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Nalagam XML...';
+  try {
+    const r = await fetch('/refresh-cache', { method:'POST' });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      btn.textContent = '✓ Posodobljeno!';
+      lokLoadCacheStatus();
+      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2500);
+    } else {
+      btn.textContent = '❌ Napaka';
+      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2500);
+    }
+  } catch(e) {
+    btn.textContent = '❌ Napaka';
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2500);
+  }
+}
 
 async function lokGenerate() {
   if (!lokImages.length) {
