@@ -7876,7 +7876,8 @@ function hfGenerate() {
   const ready = hfSlots.filter(Boolean);
   if (!ready.length) return;
 
-  let msg = `Si FB ad creative specialist za maaarket.si.\n\n`;
+  let msg = `🚨 KRITIČNO: Pri vsakem Higgsfield MCP klicu MORAŠ eksplicitno določiti parameter "model": "nano-banana-2". NIKOLI ne uporabi default modela (ki je morda nano-banana-pro). V vsakem tool call argument morajo biti: { "model": "nano-banana-2", "aspect_ratio": "1:1", "count": <4 ali 1>, ... }. Če ne najdeš model parameter v shemi, ga vseeno dodaj — Higgsfield API ga sprejme.\n\n`;
+  msg += `Si FB ad creative specialist za maaarket.si.\n\n`;
   msg += `NAVODILA:\n`;
   msg += `1. Fetchaj URL → preberi naslov, opis, sales count, rating, oglede\n`;
   msg += `2. Brand = zadnja CamelCase beseda v naslovu\n`;
@@ -7904,14 +7905,16 @@ function hfGenerate() {
   msg += `- count: 4\n\n`;
 
   msg += `D = OVERLAY TEXT HOOK\n`;
-  msg += `- Slika je DOMINANTNO ozadje — v celoti vidna, produkt jasno viden\n`;
-  msg += `- Overlay tekst na levi strani: velik, bold, bel\n`;
-  msg += `- Pod glavnim tekstom: 3 kratke bullet point ikone s ključnimi features (preberi iz slike)\n`;
+  msg += `- OBVEZNO: produktna slika mora biti JASNO VIDNA — ne skrita, ne zamegljena, ne zamenjana z novim ozadjem\n`;
+  msg += `- Uporabi točno te slike kot ozadje — NE izmišljuj novih ozadij\n`;
+  msg += `- Overlay tekst SAMO na dno ali levo stran kot banner: velik, bold, bel, max 30% slike\n`;
+  msg += `- NE prekrivaj produkta s tekstom\n`;
+  msg += `- Pod tekstom 3 bullet points s ključnimi features iz slike\n`;
   msg += `- Brez podvajanja — vsaka beseda se pojavi samo enkrat\n`;
-  msg += `- D1 Transformation: vzame vibe iz A + tekst pred/po psihologija (npr. "YOUR LIFE TRANSFORMED")\n`;
-  msg += `- D2 Problem: vzame vibe iz B + tekst boli točka (npr. "STILL DOING IT THE HARD WAY?")\n`;
-  msg += `- D3 Social Proof: vzame vibe iz C + tekst številke (npr. "2,335 PEOPLE ALREADY KNOW")\n`;
-  msg += `- D4 Urgency: nov 4. vibe + tekst akcija zdaj (npr. "YOU NEED THIS. NOW.")\n`;
+  msg += `- D1 Transformation: vzame vibe iz A + tekst (npr. "YOUR LIFE TRANSFORMED")\n`;
+  msg += `- D2 Problem: vzame vibe iz B + tekst (npr. "STILL DOING IT THE HARD WAY?")\n`;
+  msg += `- D3 Social Proof: vzame vibe iz C + tekst (npr. "2,335 PEOPLE ALREADY KNOW")\n`;
+  msg += `- D4 Urgency: nov 4. vibe + tekst (npr. "YOU NEED THIS. NOW.")\n`;
   msg += `- count: 1 vsak\n\n`;
 
   msg += `PROMPT TEMPLATES:\n\n`;
@@ -7920,7 +7923,7 @@ function hfGenerate() {
   msg += `"Iz teh slikc mi ustvari novo kreativo za FB oglase. Poskusi bolj z intenzivnim \"[VIBE]\" ozadjem. Na sliki ne pisat nobenega texta/besedila razen ime naprave z velikimi črkami \"[BRAND]\" — SAMO ENKRAT, ne ponavljaj. Uporabi logotip iz slikc (exact). Izpostavi (lahko v ikoni, textu - v angleškem jeziku) da je: [COPY]. POMEMBNO: vsak tekst se sme pojaviti samo enkrat na sliki."\n\n`;
 
   msg += `Za D1, D2, D3, D4:\n`;
-  msg += `"Iz teh slikc ustvari FB ad kreativo. Slika naj bo DOMINANTNO ozadje — v celoti vidna, produkt jasno viden. Ozadje: [VIBE IZ A/B/C ALI NOV ZA D4]. Dodaj overlay tekst na levi strani: '[TEKST]' — velik, bold, bel. Pod glavnim tekstom dodaj 3 kratke bullet point ikone z ključnimi features produkta (preberi jih iz slike). Brez podvajanja teksta — vsaka beseda se pojavi samo enkrat."\n\n`;
+  msg += `"Iz teh slikc ustvari FB ad kreativo. OBVEZNO: produktna slika mora biti JASNO VIDNA — ne skrita, ne zamegljena, ne zamenjana z novim ozadjem. Uporabi točno te slike kot ozadje. Dodaj overlay tekst SAMO na dno ali levo stran slike kot tanek banner: '[TEKST]' — bold, bel, max 20% slike. Pod tekstom 3 bullet points s features iz slike. NE izmišljuj novih ozadij. NE prekrivaj produkta s tekstom."\n\n`;
 
   msg += `═══════════════════════════════════════════════\n\n`;
 
