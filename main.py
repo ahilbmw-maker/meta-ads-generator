@@ -294,7 +294,19 @@ EMOJI PRAVILO: Uporabljaj SAMO te emoji-je ki so zagotovo podprti na vseh naprav
 ✅ ⭐ 🔥 💪 🎯 👍 ❤️ 💥 🚀 ✨ 💡 🎁 💰 👌 🙌 😍 💎 🏆 ⚡ 🌟 👏 💫 🛒 📦 🔑 💯 😊 🤩 🌿 🌱 🍃 🌸 🌻 🌞 🍀 🎉 🎊 🛍️ 💚 💙 🧡 💜 🤍 🖤
 NE uporabljaj: redkih, novejših ali manj znanih emoji-jev ki se lahko prikažejo kot □
 
-Jeziki: SL (izvirnik), HR (latinica), RS (SAMO latinica!), HU, CZ, SK, PL, GR (grška pisava), RO (latinica), BG (SAMO cirilica!).
+Jeziki — STROGO upoštevaj pisavo:
+• SL = slovenščina (izvirnik)
+• HR = HRVAŠČINA, SAMO latinica (npr. "Čista voda iz pipe!"). NE cirilica. NE srbohrvaški. HRVATSKI jezik z hrvaškim besediščem.
+• RS = srbščina v SAMO LATINICI (npr. "Čista voda iz pipe!"). NE cirilica. Latinski srbski jezik.
+• HU = madžarščina
+• CZ = češčina
+• SK = slovaščina
+• PL = poljščina
+• GR = grščina (grška pisava)
+• RO = romunščina (latinica)
+• BG = bolgarščina (SAMO cirilica)
+
+KRITIČNO: HR mora biti V LATINICI in hrvaški jezik (Čista, hrvatski, voda iz pipe). Če napišeš cirilico za HR, je NAPAKA.
 
 Vrni SAMO JSON brez markdown:
 {{
@@ -331,7 +343,19 @@ KRITIČNO PREPOVEDANO:
 - NE izmišljaj specifičnih številk (kot "100 funkcij", "375 kupcev") — uporabljaj generične izraze ("tisoči kupcev", "številne funkcije")
 - NE omenjaj "danes/jutri" v povezavi z akcijo
 
-Jeziki: SL (izvirnik), HR (latinica), RS (SAMO latinica!), HU, CZ, SK, PL, GR (grška pisava), RO (latinica), BG (SAMO cirilica!).
+Jeziki — STROGO upoštevaj pisavo:
+• SL = slovenščina (izvirnik)
+• HR = HRVAŠČINA, SAMO latinica (npr. "Čista voda iz pipe!"). NE cirilica. NE srbohrvaški. HRVATSKI jezik z hrvaškim besediščem.
+• RS = srbščina v SAMO LATINICI (npr. "Čista voda iz pipe!"). NE cirilica. Latinski srbski jezik.
+• HU = madžarščina
+• CZ = češčina
+• SK = slovaščina
+• PL = poljščina
+• GR = grščina (grška pisava)
+• RO = romunščina (latinica)
+• BG = bolgarščina (SAMO cirilica)
+
+KRITIČNO: HR mora biti V LATINICI in hrvaški jezik (Čista, hrvatski, voda iz pipe). Če napišeš cirilico za HR, je NAPAKA.
 
 KRITIČNO VAŽNO — FORMAT:
 - Vsak jezik mora imeti TOČNO 4 oklepaje: [var1],[var2],[var3],[var4]
