@@ -8135,8 +8135,7 @@ async def video_batch_delete(sku: str):
 
 @app.get("/d/{sku}", response_class=HTMLResponse)
 async def video_download_page(sku: str):
-    """Public download page for SKU videos - what advertiser sees.
-    3 different UI styles selectable via query param ?style=A/B/C (default: A)."""
+    """Public download page for SKU videos - what advertiser sees."""
     sku_safe = _safe_sku(sku)
     sku_dir = VIDEO_OUTPUTS_DIR / sku_safe
     if not sku_dir.exists():
@@ -8171,14 +8170,11 @@ async def video_download_page(sku: str):
     if not all_videos:
         return HTMLResponse(content=f"<h1>Ni videov za {sku_safe}</h1>", status_code=404)
 
-    # Sort countries by name
     country_order = sorted(by_country.keys(), key=lambda l: flag_map.get(l, ('', l))[1])
-
     total_size_mb = round(sum(v['size_mb'] for v in all_videos), 1)
     total_count = len(all_videos)
     country_count = len(country_order)
 
-    # Build country blocks
     def country_data(lang):
         flag, name = flag_map.get(lang, ('🌐', lang.upper()))
         vids = by_country[lang]
@@ -8188,13 +8184,12 @@ async def video_download_page(sku: str):
 
     countries = [country_data(l) for l in country_order]
 
-    # ═══════════════ STYLE A — Country Cards (grid) ═══════════════
-    cards_a = ""
+    cards = ""
     for c in countries:
         vids_html = ""
         for v in c['videos']:
             vids_html += f'<a href="{v["url"]}" download="{v["filename"]}" class="vmini">v{v["version"]}</a>'
-        cards_a += f"""
+        cards += f"""
         <div class="ccard">
           <div class="cflag">{c['flag']}</div>
           <div class="cname">{c['name']}</div>
@@ -8203,73 +8198,20 @@ async def video_download_page(sku: str):
           <div class="cvids">{vids_html}</div>
         </div>"""
 
-    # ═══════════════ STYLE B — Compact List ═══════════════
-    rows_b = ""
-    for c in countries:
-        vids_html = ""
-        for v in c['videos']:
-            vids_html += f'<a href="{v["url"]}" download="{v["filename"]}" class="brow-mini">v{v["version"]} ({v["size_mb"]}MB)</a>'
-        rows_b += f"""
-        <div class="brow">
-          <div class="brow-left">
-            <span class="brow-flag">{c['flag']}</span>
-            <div>
-              <div class="brow-name">{c['name']}</div>
-              <div class="brow-meta">{c['count']} videov · {c['size_mb']} MB</div>
-            </div>
-          </div>
-          <div class="brow-vids">{vids_html}</div>
-          <a href="{c['zip_url']}" class="brow-btn">⬇ Prenesi vse</a>
-        </div>"""
-
-    # ═══════════════ STYLE C — Premium Studio (bento) ═══════════════
-    bento_c = ""
-    for i, c in enumerate(countries):
-        vids_html = ""
-        for v in c['videos']:
-            vids_html += f'<a href="{v["url"]}" download="{v["filename"]}" class="cpvmini">v{v["version"]}</a>'
-        bento_c += f"""
-        <div class="bento" style="animation-delay:{i*40}ms">
-          <div class="bento-flag">{c['flag']}</div>
-          <div class="bento-content">
-            <div class="bento-name">{c['name']}</div>
-            <div class="bento-meta">{c['count']} videos · {c['size_mb']} MB</div>
-            <div class="bento-vids">{vids_html}</div>
-            <a href="{c['zip_url']}" class="bento-btn">Download All →</a>
-          </div>
-        </div>"""
-
     return HTMLResponse(content=f"""<!DOCTYPE html>
 <html lang="sl"><head><meta charset="utf-8">
 <title>📁 {sku_safe} — Video Ads</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
   *{{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}}
-  body{{font-family:'DM Sans',-apple-system,system-ui,sans-serif;color:#0f172a;min-height:100vh;transition:background 0.3s}}
-  body.style-A{{background:#fafbfd}}
-  body.style-B{{background:#f8f9fc}}
-  body.style-C{{background:linear-gradient(135deg,#0f0f1e 0%,#1a1a2e 100%);color:#fff}}
+  body{{font-family:'DM Sans',-apple-system,system-ui,sans-serif;color:#0f172a;background:#fafbfd;min-height:100vh}}
   .container{{max-width:1100px;margin:0 auto;padding:2rem 1.25rem}}
-  /* HEADER (sticky tab switcher) */
-  .topbar{{position:sticky;top:0;background:rgba(255,255,255,0.95);backdrop-filter:blur(8px);border-bottom:1px solid #e2e8f2;padding:12px 1.25rem;z-index:50;display:flex;align-items:center;justify-content:center;gap:8px}}
-  body.style-C .topbar{{background:rgba(15,15,30,0.85);border-color:#252540}}
-  .tab{{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #e2e8f2;background:white;color:#64748b;transition:all 0.15s;font-family:inherit}}
-  .tab:hover{{border-color:#4f6ef7;color:#4f6ef7}}
-  .tab.active{{background:#4f6ef7;color:white;border-color:#4f6ef7}}
-  body.style-C .tab{{background:#1a1a2e;border-color:#252540;color:#a0a0c0}}
-  body.style-C .tab.active{{background:#7c3aed;border-color:#7c3aed;color:white}}
-
-  /* HEADER STRIP */
-  .pagehead{{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;padding:2rem 0;border-bottom:1px solid #e2e8f2;margin-bottom:2rem}}
-  body.style-C .pagehead{{border-color:#252540}}
+  .pagehead{{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;padding:0 0 2rem;border-bottom:1px solid #e2e8f2;margin-bottom:2rem}}
   .pagehead h1{{font-size:28px;font-weight:800;letter-spacing:-0.03em}}
   .pagehead .sub{{font-size:13px;color:#64748b;margin-top:4px}}
-  body.style-C .pagehead .sub{{color:#a0a0c0}}
   .zipall{{background:#7c3aed;color:white;padding:11px 20px;border-radius:9px;font-size:13px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s}}
   .zipall:hover{{background:#6d28d9;transform:translateY(-1px)}}
-
-  /* ═════════════ STYLE A — Country Cards ═════════════ */
-  .style-A .grid-a{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}}
+  .grid-a{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}}
   .ccard{{background:white;border:1px solid #e2e8f2;border-radius:14px;padding:1.5rem 1.25rem;text-align:center;transition:all 0.2s;display:flex;flex-direction:column;gap:8px}}
   .ccard:hover{{border-color:#4f6ef7;transform:translateY(-2px);box-shadow:0 8px 20px rgba(79,110,247,0.1)}}
   .cflag{{font-size:48px;line-height:1;margin-bottom:6px}}
@@ -8280,55 +8222,9 @@ async def video_download_page(sku: str):
   .cvids{{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:8px}}
   .vmini{{font-size:10px;color:#64748b;text-decoration:none;border:1px solid #e2e8f2;border-radius:5px;padding:3px 7px;font-family:monospace;transition:all 0.1s}}
   .vmini:hover{{border-color:#4f6ef7;color:#4f6ef7;background:#eff3ff}}
-
-  /* ═════════════ STYLE B — Compact List ═════════════ */
-  .style-B .list-b{{display:flex;flex-direction:column;gap:8px}}
-  .brow{{background:white;border:1px solid #e2e8f2;border-radius:10px;padding:14px 18px;display:grid;grid-template-columns:200px 1fr auto;align-items:center;gap:1rem;transition:all 0.15s}}
-  .brow:hover{{border-color:#4f6ef7;background:#fafbff}}
-  .brow-left{{display:flex;align-items:center;gap:12px}}
-  .brow-flag{{font-size:28px;line-height:1}}
-  .brow-name{{font-size:14px;font-weight:700}}
-  .brow-meta{{font-size:11px;color:#8896b0;margin-top:2px}}
-  .brow-vids{{display:flex;flex-wrap:wrap;gap:5px}}
-  .brow-mini{{font-size:11px;color:#475569;text-decoration:none;border:1px solid #e2e8f2;border-radius:6px;padding:5px 10px;font-family:monospace;transition:all 0.1s;background:#f8fafd}}
-  .brow-mini:hover{{border-color:#4f6ef7;color:#4f6ef7}}
-  .brow-btn{{background:#4f6ef7;color:white;padding:8px 14px;border-radius:7px;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap}}
-  .brow-btn:hover{{background:#3f5dd6}}
-  @media(max-width:700px){{.brow{{grid-template-columns:1fr;gap:10px}}.brow-btn{{justify-self:start}}}}
-
-  /* ═════════════ STYLE C — Premium Studio ═════════════ */
-  .style-C .pagehead h1{{color:white;background:linear-gradient(135deg,#fff 0%,#a78bfa 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}}
-  .style-C .zipall{{background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);box-shadow:0 4px 14px rgba(124,58,237,0.3)}}
-  .style-C .bento-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}}
-  .bento{{background:linear-gradient(135deg,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.01) 100%);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:1.5rem;position:relative;overflow:hidden;transition:all 0.3s;backdrop-filter:blur(8px);opacity:0;animation:fadeUp 0.5s ease-out forwards}}
-  @keyframes fadeUp{{from{{opacity:0;transform:translateY(20px)}}to{{opacity:1;transform:translateY(0)}}}}
-  .bento::before{{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(circle at 30% 0%,rgba(124,58,237,0.15) 0%,transparent 50%);opacity:0;transition:opacity 0.3s;pointer-events:none}}
-  .bento:hover{{border-color:rgba(124,58,237,0.4);transform:translateY(-3px)}}
-  .bento:hover::before{{opacity:1}}
-  .bento-flag{{font-size:42px;line-height:1;margin-bottom:14px;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.3))}}
-  .bento-content{{position:relative;z-index:1}}
-  .bento-name{{font-size:17px;font-weight:700;color:white;letter-spacing:-0.01em}}
-  .bento-meta{{font-size:11px;color:#a0a0c0;margin-top:4px}}
-  .bento-vids{{display:flex;gap:5px;margin-top:14px;flex-wrap:wrap}}
-  .cpvmini{{font-size:10px;color:#c0c0e0;text-decoration:none;border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:4px 8px;font-family:monospace;background:rgba(255,255,255,0.03);transition:all 0.15s}}
-  .cpvmini:hover{{border-color:#a78bfa;color:#a78bfa;background:rgba(167,139,250,0.1)}}
-  .bento-btn{{display:inline-block;margin-top:14px;background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%);color:white;padding:9px 16px;border-radius:9px;font-size:12px;font-weight:600;text-decoration:none;transition:all 0.15s;letter-spacing:0.02em}}
-  .bento-btn:hover{{transform:translateX(2px);box-shadow:0 4px 14px rgba(124,58,237,0.4)}}
-
   .footer{{text-align:center;margin-top:3rem;padding:1.5rem;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f2}}
-  body.style-C .footer{{border-color:#252540;color:#606080}}
-
-  /* Hide non-active styles */
-  body:not(.style-A) .grid-a{{display:none}}
-  body:not(.style-B) .list-b{{display:none}}
-  body:not(.style-C) .bento-grid{{display:none}}
 </style></head>
-<body class="style-A">
-<div class="topbar">
-  <button class="tab active" data-style="A" onclick="setStyle('A')">🎨 A — Cards</button>
-  <button class="tab" data-style="B" onclick="setStyle('B')">📋 B — List</button>
-  <button class="tab" data-style="C" onclick="setStyle('C')">✨ C — Premium</button>
-</div>
+<body>
 <div class="container">
   <div class="pagehead">
     <div>
@@ -8337,26 +8233,7 @@ async def video_download_page(sku: str):
     </div>
     <a href="/video-batch/{sku_safe}/zip-all" class="zipall">📦 Prenesi vse kot ZIP</a>
   </div>
-
-  <div class="grid-a">{cards_a}</div>
-  <div class="list-b">{rows_b}</div>
-  <div class="bento-grid">{bento_c}</div>
-
+  <div class="grid-a">{cards}</div>
   <div class="footer">ads.slxanalytics.org · Maaarket Video Ads</div>
 </div>
-<script>
-function setStyle(s) {{
-  document.body.className = 'style-' + s;
-  document.querySelectorAll('.tab').forEach(t => {{
-    t.classList.toggle('active', t.dataset.style === s);
-  }});
-  // Save preference
-  try {{ localStorage.setItem('vads_dl_style', s); }} catch(e) {{}}
-}}
-// Load saved style
-try {{
-  const saved = localStorage.getItem('vads_dl_style');
-  if (saved && ['A','B','C'].includes(saved)) setStyle(saved);
-}} catch(e) {{}}
-</script>
 </body></html>""")
