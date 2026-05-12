@@ -1670,8 +1670,8 @@ input[type="text"].error { border-color: var(--red) !important; }
           <button onclick="vadsZipToAsana()" id="vadsZipAsanaBtn" style="display:none;padding:9px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px">
             📦 → Asana
           </button>
-          <button onclick="vadsToGoogleDrive()" id="vadsGDriveBtn" style="display:none;padding:9px 16px;background:#0f9d58;color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px">
-            📁 → Google Drive
+          <button onclick="vadsToSlxDownload()" id="vadsSlxBtn" style="display:none;padding:9px 16px;background:#0f9d58;color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px">
+            📁 → ads.slx Download link
           </button>
           <span id="vadsBulkStatus" style="font-size:11px;color:var(--text-tertiary);align-self:center"></span>
         </div>
@@ -3049,7 +3049,7 @@ function homeUpdateDate() {
 // ── META COUNTERS ──
 function change(t, d) { metaState[t] = Math.min(MAX, Math.max(1, metaState[t]+d)); updateMeta(); }
 
-async function vadsToGoogleDrive() {
+async function vadsToSlxDownload() {
   const audioBlobs = window._vadsAudioBlobs || {};
   if (!Object.keys(audioBlobs).length) {
     alert('Najprej generiraj audio.');
@@ -3061,7 +3061,7 @@ async function vadsToGoogleDrive() {
     return;
   }
 
-  const btn = document.getElementById('vadsGDriveBtn');
+  const btn = document.getElementById('vadsSlxBtn');
   const origText = btn.innerHTML;
   const bulkStatus = document.getElementById('vadsBulkStatus');
 
@@ -3069,9 +3069,6 @@ async function vadsToGoogleDrive() {
   btn.innerHTML = '⏳ Pripravljam...';
 
   try {
-    // Pripravi merge tasks (enak format kot vadsBuildZipBlob ampak namesto v ZIP pošljemo direkt v Drive)
-    if (!window.JSZip) { await new Promise((res,rej) => { const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
-
     const srts = window._vadsSrts || {};
     const tasks = [];
     for (const [lang, blob] of Object.entries(audioBlobs)) {
@@ -3081,7 +3078,6 @@ async function vadsToGoogleDrive() {
     }
     const total = tasks.length;
     let uploaded = 0;
-    let folderLink = null;
     const errors = [];
 
     const PARALLEL = 2;
@@ -3100,22 +3096,21 @@ async function vadsToGoogleDrive() {
         if (!mergeRes.ok) throw new Error('Merge failed: ' + mergeRes.status);
         const videoBlob = await mergeRes.blob();
 
-        // 2. Upload merged video to Drive
+        // 2. Save to ads.slx disk
         const uploadFd = new FormData();
         uploadFd.append('video', videoBlob, 'video.mp4');
         uploadFd.append('sku_name', sku);
         uploadFd.append('country_code', lang);
         uploadFd.append('video_version', String(vi + 1));
-        const upRes = await fetch('/drive-upload-video-binary', {method: 'POST', body: uploadFd});
+        const upRes = await fetch('/video-save-to-disk', {method: 'POST', body: uploadFd});
         const upData = await upRes.json();
-        if (!upData.ok) throw new Error(upData.error || 'Upload failed');
-        if (upData.folder_link) folderLink = upData.folder_link;
+        if (!upData.ok) throw new Error(upData.error || 'Save failed');
         uploaded++;
       } catch (e) {
         errors.push(`${lang}_v${vi+1}: ${e.message}`);
       }
       btn.innerHTML = `⏳ ${uploaded}/${total} naloženo...`;
-      if (bulkStatus) bulkStatus.textContent = `Drive upload: ${uploaded}/${total}` + (errors.length ? ` (${errors.length} napak)` : '');
+      if (bulkStatus) bulkStatus.textContent = `Disk save: ${uploaded}/${total}` + (errors.length ? ` (${errors.length} napak)` : '');
     };
 
     const queue = [...tasks];
@@ -3124,20 +3119,21 @@ async function vadsToGoogleDrive() {
     });
     await Promise.all(workers);
 
+    const downloadUrl = window.location.origin + '/d/' + encodeURIComponent(sku);
+
     if (errors.length) {
       btn.innerHTML = `⚠ ${uploaded}/${total} (${errors.length} napak)`;
-      console.error('Drive upload errors:', errors);
+      console.error('Disk save errors:', errors);
     } else {
-      btn.innerHTML = '✓ Naloženo!';
+      btn.innerHTML = '✓ Shranjeno!';
     }
 
-    if (folderLink) {
-      const msg = `✓ ${uploaded} videov naloženo v Drive (SKU: ${sku}).\n\nFolder link:\n${folderLink}\n\nKopiral sem ga v clipboard.`;
-      try { await navigator.clipboard.writeText(folderLink); } catch(e) {}
+    if (uploaded > 0) {
+      try { await navigator.clipboard.writeText(downloadUrl); } catch(e) {}
       if (bulkStatus) {
-        bulkStatus.innerHTML = `✓ ${uploaded}/${total} naloženo · <a href="${folderLink}" target="_blank" style="color:var(--accent)">📁 Odpri Drive mapo</a> · link kopiran`;
+        bulkStatus.innerHTML = `✓ ${uploaded}/${total} naloženo · <a href="${downloadUrl}" target="_blank" style="color:var(--accent);font-weight:600">📁 Odpri Download stran</a> · link kopiran`;
       }
-      alert(msg);
+      alert(`✓ ${uploaded} videov shranjenih (SKU: ${sku}).\n\nDownload link:\n${downloadUrl}\n\nKopiral sem ga v clipboard.`);
     }
 
     setTimeout(() => {
@@ -6174,7 +6170,7 @@ async function vadsGenerateAllAudio() {
   if (zipBtn && window._vadsAudioBlobs && Object.keys(window._vadsAudioBlobs).length > 0) {
     zipBtn.style.display = 'flex';
     const zaBtn = document.getElementById('vadsZipAsanaBtn'); if (zaBtn) zaBtn.style.display = 'flex';
-    const gdBtn = document.getElementById('vadsGDriveBtn'); if (gdBtn) gdBtn.style.display = 'flex';
+    const slxBtn = document.getElementById('vadsSlxBtn'); if (slxBtn) slxBtn.style.display = 'flex';
   }
 }
 
