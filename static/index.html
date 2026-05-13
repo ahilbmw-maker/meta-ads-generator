@@ -567,6 +567,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('obrat14tt')">Obrat 7 dni (TikTok)</div>
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('ttkreative')">TikTok Kreative</div>
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('beta')">🧪 Analiza Beta</div>
+    <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('prevzemi')">📥 Prevzemi</div>
   </div>
 
   <div class="nav-item nav-knjigovodstvo" id="nav-knjigovodstvo" onclick="switchPage('knjigovodstvo')">
@@ -697,6 +698,7 @@ input[type="text"].error { border-color: var(--red) !important; }
               <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14')">↗ Obrat 7d (FB)</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14tt')">↗ Obrat 7d (TT)</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('ttkreative')">↗ TikTok Kreative</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('prevzemi')">↗ Prevzemi</span>
             </div>
           </div>
           <div class="home-tile" style="border-left-color:#a855f7" onclick="switchPage('knjigovodstvo')">
@@ -2130,6 +2132,7 @@ input[type="text"].error { border-color: var(--red) !important; }
       <button class="analiza-tab-btn" id="analizaTab-obrat14tt" onclick="switchAnalizaTab('obrat14tt')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📊 Obrat 7 dni (TikTok)</button>
       <button class="analiza-tab-btn" id="analizaTab-ttkreative" onclick="switchAnalizaTab('ttkreative')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🎬 TikTok Kreative</button>
       <button class="analiza-tab-btn" id="analizaTab-beta" onclick="switchAnalizaTab('beta')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🧪 Analiza Beta</button>
+      <button class="analiza-tab-btn" id="analizaTab-prevzemi" onclick="switchAnalizaTab('prevzemi')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📥 Prevzemi</button>
     </div>
 
     <!-- TAB: Meta Ads -->
@@ -2464,6 +2467,77 @@ input[type="text"].error { border-color: var(--red) !important; }
       </div>
     </div>
   </div>
+
+  <!-- TAB: Prevzemi -->
+  <div id="analizaSubpage-prevzemi" style="display:none;padding:14px">
+    <div style="display:grid;grid-template-columns:280px minmax(0,1fr);gap:14px;align-items:start">
+      <!-- LEVO: upload + history -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="card">
+          <span class="slabel">NALOŽI PDF RAČUN</span>
+          <p style="font-size:11px;color:var(--text-secondary);margin:6px 0 8px;line-height:1.4">PDF dobaviteljevega računa (AMIO, ipd.). Razdela ga in pripravi seznam postavk za izvoz v XLS.</p>
+          <div id="prevzemiDropZone" class="k-dropzone" style="padding:14px;cursor:pointer" onclick="document.getElementById('prevzemiPdfInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="prevzemiHandleDrop(event)">
+            <span style="font-size:11px">📄 Klikni ali povleci PDF</span>
+          </div>
+          <input type="file" id="prevzemiPdfInput" accept=".pdf" style="display:none" onchange="prevzemiUploadPdf(this.files[0])">
+          <div id="prevzemiStatus" style="margin-top:8px;font-size:11px;color:var(--text-tertiary);text-align:center;display:none"></div>
+        </div>
+
+        <div class="card">
+          <span class="slabel">ZGODOVINA</span>
+          <div id="prevzemiHistory" style="margin-top:8px;display:flex;flex-direction:column;gap:5px;max-height:500px;overflow-y:auto">
+            <div style="font-size:11px;color:var(--text-tertiary);text-align:center;padding:1rem">Brez zgodovine</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DESNO: preview + export -->
+      <div>
+        <div id="prevzemiEmptyState" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:3rem 2rem;text-align:center;color:var(--text-tertiary);font-size:13px">
+          📄 Naloži PDF račun na levi strani da vidiš seznam postavk.
+        </div>
+
+        <div id="prevzemiPreviewWrap" style="display:none">
+          <!-- Header info -->
+          <div class="card" style="margin-bottom:12px">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px">
+              <div>
+                <span class="slabel" style="font-size:9px">RAČUN</span>
+                <div id="prevzemiInvoiceNumber" style="font-size:14px;font-weight:700;font-family:monospace;margin-top:3px"></div>
+              </div>
+              <div>
+                <span class="slabel" style="font-size:9px">DATUM</span>
+                <div id="prevzemiInvoiceDate" style="font-size:14px;font-weight:700;margin-top:3px"></div>
+              </div>
+              <div>
+                <span class="slabel" style="font-size:9px">DOBAVITELJ</span>
+                <div id="prevzemiVendor" style="font-size:13px;font-weight:600;margin-top:3px"></div>
+              </div>
+              <div>
+                <span class="slabel" style="font-size:9px">SKUPAJ</span>
+                <div id="prevzemiTotal" style="font-size:14px;font-weight:700;color:var(--accent);margin-top:3px"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions bar -->
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
+            <button onclick="prevzemiToggleAll(true)" style="padding:6px 12px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">✓ Izberi vse</button>
+            <button onclick="prevzemiToggleAll(false)" style="padding:6px 12px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">✗ Počisti</button>
+            <div style="flex:1"></div>
+            <div style="font-size:12px;color:var(--text-secondary)"><span id="prevzemiSelCount" style="font-weight:700;color:var(--accent)">0</span> izbranih</div>
+            <button onclick="prevzemiGenerateXls()" id="prevzemiExportBtn" style="padding:8px 14px;background:#16a34a;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📥 Generiraj XLS</button>
+          </div>
+
+          <!-- Items table -->
+          <div id="prevzemiTable" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+            <!-- filled by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /Tab Prevzemi -->
+
   </div><!-- /page-analiza -->
 
   <!-- ═══ KNJIGOVODSTVO PAGE ═══ -->
@@ -7148,6 +7222,202 @@ async function storageBulkDelete() {
   }
 }
 
+// ═══════════════════════════════════════════════
+// PREVZEMI — PDF parser + XLS export
+// ═══════════════════════════════════════════════
+let prevzemiData = null;
+let prevzemiRecordId = null;
+let prevzemiSelected = new Set();
+
+function prevzemiHandleDrop(e) {
+  e.preventDefault();
+  e.target.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') prevzemiUploadPdf(f);
+}
+
+async function prevzemiUploadPdf(file) {
+  if (!file) return;
+  const status = document.getElementById('prevzemiStatus');
+  status.style.display = 'block';
+  status.textContent = '⏳ Razdelujem PDF (Claude AI)... lahko traja 30-60s';
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const r = await fetch('/prevzemi-parse-pdf', {method: 'POST', body: fd});
+    const d = await r.json();
+    if (!d.ok) {
+      status.textContent = '❌ ' + (d.error || 'Napaka');
+      return;
+    }
+    status.textContent = `✓ ${d.parsed.items.length} postavk najdenih`;
+    prevzemiRecordId = d.record_id;
+    prevzemiData = d.parsed;
+    prevzemiSelected = new Set(d.parsed.items.map((_, i) => i)); // vse default checked
+    prevzemiRender();
+    prevzemiLoadHistory();
+  } catch(e) {
+    status.textContent = '❌ ' + e.message;
+  }
+}
+
+function prevzemiRender() {
+  if (!prevzemiData) return;
+  document.getElementById('prevzemiEmptyState').style.display = 'none';
+  document.getElementById('prevzemiPreviewWrap').style.display = 'block';
+
+  document.getElementById('prevzemiInvoiceNumber').textContent = prevzemiData.invoice_number || '—';
+  document.getElementById('prevzemiInvoiceDate').textContent = prevzemiData.invoice_date || '—';
+  document.getElementById('prevzemiVendor').textContent = prevzemiData.vendor_name || '—';
+  document.getElementById('prevzemiTotal').textContent = prevzemiData.total_value || '—';
+
+  const items = prevzemiData.items || [];
+  let html = `<div style="display:grid;grid-template-columns:40px 50px 90px 1fr 70px 60px 90px 90px;gap:0;background:var(--surface2);font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.4px;padding:8px 12px;border-bottom:1px solid var(--border)">
+    <div></div>
+    <div>Lp.</div>
+    <div>P/N</div>
+    <div>Naziv</div>
+    <div style="text-align:right">Qty</div>
+    <div style="text-align:center">Unit</div>
+    <div style="text-align:right">Cena</div>
+    <div style="text-align:right">Vrednost</div>
+  </div>`;
+
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    const isSel = prevzemiSelected.has(i);
+    html += `<div style="display:grid;grid-template-columns:40px 50px 90px 1fr 70px 60px 90px 90px;gap:0;font-size:11px;padding:8px 12px;border-bottom:1px solid var(--border);background:${isSel ? 'rgba(83,74,183,0.04)' : 'transparent'};align-items:center">
+      <input type="checkbox" ${isSel ? 'checked' : ''} onchange="prevzemiToggleItem(${i}, this.checked)" style="cursor:pointer;width:15px;height:15px;accent-color:var(--accent)">
+      <div style="font-family:monospace;color:var(--text-tertiary)">${it.lp || ''}</div>
+      <div style="font-family:monospace;font-weight:600;color:var(--text)">${it.product_number || ''}</div>
+      <div style="color:var(--text);line-height:1.3"><div>${(it.product_name || '').replace(/</g,'&lt;')}</div><div style="font-size:9px;color:var(--text-tertiary);font-family:monospace;margin-top:2px">EAN: ${it.ean || '—'}</div></div>
+      <div style="text-align:right;font-family:monospace;color:var(--text)">${it.qty || ''} ${it.unit || ''}</div>
+      <div style="text-align:center;color:var(--text-tertiary)">${it.vat || ''}</div>
+      <div style="text-align:right;font-family:monospace;color:var(--text)">${it.unit_price || ''}</div>
+      <div style="text-align:right;font-family:monospace;font-weight:600;color:var(--accent)">${it.value || ''}</div>
+    </div>`;
+  }
+  document.getElementById('prevzemiTable').innerHTML = html;
+  prevzemiUpdateCount();
+}
+
+function prevzemiToggleItem(idx, checked) {
+  if (checked) prevzemiSelected.add(idx);
+  else prevzemiSelected.delete(idx);
+  prevzemiUpdateCount();
+  // Update row bg
+  const rows = document.querySelectorAll('#prevzemiTable > div:not(:first-child)');
+  if (rows[idx]) rows[idx].style.background = checked ? 'rgba(83,74,183,0.04)' : 'transparent';
+}
+
+function prevzemiToggleAll(checked) {
+  if (!prevzemiData) return;
+  prevzemiSelected = checked ? new Set(prevzemiData.items.map((_, i) => i)) : new Set();
+  prevzemiRender();
+}
+
+function prevzemiUpdateCount() {
+  const el = document.getElementById('prevzemiSelCount');
+  if (el) el.textContent = prevzemiSelected.size;
+}
+
+async function prevzemiGenerateXls() {
+  if (!prevzemiRecordId || !prevzemiSelected.size) {
+    alert('Izberi vsaj eno postavko.');
+    return;
+  }
+  const btn = document.getElementById('prevzemiExportBtn');
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Generiram...';
+  try {
+    const r = await fetch('/prevzemi-generate-xls', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({record_id: prevzemiRecordId, selected_indices: [...prevzemiSelected]})
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.error || 'Napaka pri generiranju');
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const invNum = (prevzemiData?.invoice_number || 'prevzem').replace(/[^A-Za-z0-9_-]/g, '_');
+    a.download = invNum + '.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    btn.textContent = '✓ Prenešeno!';
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2500);
+  } catch(e) {
+    btn.textContent = '❌ ' + e.message;
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+  }
+}
+
+async function prevzemiLoadHistory() {
+  const el = document.getElementById('prevzemiHistory');
+  if (!el) return;
+  try {
+    const r = await fetch('/prevzemi-list');
+    const d = await r.json();
+    if (!d.ok || !d.records.length) {
+      el.innerHTML = '<div style="font-size:11px;color:var(--text-tertiary);text-align:center;padding:1rem">Brez zgodovine</div>';
+      return;
+    }
+    let html = '';
+    for (const rec of d.records) {
+      const ts = rec.created_ts || '';
+      const tsDate = ts.length === 15 ? `${ts.slice(6,8)}.${ts.slice(4,6)}.${ts.slice(0,4)} ${ts.slice(9,11)}:${ts.slice(11,13)}` : ts;
+      html += `<div style="display:grid;grid-template-columns:1fr auto;gap:6px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all 0.1s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'" onclick="prevzemiLoadRecord('${rec.record_id}')">
+        <div style="min-width:0">
+          <div style="font-size:11px;font-weight:700;font-family:monospace;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${rec.invoice_number || rec.record_id}</div>
+          <div style="font-size:9px;color:var(--text-tertiary);margin-top:2px">${tsDate} · ${rec.item_count || 0} postavk</div>
+          <div style="font-size:9px;color:var(--text-tertiary)">${(rec.vendor_name || '').slice(0, 30)}</div>
+        </div>
+        <button onclick="event.stopPropagation();prevzemiDeleteRecord('${rec.record_id}')" style="background:transparent;border:1px solid #fca5a5;color:#dc2626;border-radius:4px;width:22px;height:22px;cursor:pointer;font-size:10px;padding:0;line-height:1">✕</button>
+      </div>`;
+    }
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:11px;color:#dc2626;text-align:center;padding:1rem">Napaka</div>';
+  }
+}
+
+async function prevzemiLoadRecord(recordId) {
+  try {
+    const r = await fetch('/prevzemi-record/' + encodeURIComponent(recordId));
+    const d = await r.json();
+    if (!d.ok) {
+      alert('Napaka: ' + (d.error || 'unknown'));
+      return;
+    }
+    prevzemiRecordId = d.record_id;
+    prevzemiData = d.parsed;
+    prevzemiSelected = new Set(d.parsed.items.map((_, i) => i));
+    prevzemiRender();
+    document.getElementById('prevzemiStatus').style.display = 'block';
+    document.getElementById('prevzemiStatus').textContent = `✓ Naložen iz zgodovine: ${d.parsed.items.length} postavk`;
+  } catch(e) {
+    alert('Napaka: ' + e.message);
+  }
+}
+
+async function prevzemiDeleteRecord(recordId) {
+  if (!confirm('Zbriši ta prevzem iz zgodovine?')) return;
+  try {
+    await fetch('/prevzemi-record/' + encodeURIComponent(recordId), {method: 'DELETE'});
+    prevzemiLoadHistory();
+  } catch(e) {
+    alert('Napaka: ' + e.message);
+  }
+}
+
 async function odpLoadValidZips() {
   try {
     const res = await fetch('/econt-valid-zips');
@@ -8746,7 +9016,7 @@ let anSortCol = 'stock';
 let anSortDir = -1;
 
 function switchAnalizaTab(tab) {
-  ['meta', 'obrat14', 'obrat14tt', 'ttkreative', 'beta'].forEach(t => {
+  ['meta', 'obrat14', 'obrat14tt', 'ttkreative', 'beta', 'prevzemi'].forEach(t => {
     const btn = document.getElementById('analizaTab-' + t);
     const sub = document.getElementById('analizaSubpage-' + t);
     if (t === tab) {
@@ -8762,6 +9032,7 @@ function switchAnalizaTab(tab) {
   if (tab === 'obrat14tt') { tt14LoadData(); }
   if (tab === 'ttkreative') { ttKrLoadData(); }
   if (tab === 'beta') { betaLoadHistory(); }
+  if (tab === 'prevzemi') { if(typeof prevzemiLoadHistory==='function') prevzemiLoadHistory(); }
   try { localStorage.setItem('slx_active_subtab', tab); } catch(e) {}
 }
 
