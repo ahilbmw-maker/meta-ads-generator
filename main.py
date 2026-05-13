@@ -8327,3 +8327,283 @@ async def video_download_page(sku: str):
   <div class="footer">ads.slxanalytics.org · Maaarket Video Ads</div>
 </div>
 </body></html>""")
+
+
+# ═══════════════════════════════════════════════
+# PREVZEMI — PDF invoice parser → XLS generator
+# ═══════════════════════════════════════════════
+PREVZEMI_DIR = Path("/data/prevzemi")
+PREVZEMI_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _safe_filename(name: str) -> str:
+    import re as _re
+    s = _re.sub(r'[^A-Za-z0-9_\-]', '_', name)
+    return s[:120] or 'prevzem'
+
+
+@app.post("/prevzemi-parse-pdf")
+async def prevzemi_parse_pdf(file: UploadFile = File(...)):
+    """Upload PDF invoice, parse with Claude API, save raw + parsed JSON to disk."""
+    try:
+        import base64
+        pdf_bytes = await file.read()
+        pdf_b64 = base64.standard_b64encode(pdf_bytes).decode('utf-8')
+
+        # Save raw PDF temporarily for re-processing
+        from datetime import datetime
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        safe_name = _safe_filename(file.filename or 'invoice.pdf')
+
+        # Use Claude to parse PDF
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=8000,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "document",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "application/pdf",
+                            "data": pdf_b64
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "text": """Parse this supplier invoice PDF and extract structured data. Return ONLY valid JSON with this exact schema (no markdown, no explanation):
+
+{
+  "invoice_number": "string (e.g. FV/KK/896/05/2026)",
+  "invoice_date": "string in YYYY-MM-DD format",
+  "vendor_name": "string",
+  "vendor_tin": "string",
+  "customer_name": "string",
+  "total_value": "string (e.g. 1013.70 EUR)",
+  "currency": "string (e.g. EUR)",
+  "items": [
+    {
+      "lp": "string (item number from PDF, e.g. '1', '2')",
+      "product_number": "string (P/N code)",
+      "product_name": "string (full name)",
+      "ean": "string (EAN code, 13 digits)",
+      "qty": "string (quantity)",
+      "unit": "string (szt/kpl/para/set, copy as-is)",
+      "vat": "string (e.g. '0%')",
+      "unit_price": "string (subtotal price per unit, exactly as in PDF)",
+      "value": "string (subtotal value, exactly as in PDF)"
+    }
+  ]
+}
+
+IMPORTANT:
+- All numeric values as STRINGS (not numbers!) to preserve formatting (commas, decimals, leading zeros)
+- Use dot as decimal separator (3.32 not 3,32)
+- Copy product names EXACTLY as written (including Polish/English mixed text)
+- Extract ALL items, do not skip any (typically 50-150 items)
+- If field missing, use empty string ""
+- Return ONLY the JSON object, nothing else"""
+                    }
+                ]
+            }]
+        )
+
+        raw_text = message.content[0].text.strip()
+        # Strip possible markdown
+        if raw_text.startswith('```'):
+            raw_text = raw_text.split('```')[1]
+            if raw_text.startswith('json'):
+                raw_text = raw_text[4:]
+            raw_text = raw_text.strip()
+        if raw_text.endswith('```'):
+            raw_text = raw_text[:-3].strip()
+
+        parsed = json.loads(raw_text)
+
+        # Save to disk
+        invoice_num_safe = _safe_filename(parsed.get('invoice_number', 'unknown'))
+        record_id = f"{ts}_{invoice_num_safe}"
+        target_dir = PREVZEMI_DIR / record_id
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save PDF
+        (target_dir / 'source.pdf').write_bytes(pdf_bytes)
+        # Save parsed JSON
+        (target_dir / 'parsed.json').write_text(json.dumps(parsed, indent=2, ensure_ascii=False), encoding='utf-8')
+        # Save metadata
+        meta = {
+            'record_id': record_id,
+            'original_filename': file.filename or 'invoice.pdf',
+            'created_ts': ts,
+            'invoice_number': parsed.get('invoice_number', ''),
+            'invoice_date': parsed.get('invoice_date', ''),
+            'vendor_name': parsed.get('vendor_name', ''),
+            'item_count': len(parsed.get('items', []))
+        }
+        (target_dir / 'meta.json').write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding='utf-8')
+
+        return {
+            "ok": True,
+            "record_id": record_id,
+            "parsed": parsed
+        }
+
+    except json.JSONDecodeError as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": f"JSON parse error: {e}", "raw": raw_text[:1000] if 'raw_text' in dir() else ""}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/prevzemi-list")
+async def prevzemi_list():
+    """List all saved prevzem records (history)."""
+    try:
+        records = []
+        for d in sorted(PREVZEMI_DIR.iterdir(), reverse=True):
+            if not d.is_dir():
+                continue
+            meta_file = d / 'meta.json'
+            if not meta_file.exists():
+                continue
+            try:
+                meta = json.loads(meta_file.read_text(encoding='utf-8'))
+                records.append(meta)
+            except Exception:
+                continue
+        return {"ok": True, "records": records}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/prevzemi-record/{record_id}")
+async def prevzemi_record_get(record_id: str):
+    """Load saved parsed record."""
+    try:
+        rec_safe = _safe_filename(record_id)
+        target = PREVZEMI_DIR / rec_safe / 'parsed.json'
+        if not target.exists():
+            raise HTTPException(status_code=404, detail="Record not found")
+        parsed = json.loads(target.read_text(encoding='utf-8'))
+        return {"ok": True, "parsed": parsed, "record_id": rec_safe}
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.delete("/prevzemi-record/{record_id}")
+async def prevzemi_record_delete(record_id: str):
+    """Delete prevzem record."""
+    import shutil
+    try:
+        rec_safe = _safe_filename(record_id)
+        target = PREVZEMI_DIR / rec_safe
+        if not target.exists():
+            return {"ok": False, "error": "Not found"}
+        shutil.rmtree(target)
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+class PrevzemiXlsRequest(BaseModel):
+    record_id: str
+    selected_indices: list[int]  # which items to include (by original index)
+
+
+@app.post("/prevzemi-generate-xls")
+async def prevzemi_generate_xls(req: PrevzemiXlsRequest):
+    """Generate XLS file with selected items in template format."""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.utils import get_column_letter
+        import io
+
+        rec_safe = _safe_filename(req.record_id)
+        target = PREVZEMI_DIR / rec_safe / 'parsed.json'
+        if not target.exists():
+            return {"ok": False, "error": "Record not found"}
+        parsed = json.loads(target.read_text(encoding='utf-8'))
+
+        items = parsed.get('items', [])
+        selected = [items[i] for i in req.selected_indices if 0 <= i < len(items)]
+        if not selected:
+            return {"ok": False, "error": "No items selected"}
+
+        invoice_num = parsed.get('invoice_number', '')
+        invoice_date_str = parsed.get('invoice_date', '')
+        # Parse date YYYY-MM-DD to datetime for excel (as text format)
+        try:
+            from datetime import datetime
+            inv_dt = datetime.strptime(invoice_date_str, '%Y-%m-%d')
+            date_excel = inv_dt.strftime('%Y-%m-%d')
+        except Exception:
+            date_excel = invoice_date_str
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "GenRap"
+
+        # Headers (matching template)
+        headers = ["Racun", "DatumPrejema", "Lp.", "P/N", "Nazwa towaru/usługi / Product name",
+                   "Ilość/ Quantity", "J.m./ Unit", "VAT/ TAX", "Cena/ Price EUR", "Wartość/ Value EUR"]
+        for col_idx, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx, value=h)
+            cell.font = Font(bold=True)
+
+        # Add items - 2 rows per item (main + EAN row)
+        row = 2
+        new_lp = 1
+        for item in selected:
+            # Main row
+            ws.cell(row=row, column=1, value=invoice_num).number_format = '@'
+            ws.cell(row=row, column=2, value=date_excel).number_format = '@'
+            ws.cell(row=row, column=3, value=str(new_lp)).number_format = '@'
+            ws.cell(row=row, column=4, value=str(item.get('product_number', ''))).number_format = '@'
+            ws.cell(row=row, column=5, value=str(item.get('product_name', ''))).number_format = '@'
+            ws.cell(row=row, column=6, value=str(item.get('qty', ''))).number_format = '@'
+            ws.cell(row=row, column=7, value=str(item.get('unit', ''))).number_format = '@'
+            ws.cell(row=row, column=8, value=str(item.get('vat', ''))).number_format = '@'
+            ws.cell(row=row, column=9, value=str(item.get('unit_price', ''))).number_format = '@'
+            ws.cell(row=row, column=10, value=str(item.get('value', ''))).number_format = '@'
+
+            # EAN row
+            row += 1
+            ws.cell(row=row, column=1, value=invoice_num).number_format = '@'
+            ws.cell(row=row, column=2, value=date_excel).number_format = '@'
+            ean = str(item.get('ean', ''))
+            ws.cell(row=row, column=5, value=f"EAN: {ean}").number_format = '@'
+
+            row += 1
+            new_lp += 1
+
+        # Column widths
+        widths = [22, 16, 6, 14, 80, 10, 10, 8, 14, 14]
+        for i, w in enumerate(widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        # Save to bytes
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+
+        # Save copy to disk as last_generated.xlsx
+        (PREVZEMI_DIR / rec_safe / 'last_generated.xlsx').write_bytes(buf.getvalue())
+        buf.seek(0)
+
+        filename = f"{_safe_filename(invoice_num) or 'prevzem'}.xlsx"
+        return StreamingResponse(
+            iter([buf.read()]),
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
