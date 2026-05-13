@@ -8676,3 +8676,124 @@ async def prevzemi_generate_xls(req: PrevzemiXlsRequest):
         import traceback
         traceback.print_exc()
         return {"ok": False, "error": str(e)}
+
+
+class PrevzemiXmlRequest(BaseModel):
+    record_id: str
+    selected_indices: list[int]  # which items to include (by original index)
+
+
+@app.post("/prevzemi-generate-xml")
+async def prevzemi_generate_xml(req: PrevzemiXmlRequest):
+    """Generate nextis.xmlservice XML file with selected items."""
+    try:
+        import xml.etree.ElementTree as _ET
+        from xml.dom import minidom as _minidom
+        import io
+
+        rec_safe = _safe_filename(req.record_id)
+        target = PREVZEMI_DIR / rec_safe / 'parsed.json'
+        if not target.exists():
+            return {"ok": False, "error": "Record not found"}
+        parsed = json.loads(target.read_text(encoding='utf-8'))
+
+        items = parsed.get('items', [])
+        selected = [items[i] for i in req.selected_indices if 0 <= i < len(items)]
+        if not selected:
+            return {"ok": False, "error": "No items selected"}
+
+        invoice_num = parsed.get('invoice_number', '')
+        currency = parsed.get('currency', 'EUR')
+
+        # Parse invoice date -> DD.MM.YYYY
+        raw_date = parsed.get('invoice_date', '')
+        try:
+            from datetime import datetime as _dt
+            date_str = _dt.strptime(raw_date, '%Y-%m-%d').strftime('%d.%m.%Y')
+        except Exception:
+            date_str = raw_date
+
+        # Calculate totals from selected items
+        def _to_float(s):
+            try:
+                return float(str(s).replace(',', '.').strip())
+            except Exception:
+                return 0.0
+
+        total_value = sum(_to_float(it.get('value', 0)) for it in selected)
+        total_str = f"{total_value:.2f}"
+
+        # Build XML
+        root = _ET.Element("nextis.xmlservice")
+        invoice_el = _ET.SubElement(root, "Invoice",
+            Number=invoice_num,
+            DateCreated=date_str,
+            Currency=currency,
+            Payed="0.00",
+            ToPay=total_str,
+            Value=total_str,
+            ValueWithVAT=total_str
+        )
+        items_el = _ET.SubElement(invoice_el, "InvoiceItems")
+
+        for item in selected:
+            unit_price_raw = str(item.get('unit_price', ''))
+            try:
+                unit_price_f = _to_float(unit_price_raw)
+                unit_price_str = f"{unit_price_f:.4f}".rstrip('0').rstrip('.')
+                # ensure at least 2 decimal places
+                if '.' not in unit_price_str:
+                    unit_price_str += '.00'
+                elif len(unit_price_str.split('.')[1]) < 2:
+                    unit_price_str += '0'
+            except Exception:
+                unit_price_str = unit_price_raw
+
+            total_item_raw = str(item.get('value', ''))
+            try:
+                total_item_f = _to_float(total_item_raw)
+                total_item_str = f"{total_item_f:.2f}"
+            except Exception:
+                total_item_str = total_item_raw
+
+            qty_raw = str(item.get('qty', '1'))
+            try:
+                qty_f = _to_float(qty_raw)
+                qty_str = str(int(qty_f)) if qty_f == int(qty_f) else qty_raw
+            except Exception:
+                qty_str = qty_raw
+
+            _ET.SubElement(items_el, "Item",
+                ProductCode=str(item.get('product_number', '')),
+                Name=str(item.get('product_name', '')),
+                Quantity=qty_str,
+                UnitPrice=unit_price_str,
+                UnitPriceWithVAT=unit_price_str,
+                TotalPrice=total_item_str,
+                TotalPriceWithVAT=total_item_str,
+                VatValue="0.00"
+            )
+
+        # Pretty print
+        xml_raw = _ET.tostring(root, encoding='unicode')
+        pretty = _minidom.parseString(xml_raw).toprettyxml(indent="  ")
+        # Strip XML declaration (nextis doesn't need it)
+        lines = pretty.split('\n')
+        if lines[0].startswith('<?xml'):
+            lines = lines[1:]
+        xml_output = '\n'.join(lines).strip()
+
+        # Save copy to disk
+        xml_bytes = xml_output.encode('utf-8')
+        (PREVZEMI_DIR / rec_safe / 'last_generated.xml').write_bytes(xml_bytes)
+
+        filename = f"{_safe_filename(invoice_num) or 'prevzem'}.xml"
+        return StreamingResponse(
+            iter([xml_bytes]),
+            media_type='application/xml',
+            headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
