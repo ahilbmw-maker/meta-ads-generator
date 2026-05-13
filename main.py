@@ -2258,16 +2258,16 @@ Vrni SAMO JSON brez markdown:
 # ─── VIDEO ADS — ELEVENLABS AUDIO ────────────────────────────────────────────
 
 ELEVENLABS_VOICES = {
-    "sl": "pNInz6obpgDQGcFmaJgB",  # Adam — multilingual
-    "hr": "pNInz6obpgDQGcFmaJgB",
-    "rs": "pNInz6obpgDQGcFmaJgB",
-    "hu": "pNInz6obpgDQGcFmaJgB",
-    "cz": "pNInz6obpgDQGcFmaJgB",
-    "sk": "pNInz6obpgDQGcFmaJgB",
-    "pl": "pNInz6obpgDQGcFmaJgB",
-    "gr": "pNInz6obpgDQGcFmaJgB",
-    "ro": "pNInz6obpgDQGcFmaJgB",
-    "bg": "pNInz6obpgDQGcFmaJgB",
+    "sl": "lxYfHSkYm1EzQzGhdbfc",
+    "hr": "lxYfHSkYm1EzQzGhdbfc",
+    "rs": "lxYfHSkYm1EzQzGhdbfc",
+    "hu": "lxYfHSkYm1EzQzGhdbfc",
+    "cz": "lxYfHSkYm1EzQzGhdbfc",
+    "sk": "lxYfHSkYm1EzQzGhdbfc",
+    "pl": "lxYfHSkYm1EzQzGhdbfc",
+    "gr": "lxYfHSkYm1EzQzGhdbfc",
+    "ro": "lxYfHSkYm1EzQzGhdbfc",
+    "bg": "lxYfHSkYm1EzQzGhdbfc",
 }
 
 def _parse_words(alignment: dict):
@@ -2424,7 +2424,7 @@ async def generate_audio(data: dict):
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": "ELEVENLABS_API_KEY ni nastavljen."}, status_code=400)
 
-    voice_id = ELEVENLABS_VOICES.get(lang, "pNInz6obpgDQGcFmaJgB")
+    voice_id = ELEVENLABS_VOICES.get(lang, "lxYfHSkYm1EzQzGhdbfc")
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as hc:
