@@ -8579,11 +8579,9 @@ class PrevzemiXlsRequest(BaseModel):
 
 @app.post("/prevzemi-generate-xls")
 async def prevzemi_generate_xls(req: PrevzemiXlsRequest):
-    """Generate XLS file with selected items in template format."""
+    """Generate Excel 97 (.xls) file with selected items in template format."""
     try:
-        from openpyxl import Workbook
-        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-        from openpyxl.utils import get_column_letter
+        import xlwt
         import io
 
         rec_safe = _safe_filename(req.record_id)
@@ -8599,7 +8597,6 @@ async def prevzemi_generate_xls(req: PrevzemiXlsRequest):
 
         invoice_num = parsed.get('invoice_number', '')
         invoice_date_str = parsed.get('invoice_date', '')
-        # Parse date YYYY-MM-DD to datetime for excel (as text format)
         try:
             from datetime import datetime
             inv_dt = datetime.strptime(invoice_date_str, '%Y-%m-%d')
@@ -8607,68 +8604,72 @@ async def prevzemi_generate_xls(req: PrevzemiXlsRequest):
         except Exception:
             date_excel = invoice_date_str
 
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "GenRap"
+        # Excel 97 .xls workbook
+        wb = xlwt.Workbook(encoding='utf-8')
+        ws = wb.add_sheet('GenRap')
+
+        # Text format style — preserve leading zeros, no number truncation
+        text_style = xlwt.easyxf('', num_format_str='@')
+        header_style = xlwt.easyxf('font: bold on', num_format_str='@')
 
         # Headers (matching template)
         headers = ["Racun", "DatumPrejema", "Lp.", "P/N", "Nazwa towaru/usługi / Product name",
                    "Ilość/ Quantity", "J.m./ Unit", "VAT/ TAX", "Cena/ Price EUR", "Wartość/ Value EUR"]
-        for col_idx, h in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col_idx, value=h)
-            cell.font = Font(bold=True)
+        for col_idx, h in enumerate(headers):
+            ws.write(0, col_idx, h, header_style)
 
-        # Add items - 2 rows per item (main + EAN row)
-        row = 2
+        # Items — 2 rows per item (main + EAN)
+        row = 1
         new_lp = 1
         for item in selected:
-            # Main row
-            ws.cell(row=row, column=1, value=invoice_num).number_format = '@'
-            ws.cell(row=row, column=2, value=date_excel).number_format = '@'
-            ws.cell(row=row, column=3, value=str(new_lp)).number_format = '@'
-            ws.cell(row=row, column=4, value=str(item.get('product_number', ''))).number_format = '@'
-            ws.cell(row=row, column=5, value=str(item.get('product_name', ''))).number_format = '@'
-            ws.cell(row=row, column=6, value=str(item.get('qty', ''))).number_format = '@'
-            ws.cell(row=row, column=7, value=str(item.get('unit', ''))).number_format = '@'
-            ws.cell(row=row, column=8, value=str(item.get('vat', ''))).number_format = '@'
-            # Zaokroži ceno na 2 decimalki
+            # Round price to 2 decimals
             raw_price = str(item.get('unit_price', ''))
             try:
                 price_val = float(raw_price.replace(',', '.').strip())
                 price_str = f"{price_val:.2f}"
             except (ValueError, AttributeError):
                 price_str = raw_price
-            ws.cell(row=row, column=9, value=price_str).number_format = '@'
-            ws.cell(row=row, column=10, value=str(item.get('value', ''))).number_format = '@'
+
+            # Main row
+            ws.write(row, 0, str(invoice_num), text_style)
+            ws.write(row, 1, str(date_excel), text_style)
+            ws.write(row, 2, str(new_lp), text_style)
+            ws.write(row, 3, str(item.get('product_number', '')), text_style)
+            ws.write(row, 4, str(item.get('product_name', '')), text_style)
+            ws.write(row, 5, str(item.get('qty', '')), text_style)
+            ws.write(row, 6, str(item.get('unit', '')), text_style)
+            ws.write(row, 7, str(item.get('vat', '')), text_style)
+            ws.write(row, 8, price_str, text_style)
+            ws.write(row, 9, str(item.get('value', '')), text_style)
 
             # EAN row
             row += 1
-            ws.cell(row=row, column=1, value=invoice_num).number_format = '@'
-            ws.cell(row=row, column=2, value=date_excel).number_format = '@'
+            ws.write(row, 0, str(invoice_num), text_style)
+            ws.write(row, 1, str(date_excel), text_style)
             ean = str(item.get('ean', ''))
-            ws.cell(row=row, column=5, value=f"EAN: {ean}").number_format = '@'
+            ws.write(row, 4, f"EAN: {ean}", text_style)
 
             row += 1
             new_lp += 1
 
-        # Column widths
-        widths = [22, 16, 6, 14, 80, 10, 10, 8, 14, 14]
-        for i, w in enumerate(widths, 1):
-            ws.column_dimensions[get_column_letter(i)].width = w
+        # Column widths (xlwt uses ~256 units per character)
+        widths_chars = [22, 16, 6, 14, 80, 10, 10, 8, 14, 14]
+        for i, w in enumerate(widths_chars):
+            ws.col(i).width = w * 256
 
         # Save to bytes
         buf = io.BytesIO()
         wb.save(buf)
         buf.seek(0)
 
-        # Save copy to disk as last_generated.xlsx
-        (PREVZEMI_DIR / rec_safe / 'last_generated.xlsx').write_bytes(buf.getvalue())
+        # Save copy to disk
+        (PREVZEMI_DIR / rec_safe / 'last_generated.xls').write_bytes(buf.getvalue())
         buf.seek(0)
 
-        filename = f"{_safe_filename(invoice_num) or 'prevzem'}.xlsx"
+        filename = f"{_safe_filename(invoice_num) or 'prevzem'}.xls"
         return StreamingResponse(
             iter([buf.read()]),
-            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            media_type='application/vnd.ms-excel',
             headers={'Content-Disposition': f'attachment; filename="{filename}"'}
         )
     except Exception as e:
