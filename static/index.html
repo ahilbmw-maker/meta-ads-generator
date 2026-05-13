@@ -567,7 +567,6 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('obrat14tt')">Obrat 7 dni (TikTok)</div>
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('ttkreative')">TikTok Kreative</div>
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('beta')">🧪 Analiza Beta</div>
-    <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('prevzemi')">📥 Prevzemi</div>
   </div>
 
   <div class="nav-item nav-knjigovodstvo" id="nav-knjigovodstvo" onclick="switchPage('knjigovodstvo')">
@@ -579,6 +578,12 @@ input[type="text"].error { border-color: var(--red) !important; }
     <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     Napoved
     <span class="nav-badge" style="background:#fff7ed;color:#9a3412">📈</span>
+  </div>
+
+  <div class="nav-item nav-prevzemi" id="nav-prevzemi" onclick="switchPage('prevzemi')">
+    <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Prevzemi
+    <span class="nav-badge" style="background:rgba(34,197,94,0.12);color:#15803d">📥</span>
   </div>
 
   <div style="margin:6px 10px;height:1px;background:var(--border)"></div>
@@ -698,7 +703,6 @@ input[type="text"].error { border-color: var(--red) !important; }
               <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14')">↗ Obrat 7d (FB)</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('obrat14tt')">↗ Obrat 7d (TT)</span>
               <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('ttkreative')">↗ TikTok Kreative</span>
-              <span class="home-pill" onclick="event.stopPropagation();switchPage('analiza');switchAnalizaTab('prevzemi')">↗ Prevzemi</span>
             </div>
           </div>
           <div class="home-tile" style="border-left-color:#a855f7" onclick="switchPage('knjigovodstvo')">
@@ -713,6 +717,11 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div class="ht-icon">📈</div>
             <div class="ht-name">Napoved</div>
             <div class="ht-desc">Prodajni forecast</div>
+          </div>
+          <div class="home-tile" style="border-left-color:#15803d" onclick="switchPage('prevzemi')">
+            <div class="ht-icon">📥</div>
+            <div class="ht-name">Prevzemi</div>
+            <div class="ht-desc">PDF račun → XLS prevzem</div>
           </div>
         </div>
       </div>
@@ -2132,7 +2141,6 @@ input[type="text"].error { border-color: var(--red) !important; }
       <button class="analiza-tab-btn" id="analizaTab-obrat14tt" onclick="switchAnalizaTab('obrat14tt')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📊 Obrat 7 dni (TikTok)</button>
       <button class="analiza-tab-btn" id="analizaTab-ttkreative" onclick="switchAnalizaTab('ttkreative')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🎬 TikTok Kreative</button>
       <button class="analiza-tab-btn" id="analizaTab-beta" onclick="switchAnalizaTab('beta')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🧪 Analiza Beta</button>
-      <button class="analiza-tab-btn" id="analizaTab-prevzemi" onclick="switchAnalizaTab('prevzemi')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📥 Prevzemi</button>
     </div>
 
     <!-- TAB: Meta Ads -->
@@ -2468,75 +2476,6 @@ input[type="text"].error { border-color: var(--red) !important; }
     </div>
   </div>
 
-  <!-- TAB: Prevzemi -->
-  <div id="analizaSubpage-prevzemi" style="display:none;padding:14px">
-    <div style="display:grid;grid-template-columns:280px minmax(0,1fr);gap:14px;align-items:start">
-      <!-- LEVO: upload + history -->
-      <div style="display:flex;flex-direction:column;gap:12px">
-        <div class="card">
-          <span class="slabel">NALOŽI PDF RAČUN</span>
-          <p style="font-size:11px;color:var(--text-secondary);margin:6px 0 8px;line-height:1.4">PDF dobaviteljevega računa (AMIO, ipd.). Razdela ga in pripravi seznam postavk za izvoz v XLS.</p>
-          <div id="prevzemiDropZone" class="k-dropzone" style="padding:14px;cursor:pointer" onclick="document.getElementById('prevzemiPdfInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="prevzemiHandleDrop(event)">
-            <span style="font-size:11px">📄 Klikni ali povleci PDF</span>
-          </div>
-          <input type="file" id="prevzemiPdfInput" accept=".pdf" style="display:none" onchange="prevzemiUploadPdf(this.files[0])">
-          <div id="prevzemiStatus" style="margin-top:8px;font-size:11px;color:var(--text-tertiary);text-align:center;display:none"></div>
-        </div>
-
-        <div class="card">
-          <span class="slabel">ZGODOVINA</span>
-          <div id="prevzemiHistory" style="margin-top:8px;display:flex;flex-direction:column;gap:5px;max-height:500px;overflow-y:auto">
-            <div style="font-size:11px;color:var(--text-tertiary);text-align:center;padding:1rem">Brez zgodovine</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- DESNO: preview + export -->
-      <div>
-        <div id="prevzemiEmptyState" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:3rem 2rem;text-align:center;color:var(--text-tertiary);font-size:13px">
-          📄 Naloži PDF račun na levi strani da vidiš seznam postavk.
-        </div>
-
-        <div id="prevzemiPreviewWrap" style="display:none">
-          <!-- Header info -->
-          <div class="card" style="margin-bottom:12px">
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px">
-              <div>
-                <span class="slabel" style="font-size:9px">RAČUN</span>
-                <div id="prevzemiInvoiceNumber" style="font-size:14px;font-weight:700;font-family:monospace;margin-top:3px"></div>
-              </div>
-              <div>
-                <span class="slabel" style="font-size:9px">DATUM</span>
-                <div id="prevzemiInvoiceDate" style="font-size:14px;font-weight:700;margin-top:3px"></div>
-              </div>
-              <div>
-                <span class="slabel" style="font-size:9px">DOBAVITELJ</span>
-                <div id="prevzemiVendor" style="font-size:13px;font-weight:600;margin-top:3px"></div>
-              </div>
-              <div>
-                <span class="slabel" style="font-size:9px">SKUPAJ</span>
-                <div id="prevzemiTotal" style="font-size:14px;font-weight:700;color:var(--accent);margin-top:3px"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Actions bar -->
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
-            <button onclick="prevzemiToggleAll(true)" style="padding:6px 12px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">✓ Izberi vse</button>
-            <button onclick="prevzemiToggleAll(false)" style="padding:6px 12px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">✗ Počisti</button>
-            <div style="flex:1"></div>
-            <div style="font-size:12px;color:var(--text-secondary)"><span id="prevzemiSelCount" style="font-weight:700;color:var(--accent)">0</span> izbranih</div>
-            <button onclick="prevzemiGenerateXls()" id="prevzemiExportBtn" style="padding:8px 14px;background:#16a34a;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📥 Generiraj XLS</button>
-          </div>
-
-          <!-- Items table -->
-          <div id="prevzemiTable" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
-            <!-- filled by JS -->
-          </div>
-        </div>
-      </div>
-    </div>
-  </div><!-- /Tab Prevzemi -->
 
   </div><!-- /page-analiza -->
 
@@ -2992,6 +2931,79 @@ input[type="text"].error { border-color: var(--red) !important; }
     </div>
   </div><!-- /page-odprema -->
 
+  <!-- ═══ PREVZEMI PAGE ═══ -->
+  <div class="page" id="page-prevzemi">
+    <div style="padding:14px">
+    <div style="display:grid;grid-template-columns:280px minmax(0,1fr);gap:14px;align-items:start">
+      <!-- LEVO: upload + history -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="card">
+          <span class="slabel">NALOŽI PDF RAČUN</span>
+          <p style="font-size:11px;color:var(--text-secondary);margin:6px 0 8px;line-height:1.4">PDF dobaviteljevega računa (AMIO, ipd.). Razdela ga in pripravi seznam postavk za izvoz v XLS.</p>
+          <div id="prevzemiDropZone" class="k-dropzone" style="padding:14px;cursor:pointer" onclick="document.getElementById('prevzemiPdfInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="prevzemiHandleDrop(event)">
+            <span style="font-size:11px">📄 Klikni ali povleci PDF</span>
+          </div>
+          <input type="file" id="prevzemiPdfInput" accept=".pdf" style="display:none" onchange="prevzemiUploadPdf(this.files[0])">
+          <div id="prevzemiStatus" style="margin-top:8px;font-size:11px;color:var(--text-tertiary);text-align:center;display:none"></div>
+        </div>
+
+        <div class="card">
+          <span class="slabel">ZGODOVINA</span>
+          <div id="prevzemiHistory" style="margin-top:8px;display:flex;flex-direction:column;gap:5px;max-height:500px;overflow-y:auto">
+            <div style="font-size:11px;color:var(--text-tertiary);text-align:center;padding:1rem">Brez zgodovine</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DESNO: preview + export -->
+      <div>
+        <div id="prevzemiEmptyState" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:3rem 2rem;text-align:center;color:var(--text-tertiary);font-size:13px">
+          📄 Naloži PDF račun na levi strani da vidiš seznam postavk.
+        </div>
+
+        <div id="prevzemiPreviewWrap" style="display:none">
+          <!-- Header info -->
+          <div class="card" style="margin-bottom:12px">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px">
+              <div>
+                <span class="slabel" style="font-size:9px">RAČUN</span>
+                <div id="prevzemiInvoiceNumber" style="font-size:14px;font-weight:700;font-family:monospace;margin-top:3px"></div>
+              </div>
+              <div>
+                <span class="slabel" style="font-size:9px">DATUM</span>
+                <div id="prevzemiInvoiceDate" style="font-size:14px;font-weight:700;margin-top:3px"></div>
+              </div>
+              <div>
+                <span class="slabel" style="font-size:9px">DOBAVITELJ</span>
+                <div id="prevzemiVendor" style="font-size:13px;font-weight:600;margin-top:3px"></div>
+              </div>
+              <div>
+                <span class="slabel" style="font-size:9px">SKUPAJ</span>
+                <div id="prevzemiTotal" style="font-size:14px;font-weight:700;color:var(--accent);margin-top:3px"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions bar -->
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
+            <button onclick="prevzemiToggleAll(true)" style="padding:6px 12px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">✓ Izberi vse</button>
+            <button onclick="prevzemiToggleAll(false)" style="padding:6px 12px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">✗ Počisti</button>
+            <div style="flex:1"></div>
+            <div style="font-size:12px;color:var(--text-secondary)"><span id="prevzemiSelCount" style="font-weight:700;color:var(--accent)">0</span> izbranih</div>
+            <button onclick="prevzemiGenerateXls()" id="prevzemiExportBtn" style="padding:8px 14px;background:#16a34a;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📥 Generiraj XLS</button>
+          </div>
+
+          <!-- Items table -->
+          <div id="prevzemiTable" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+            <!-- filled by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div><!-- /page-prevzemi -->
+
+
   <!-- ═══ STORAGE PAGE ═══ -->
   <div class="page" id="page-storage">
     <div style="padding:14px;display:flex;flex-direction:column;gap:14px">
@@ -3098,7 +3110,7 @@ function closeMenu(){
   document.querySelector('.sidebar').classList.remove('open');
   document.getElementById('overlay').classList.remove('open');
 }
-const PAGES = ['home','meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads','orodja','analiza','knjigovodstvo','zaloga','sporocanje','odprema','storage'];
+const PAGES = ['home','meta','tiktok','calc','forecast','kreative','lokalizacija','narocilnice','videoads','orodja','analiza','knjigovodstvo','zaloga','sporocanje','odprema','storage','prevzemi'];
 let currentIdx = 0;
 
 function switchCalcTab(tab) {
@@ -3128,7 +3140,7 @@ function switchPage(page) {
   // Wide layout
   const mainEl = document.querySelector('.main');
   if(mainEl) {
-    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative' || page==='lokalizacija' || page==='narocilnice' || page==='videoads' || page==='orodja' || page==='analiza' || page==='knjigovodstvo' || page==='zaloga' || page==='odprema' || page==='sporocanje' || page==='storage') {
+    if(page==='forecast' || page==='calc' || page==='tiktok' || page==='kreative' || page==='lokalizacija' || page==='narocilnice' || page==='videoads' || page==='orodja' || page==='analiza' || page==='knjigovodstvo' || page==='zaloga' || page==='odprema' || page==='sporocanje' || page==='storage' || page==='prevzemi') {
       mainEl.classList.add('wide');
     } else if(page==='meta') {
       const formVisible = document.getElementById('metaFormSection').style.display !== 'none';
@@ -3144,6 +3156,7 @@ function switchPage(page) {
   if (page === 'knjigovodstvo') { if(typeof knjLoadHistory==='function') knjLoadHistory(); }
   if (page === 'zaloga') { if(typeof lokLoadCacheStatus==='function') lokLoadCacheStatus(); }
   if (page === 'storage') { if(typeof storageLoad==='function') storageLoad(); }
+  if (page === 'prevzemi') { if(typeof prevzemiLoadHistory==='function') prevzemiLoadHistory(); }
   if (page === 'narocilnice') { setTimeout(() => { narcVecjaInitDrop(); narcDvojnikiInitDrop(); }, 100); }
   if (page === 'odprema') { odpLoadHistory(); }
   else { const b = document.getElementById('odp-bulk-bar'); if(b) b.style.display='none'; }
@@ -9016,7 +9029,7 @@ let anSortCol = 'stock';
 let anSortDir = -1;
 
 function switchAnalizaTab(tab) {
-  ['meta', 'obrat14', 'obrat14tt', 'ttkreative', 'beta', 'prevzemi'].forEach(t => {
+  ['meta', 'obrat14', 'obrat14tt', 'ttkreative', 'beta'].forEach(t => {
     const btn = document.getElementById('analizaTab-' + t);
     const sub = document.getElementById('analizaSubpage-' + t);
     if (t === tab) {
@@ -9032,7 +9045,6 @@ function switchAnalizaTab(tab) {
   if (tab === 'obrat14tt') { tt14LoadData(); }
   if (tab === 'ttkreative') { ttKrLoadData(); }
   if (tab === 'beta') { betaLoadHistory(); }
-  if (tab === 'prevzemi') { if(typeof prevzemiLoadHistory==='function') prevzemiLoadHistory(); }
   try { localStorage.setItem('slx_active_subtab', tab); } catch(e) {}
 }
 
