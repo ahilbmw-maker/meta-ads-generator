@@ -2258,16 +2258,16 @@ Vrni SAMO JSON brez markdown:
 # ─── VIDEO ADS — ELEVENLABS AUDIO ────────────────────────────────────────────
 
 ELEVENLABS_VOICES = {
-    "sl": "lxYfHSkYm1EzQzGhdbfc",
-    "hr": "lxYfHSkYm1EzQzGhdbfc",
-    "rs": "lxYfHSkYm1EzQzGhdbfc",
-    "hu": "lxYfHSkYm1EzQzGhdbfc",
-    "cz": "lxYfHSkYm1EzQzGhdbfc",
-    "sk": "lxYfHSkYm1EzQzGhdbfc",
-    "pl": "lxYfHSkYm1EzQzGhdbfc",
-    "gr": "lxYfHSkYm1EzQzGhdbfc",
-    "ro": "lxYfHSkYm1EzQzGhdbfc",
-    "bg": "lxYfHSkYm1EzQzGhdbfc",
+    "sl": "lxYfHSkYm1EzQzGhdbfc",  # SL — no native voice, keep multilingual default
+    "hr": "FXFcxnjikw0naYO1PPrU",  # Adnan — Energetic, Educational
+    "rs": "eWKPI657Btpf4xbqX4x6",
+    "hu": "M336tBVZHWWiWb4R54ui",
+    "cz": "uYFJyGaibp4N2VwYQshk",
+    "sk": "2ST3sI2j7fz4A5oXjnbA",
+    "pl": "H5xTcsAIeS5RAykjz57a",
+    "gr": "6z1Ks05MOtac6wYNh9PJ",
+    "ro": "xHIzJ4zBhlGcvJscsdON",
+    "bg": "pVnrL6sighQX7hVz89cp",
 }
 
 def _parse_words(alignment: dict):
