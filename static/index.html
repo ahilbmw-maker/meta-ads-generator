@@ -11932,8 +11932,9 @@ async function spTranslateReply() {
   // KORAK 2: Prevedi
   btn.textContent = '🌐 Prevajam...';
   try {
-    const targetName = SP_LANG_NAMES[spDetectedLang] || spDetectedLang;
-    const translated = await spCallAI(`Translate this customer service reply to ${targetName}. Keep it professional and friendly. Return ONLY the translated text, no quotes, no explanations, nothing else.\nText: ${polished}`, 400);
+    const SP_LANG_NAMES_EN = {'sl':'Slovenian','hr':'Croatian','sr':'Serbian (Latin script)','bg':'Bulgarian','cs':'Czech','sk':'Slovak','hu':'Hungarian','pl':'Polish','ro':'Romanian','el':'Greek','de':'German','it':'Italian'};
+    const targetName = SP_LANG_NAMES_EN[spDetectedLang] || SP_LANG_NAMES[spDetectedLang] || spDetectedLang;
+    const translated = await spCallAI(`Translate this customer service reply to ${targetName} language only (target ISO code: ${spDetectedLang}). Keep it professional and friendly. Return ONLY the translated text in ${targetName}, no quotes, no explanations, nothing else. Do NOT translate to any other language.\nText: ${polished}`, 400);
     document.getElementById('sp-result-text').textContent = translated;
     document.getElementById('sp-result-lang').textContent = (SP_LANGS[spDetectedLang]||spDetectedLang).toUpperCase();
     document.getElementById('sp-result-card').style.display = 'block';
