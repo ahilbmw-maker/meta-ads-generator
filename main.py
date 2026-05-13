@@ -8631,7 +8631,14 @@ async def prevzemi_generate_xls(req: PrevzemiXlsRequest):
             ws.cell(row=row, column=6, value=str(item.get('qty', ''))).number_format = '@'
             ws.cell(row=row, column=7, value=str(item.get('unit', ''))).number_format = '@'
             ws.cell(row=row, column=8, value=str(item.get('vat', ''))).number_format = '@'
-            ws.cell(row=row, column=9, value=str(item.get('unit_price', ''))).number_format = '@'
+            # Zaokroži ceno na 2 decimalki
+            raw_price = str(item.get('unit_price', ''))
+            try:
+                price_val = float(raw_price.replace(',', '.').strip())
+                price_str = f"{price_val:.2f}"
+            except (ValueError, AttributeError):
+                price_str = raw_price
+            ws.cell(row=row, column=9, value=price_str).number_format = '@'
             ws.cell(row=row, column=10, value=str(item.get('value', ''))).number_format = '@'
 
             # EAN row
