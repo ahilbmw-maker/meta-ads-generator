@@ -7989,6 +7989,61 @@ async def video_batch_meta(sku: str):
     return {"ok": True, "sku": sku_safe, "videos": videos, "count": len(videos)}
 
 
+@app.get("/video-batch/{sku}/zip-all")
+async def video_batch_zip(sku: str):
+    """Download all videos for SKU as ZIP."""
+    import zipfile
+    import io
+    sku_safe = _safe_sku(sku)
+    sku_dir = VIDEO_OUTPUTS_DIR / sku_safe
+    if not sku_dir.exists():
+        raise HTTPException(status_code=404, detail="SKU not found")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for f in sorted(sku_dir.glob("*.mp4")):
+            zf.write(f, arcname=f.name)
+    buf.seek(0)
+
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        iter([buf.read()]),
+        media_type='application/zip',
+        headers={'Content-Disposition': f'attachment; filename="{sku_safe}_videos.zip"'}
+    )
+
+
+@app.get("/video-batch/{sku}/country/{country_code}/zip")
+async def video_batch_country_zip(sku: str, country_code: str):
+    """Download all videos for one country (as ZIP)."""
+    import zipfile
+    import io
+    sku_safe = _safe_sku(sku)
+    sku_dir = VIDEO_OUTPUTS_DIR / sku_safe
+    if not sku_dir.exists():
+        raise HTTPException(status_code=404, detail="SKU not found")
+
+    lang = country_code.lower()
+    pattern = f"video_{lang}_v*.mp4"
+    files = sorted(sku_dir.glob(pattern))
+    if not files:
+        raise HTTPException(status_code=404, detail=f"No videos for country {country_code}")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for f in files:
+            zf.write(f, arcname=f.name)
+    buf.seek(0)
+
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        iter([buf.read()]),
+        media_type='application/zip',
+        headers={'Content-Disposition': f'attachment; filename="{sku_safe}_{lang}_videos.zip"'}
+    )
+
+
+
 @app.get("/video-batch/{sku}/{filename}")
 async def video_batch_file(sku: str, filename: str, request: Request = None):
     """Serve individual MP4 file for download with HTTP Range support (fast partial downloads)."""
@@ -8063,59 +8118,6 @@ async def video_batch_file(sku: str, filename: str, request: Request = None):
         headers=headers,
     )
 
-
-@app.get("/video-batch/{sku}/zip-all")
-async def video_batch_zip(sku: str):
-    """Download all videos for SKU as ZIP."""
-    import zipfile
-    import io
-    sku_safe = _safe_sku(sku)
-    sku_dir = VIDEO_OUTPUTS_DIR / sku_safe
-    if not sku_dir.exists():
-        raise HTTPException(status_code=404, detail="SKU not found")
-
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for f in sorted(sku_dir.glob("*.mp4")):
-            zf.write(f, arcname=f.name)
-    buf.seek(0)
-
-    from fastapi.responses import StreamingResponse
-    return StreamingResponse(
-        iter([buf.read()]),
-        media_type='application/zip',
-        headers={'Content-Disposition': f'attachment; filename="{sku_safe}_videos.zip"'}
-    )
-
-
-@app.get("/video-batch/{sku}/country/{country_code}/zip")
-async def video_batch_country_zip(sku: str, country_code: str):
-    """Download all videos for one country (as ZIP)."""
-    import zipfile
-    import io
-    sku_safe = _safe_sku(sku)
-    sku_dir = VIDEO_OUTPUTS_DIR / sku_safe
-    if not sku_dir.exists():
-        raise HTTPException(status_code=404, detail="SKU not found")
-
-    lang = country_code.lower()
-    pattern = f"video_{lang}_v*.mp4"
-    files = sorted(sku_dir.glob(pattern))
-    if not files:
-        raise HTTPException(status_code=404, detail=f"No videos for country {country_code}")
-
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for f in files:
-            zf.write(f, arcname=f.name)
-    buf.seek(0)
-
-    from fastapi.responses import StreamingResponse
-    return StreamingResponse(
-        iter([buf.read()]),
-        media_type='application/zip',
-        headers={'Content-Disposition': f'attachment; filename="{sku_safe}_{lang}_videos.zip"'}
-    )
 
 
 @app.delete("/video-batch/{sku}")
