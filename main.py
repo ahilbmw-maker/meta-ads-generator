@@ -8358,7 +8358,7 @@ async def prevzemi_parse_pdf(file: UploadFile = File(...)):
         # Use Claude to parse PDF
         message = client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=8000,
+            max_tokens=16000,
             messages=[{
                 "role": "user",
                 "content": [
@@ -8372,8 +8372,17 @@ async def prevzemi_parse_pdf(file: UploadFile = File(...)):
                     },
                     {
                         "type": "text",
-                        "text": """Parse this supplier invoice PDF and extract structured data. Return ONLY valid JSON with this exact schema (no markdown, no explanation):
+                        "text": """Parse this supplier invoice PDF and extract structured data. Return ONLY a valid JSON object — no markdown, no explanation, no text before or after.
 
+CRITICAL JSON RULES:
+- Use ONLY straight double quotes ("), never curly quotes (" ")
+- Escape double quotes inside string values with backslash (\\")
+- Escape backslashes in strings (\\\\)
+- No trailing commas after last item in arrays or objects
+- All keys MUST be in double quotes
+- No comments, no extra text
+
+Schema:
 {
   "invoice_number": "string (e.g. FV/KK/896/05/2026)",
   "invoice_date": "string in YYYY-MM-DD format",
@@ -8386,7 +8395,7 @@ async def prevzemi_parse_pdf(file: UploadFile = File(...)):
     {
       "lp": "string (item number from PDF, e.g. '1', '2')",
       "product_number": "string (P/N code)",
-      "product_name": "string (full name)",
+      "product_name": "string (full name, escape any quotes with backslash)",
       "ean": "string (EAN code, 13 digits)",
       "qty": "string (quantity)",
       "unit": "string (szt/kpl/para/set, copy as-is)",
@@ -8398,12 +8407,12 @@ async def prevzemi_parse_pdf(file: UploadFile = File(...)):
 }
 
 IMPORTANT:
-- All numeric values as STRINGS (not numbers!) to preserve formatting (commas, decimals, leading zeros)
+- All numeric values as STRINGS (not numbers!) to preserve formatting
 - Use dot as decimal separator (3.32 not 3,32)
-- Copy product names EXACTLY as written (including Polish/English mixed text)
+- Copy product names EXACTLY as written (Polish/English mixed text is OK)
 - Extract ALL items, do not skip any (typically 50-150 items)
 - If field missing, use empty string ""
-- Return ONLY the JSON object, nothing else"""
+- Return ONLY the JSON object - NOTHING else"""
                     }
                 ]
             }]
@@ -8412,14 +8421,56 @@ IMPORTANT:
         raw_text = message.content[0].text.strip()
         # Strip possible markdown
         if raw_text.startswith('```'):
-            raw_text = raw_text.split('```')[1]
+            raw_text = raw_text.split('```', 2)
+            raw_text = raw_text[1] if len(raw_text) > 1 else raw_text[0]
             if raw_text.startswith('json'):
                 raw_text = raw_text[4:]
             raw_text = raw_text.strip()
         if raw_text.endswith('```'):
             raw_text = raw_text[:-3].strip()
 
-        parsed = json.loads(raw_text)
+        # Robust JSON parsing - try multiple strategies
+        parsed = None
+        last_err = None
+
+        # Strategy 1: direct parse
+        try:
+            parsed = json.loads(raw_text)
+        except json.JSONDecodeError as e:
+            last_err = e
+
+        # Strategy 2: fix common Claude JSON issues
+        if parsed is None:
+            try:
+                fixed = raw_text
+                # Replace curly/smart quotes with straight ones
+                fixed = fixed.replace('\u201c', '"').replace('\u201d', '"')
+                fixed = fixed.replace('\u2018', "'").replace('\u2019', "'")
+                # Remove trailing commas before } or ]
+                fixed = re.sub(r',(\s*[}\]])', r'\1', fixed)
+                # Replace unescaped newlines inside strings (best-effort)
+                # Pattern: unescaped " followed by content with newline, before next "
+                parsed = json.loads(fixed)
+            except json.JSONDecodeError as e:
+                last_err = e
+
+        # Strategy 3: use existing parse_json_response helper
+        if parsed is None:
+            try:
+                parsed = parse_json_response(raw_text)
+            except Exception as e:
+                last_err = e
+
+        if parsed is None:
+            # Last resort: save raw response to disk for debugging
+            try:
+                fail_dir = PREVZEMI_DIR / f"_failed_{ts}"
+                fail_dir.mkdir(parents=True, exist_ok=True)
+                (fail_dir / 'raw_response.txt').write_text(raw_text, encoding='utf-8')
+                (fail_dir / 'source.pdf').write_bytes(pdf_bytes)
+            except Exception:
+                pass
+            return {"ok": False, "error": f"JSON parse failed: {last_err}. Raw response saved for debugging."}
 
         # Save to disk
         invoice_num_safe = _safe_filename(parsed.get('invoice_number', 'unknown'))
@@ -8452,7 +8503,17 @@ IMPORTANT:
     except json.JSONDecodeError as e:
         import traceback
         traceback.print_exc()
-        return {"ok": False, "error": f"JSON parse error: {e}", "raw": raw_text[:1000] if 'raw_text' in dir() else ""}
+        # Save raw to debug
+        try:
+            from datetime import datetime
+            ts_fail = datetime.now().strftime('%Y%m%d_%H%M%S')
+            fail_dir = PREVZEMI_DIR / f"_failed_{ts_fail}"
+            fail_dir.mkdir(parents=True, exist_ok=True)
+            if 'raw_text' in dir():
+                (fail_dir / 'raw_response.txt').write_text(raw_text, encoding='utf-8')
+        except Exception:
+            pass
+        return {"ok": False, "error": f"JSON parse error: {e}"}
     except Exception as e:
         import traceback
         traceback.print_exc()
