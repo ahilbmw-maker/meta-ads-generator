@@ -7382,7 +7382,7 @@ async function prevzemiGenerateXls() {
     const a = document.createElement('a');
     a.href = url;
     const invNum = (prevzemiData?.invoice_number || 'prevzem').replace(/[^A-Za-z0-9_-]/g, '_');
-    a.download = invNum + '.xlsx';
+    a.download = invNum + '.xls';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
