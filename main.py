@@ -2285,16 +2285,16 @@ Vrni SAMO JSON brez markdown:
 # ─── VIDEO ADS — ELEVENLABS AUDIO ────────────────────────────────────────────
 
 ELEVENLABS_VOICES = {
-    "sl": "pNInz6obpgDQGcFmaJgB",  # Adam — multilingual
-    "hr": "pNInz6obpgDQGcFmaJgB",
-    "rs": "pNInz6obpgDQGcFmaJgB",
-    "hu": "pNInz6obpgDQGcFmaJgB",
-    "cz": "pNInz6obpgDQGcFmaJgB",
-    "sk": "pNInz6obpgDQGcFmaJgB",
-    "pl": "pNInz6obpgDQGcFmaJgB",
-    "gr": "pNInz6obpgDQGcFmaJgB",
-    "ro": "pNInz6obpgDQGcFmaJgB",
-    "bg": "pNInz6obpgDQGcFmaJgB",
+    "sl": "lxYfHSkYm1EzQzGhdbfc",  # SL — multilingual default (no native)
+    "hr": "FXFcxnjikw0naYO1PPrU",  # Adnan — Energetic, Educational
+    "rs": "eWKPI657Btpf4xbqX4x6",
+    "hu": "M336tBVZHWWiWb4R54ui",
+    "cz": "uYFJyGaibp4N2VwYQshk",
+    "sk": "2ST3sI2j7fz4A5oXjnbA",
+    "pl": "H5xTcsAIeS5RAykjz57a",
+    "gr": "6z1Ks05MOtac6wYNh9PJ",
+    "ro": "xHIzJ4zBhlGcvJscsdON",
+    "bg": "pVnrL6sighQX7hVz89cp",
 }
 
 def _parse_words(alignment: dict):
@@ -2456,7 +2456,7 @@ async def generate_audio(data: dict):
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": "ELEVENLABS_API_KEY ni nastavljen."}, status_code=400)
 
-    voice_id = ELEVENLABS_VOICES.get(lang, "pNInz6obpgDQGcFmaJgB")
+    voice_id = ELEVENLABS_VOICES.get(lang, "lxYfHSkYm1EzQzGhdbfc")
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as hc:
@@ -8825,6 +8825,203 @@ async def prevzemi_generate_xml(req: PrevzemiXmlRequest):
             media_type='application/xml',
             headers={'Content-Disposition': f'attachment; filename="{filename}"'}
         )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+# ─── GENERATOR PRODUKTA — iz linkov (SLO + Aliexpress) ──────────────────────
+
+class ProductGenRequest(BaseModel):
+    slo_url: str
+    ali_urls: list[str] = []
+    manual_text: str = ""  # fallback če scraping odpove
+
+
+def _scrape_url(url: str, timeout: int = 15) -> dict:
+    """Scrape spletne strani in vrne text + slike (URL-je)."""
+    import re as _re
+    import httpx as _httpx
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "sl,en-US;q=0.9,en;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+    }
+    try:
+        with _httpx.Client(timeout=timeout, follow_redirects=True, headers=headers) as client:
+            resp = client.get(url)
+            if resp.status_code != 200:
+                return {"ok": False, "error": f"HTTP {resp.status_code}", "url": url}
+            html = resp.text
+
+        title_m = _re.search(r'<title[^>]*>(.*?)</title>', html, _re.IGNORECASE | _re.DOTALL)
+        title = title_m.group(1).strip() if title_m else ""
+
+        meta_m = _re.search(r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)', html, _re.IGNORECASE)
+        meta_desc = meta_m.group(1) if meta_m else ""
+
+        og_m = _re.search(r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']+)', html, _re.IGNORECASE)
+        og_desc = og_m.group(1) if og_m else ""
+
+        images = []
+        og_img = _re.findall(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)', html, _re.IGNORECASE)
+        images.extend(og_img[:3])
+        img_tags = _re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', html, _re.IGNORECASE)
+        for src in img_tags:
+            if any(x in src.lower() for x in ['logo', 'icon', 'favicon', 'sprite', 'placeholder']):
+                continue
+            if src.startswith('//'):
+                src = 'https:' + src
+            elif src.startswith('/'):
+                from urllib.parse import urlparse as _urlp
+                p = _urlp(url)
+                src = f"{p.scheme}://{p.netloc}{src}"
+            if src not in images and src.startswith('http'):
+                images.append(src)
+            if len(images) >= 8:
+                break
+
+        body_m = _re.search(r'<body[^>]*>(.*?)</body>', html, _re.IGNORECASE | _re.DOTALL)
+        body = body_m.group(1) if body_m else html
+        body = _re.sub(r'<script[^>]*>.*?</script>', '', body, flags=_re.IGNORECASE | _re.DOTALL)
+        body = _re.sub(r'<style[^>]*>.*?</style>', '', body, flags=_re.IGNORECASE | _re.DOTALL)
+        text = _re.sub(r'<[^>]+>', ' ', body)
+        text = _re.sub(r'&nbsp;', ' ', text)
+        text = _re.sub(r'&amp;', '&', text)
+        text = _re.sub(r'&[a-z]+;', '', text)
+        text = _re.sub(r'\s+', ' ', text).strip()
+        text = text[:8000]
+
+        return {
+            "ok": True,
+            "url": url,
+            "title": title,
+            "meta_description": meta_desc,
+            "og_description": og_desc,
+            "text": text,
+            "images": images[:8],
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e), "url": url}
+
+
+@app.post("/product-generate")
+async def product_generate(req: ProductGenRequest):
+    """Generira Maaarket-style besedilo izdelka iz SLO + Aliexpress linkov."""
+    try:
+        scraped = []
+        slo_data = _scrape_url(req.slo_url)
+        scraped.append(("SLO", slo_data))
+        for ali_url in req.ali_urls[:2]:
+            ali_data = _scrape_url(ali_url)
+            scraped.append(("Aliexpress", ali_data))
+
+        context_parts = []
+        all_images = []
+        scraping_warnings = []
+
+        for source, data in scraped:
+            if data.get("ok"):
+                context_parts.append(f"\n=== {source} VIR: {data['url']} ===")
+                context_parts.append(f"Naslov: {data.get('title', '')}")
+                if data.get("meta_description"):
+                    context_parts.append(f"Meta opis: {data['meta_description']}")
+                if data.get("og_description"):
+                    context_parts.append(f"OG opis: {data['og_description']}")
+                context_parts.append(f"Vsebina: {data.get('text', '')[:4000]}")
+                all_images.extend(data.get("images", []))
+            else:
+                scraping_warnings.append(f"{source} ({data['url']}): {data.get('error', 'failed')}")
+
+        if req.manual_text:
+            context_parts.append(f"\n=== ROČNO VNESENO ===\n{req.manual_text[:4000]}")
+
+        if not context_parts:
+            return {"ok": False, "error": "Nobeden link ni bil uspešno scrape-an in ni ročnega teksta."}
+
+        full_context = "\n".join(context_parts)
+
+        prompt = f"""Generiraj besedilo izdelka v slovenščini, v Maaarket.si stilu.
+
+VSEBINA IZ LINKOV:
+{full_context}
+
+ZAHTEVE:
+- Stil: prodajni, prijateljski, zgovoren ampak ne agresiven
+- Jezik: slovenščina (slovenske besede, ne anglicizmi)
+- Emoji: uporabi zmerno, ne preveč
+- Ime izdelka: izmisli si privlačno ime (kombinacija 2 angleških besed, npr. WarmStep, Vapurex, NailGloss, CloudComfort)
+- Tehnične podatke vzemi PREDVSEM iz SLO vira (ker so v slovenščini in zanesljivi)
+- Aliexpress vir uporabi za dodatne specifikacije in vizualne reference
+
+VRNI EXACT JSON v tej obliki, brez dodatnega teksta:
+{{
+  "naslov": "Ime izdelka IZMIŠLJEN_IME 🔥 Glavna lastnost",
+  "kratek_opis": "En stavek (max 25 besed) ki privablja in pove kaj izdelek dela.",
+  "glavni_opis": "5-8 odstavkov teksta. Vsak odstavek ima podebeljen naslov v formatu **Naslov odstavka** in nato 2-3 stavke teksta. Pokrij benefit-e, uporabo, posebnosti.",
+  "izpostavitve": [
+    {{"naslov": "🎯 Naslov 1", "opis": "1-2 stavka opisa."}},
+    {{"naslov": "⚡ Naslov 2", "opis": "1-2 stavka opisa."}},
+    {{"naslov": "💪 Naslov 3", "opis": "1-2 stavka opisa."}}
+  ],
+  "tehnicne_lastnosti": [
+    "Material: ...",
+    "Mere: ...",
+    "Napajanje: ...",
+    "..."
+  ],
+  "v_paketu": [
+    "1× Naprava ...",
+    "1× ...",
+    "..."
+  ]
+}}"""
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not api_key:
+            return {"ok": False, "error": "ANTHROPIC_API_KEY ni nastavljen."}
+
+        async with httpx.AsyncClient(timeout=120.0) as hc:
+            resp = await hc.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json"
+                },
+                json={
+                    "model": "claude-opus-4-5",
+                    "max_tokens": 4000,
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+            )
+
+        if resp.status_code != 200:
+            return {"ok": False, "error": f"Claude API: {resp.status_code} {resp.text[:300]}"}
+
+        result = resp.json()
+        ai_text = result["content"][0]["text"].strip()
+
+        import re as _re
+        ai_text = _re.sub(r'^```(?:json)?\s*', '', ai_text)
+        ai_text = _re.sub(r'\s*```$', '', ai_text)
+
+        try:
+            parsed = json.loads(ai_text)
+        except Exception as e:
+            return {"ok": False, "error": f"JSON parse error: {e}", "raw": ai_text}
+
+        return {
+            "ok": True,
+            "data": parsed,
+            "images": all_images[:8],
+            "warnings": scraping_warnings,
+        }
+
     except Exception as e:
         import traceback
         traceback.print_exc()
