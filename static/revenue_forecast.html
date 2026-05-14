@@ -963,16 +963,36 @@ function renderWeekdayAnalysis(finals) {
   const bestIdx = dataRevenue.indexOf(Math.max(...dataRevenue.filter((_,i) => dataCounts[i] > 0)));
   const worstIdx = dataRevenue.indexOf(Math.min(...dataRevenue.filter((_,i) => dataCounts[i] > 0)));
 
+  // ZADNJI vnos za vsak dan v tednu (za primerjavo s povprečjem)
+  // byWeekday[i] je v vrstnem redu kot v finals (chronological, najstarejši→najnovejši)
+  // Zadnji element = najnovejši ta weekday
+  const lastByWeekday = byWeekday.map(arr => arr.length ? arr[arr.length - 1] : null);
+
   let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px">';
   for (let i = 0; i < 7; i++) {
+    const wd = order[i];  // dejanski weekday index (1=Pon, ..., 0=Ned)
     const isBest = i === bestIdx && dataCounts[i] > 0;
     const isWorst = i === worstIdx && dataCounts[i] > 0;
     const bg = isBest ? 'rgba(34,197,94,0.1)' : isWorst ? 'rgba(239,68,68,0.1)' : 'var(--surface2)';
     const border = isBest ? '#22c55e' : isWorst ? '#ef4444' : 'transparent';
+
+    // Trend: zadnji vs povprečje
+    let trendHtml = '';
+    const last = lastByWeekday[wd];
+    const avgRev = dataRevenue[i];
+    if (last && avgRev > 0 && dataCounts[i] > 1) {
+      const diff = ((last.revenue - avgRev) / avgRev) * 100;
+      const arrow = diff > 0.5 ? '↑' : diff < -0.5 ? '↓' : '→';
+      const color = diff > 0.5 ? '#22c55e' : diff < -0.5 ? '#ef4444' : 'var(--text-tertiary)';
+      const sign = diff > 0 ? '+' : '';
+      trendHtml = `<div style="font-size:10px;font-weight:600;color:${color};margin-top:3px" title="Zadnji ${labels[i]}: ${fmtCurrency(last.revenue)} vs povprečje ${fmtCurrency(avgRev)}">${arrow} ${sign}${diff.toFixed(1)}%</div>`;
+    }
+
     html += `<div style="padding:6px 8px;background:${bg};border:1px solid ${border};border-radius:6px;text-align:center">
       <div style="font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase">${labels[i]}</div>
       <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:2px">${fmtCurrency(dataRevenue[i])}</div>
       <div style="font-size:10px;color:var(--text-tertiary);margin-top:1px">${fmtNum(dataOrders[i])} naročil</div>
+      ${trendHtml}
       ${isBest ? '<div style="font-size:9px;color:#22c55e;font-weight:600;margin-top:2px">🏆 NAJBOLJŠI</div>' : ''}
       ${isWorst ? '<div style="font-size:9px;color:#ef4444;font-weight:600;margin-top:2px">📉 NAJSLABŠI</div>' : ''}
     </div>`;
