@@ -8958,11 +8958,20 @@ ZAHTEVE:
 - Tehnične podatke vzemi PREDVSEM iz SLO vira (ker so v slovenščini in zanesljivi)
 - Aliexpress vir uporabi za dodatne specifikacije in vizualne reference
 
+FORMATIRANJE (POMEMBNO):
+- Za "glavni_opis" uporabi HTML tage, NE markdown:
+  - <p>...</p> za odstavke
+  - <strong>...</strong> za bold (NE **zvezdice**)
+  - <ul><li>...</li></ul> za bullet sezname
+  - Bold uporabi za KLJUČNE besede/fraze znotraj stavkov (npr. <p>Naprava deluje <strong>brezžično</strong> in zdrži <strong>do 8 ur</strong>.</p>)
+- "naslov", "kratek_opis", "izpostavitve" naslov in opis pišejo se kot PLAIN TEXT brez HTML tagov
+- "tehnicne_lastnosti" in "v_paketu" so PLAIN TEXT array (vsak element vrstica)
+
 VRNI EXACT JSON v tej obliki, brez dodatnega teksta:
 {{
   "naslov": "Ime izdelka IZMIŠLJEN_IME 🔥 Glavna lastnost",
   "kratek_opis": "En stavek (max 25 besed) ki privablja in pove kaj izdelek dela.",
-  "glavni_opis": "5-8 odstavkov teksta. Vsak odstavek ima podebeljen naslov v formatu **Naslov odstavka** in nato 2-3 stavke teksta. Pokrij benefit-e, uporabo, posebnosti.",
+  "glavni_opis": "<p><strong>Naslov 1. odstavka</strong> 🏠</p><p>Vsebina prvega odstavka z <strong>poudarki</strong> in opisi.</p><p><strong>Naslov 2. odstavka</strong> ⚡</p><p>Vsebina drugega odstavka...</p>",
   "izpostavitve": [
     {{"naslov": "🎯 Naslov 1", "opis": "1-2 stavka opisa."}},
     {{"naslov": "⚡ Naslov 2", "opis": "1-2 stavka opisa."}},
@@ -8971,13 +8980,11 @@ VRNI EXACT JSON v tej obliki, brez dodatnega teksta:
   "tehnicne_lastnosti": [
     "Material: ...",
     "Mere: ...",
-    "Napajanje: ...",
-    "..."
+    "Napajanje: ..."
   ],
   "v_paketu": [
     "1× Naprava ...",
-    "1× ...",
-    "..."
+    "1× ..."
   ]
 }}"""
 
