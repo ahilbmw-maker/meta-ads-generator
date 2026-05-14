@@ -23,6 +23,20 @@ from pydantic import BaseModel
 import anthropic
 
 app = FastAPI()
+
+
+@app.get("/healthz")
+async def healthz():
+    """Health check + FFmpeg readiness probe."""
+    import subprocess
+    status = {"ok": True}
+    try:
+        result = subprocess.run(["ffmpeg", "-version"], capture_output=True, timeout=5)
+        status["ffmpeg"] = "ready" if result.returncode == 0 else "error"
+    except Exception as e:
+        status["ffmpeg"] = f"missing: {e}"
+        status["ok"] = False
+    return status
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.mount("/static", StaticFiles(directory="static"), name="static")
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
@@ -269,6 +283,20 @@ def find_product_urls(source_url: Optional[str]) -> dict:
 
 @app.on_event("startup")
 async def startup_event():
+    # FFmpeg warm-up — sproži download/extract če manjka, da prvi /merge-video-audio ne čaka
+    try:
+        import static_ffmpeg
+        static_ffmpeg.add_paths()
+        # Test klic da preverim ali binary res deluje
+        import subprocess
+        result = subprocess.run(["ffmpeg", "-version"], capture_output=True, timeout=30)
+        if result.returncode == 0:
+            print(f"[startup] FFmpeg ready: {result.stdout.decode()[:60]}")
+        else:
+            print(f"[startup] FFmpeg warning: returncode={result.returncode}")
+    except Exception as e:
+        print(f"[startup] FFmpeg warm-up failed: {e}")
+
     await fetch_all_feeds()
     asyncio.create_task(daily_refresh())
 
@@ -2258,16 +2286,16 @@ Vrni SAMO JSON brez markdown:
 # ─── VIDEO ADS — ELEVENLABS AUDIO ────────────────────────────────────────────
 
 ELEVENLABS_VOICES = {
-    "sl": "lxYfHSkYm1EzQzGhdbfc",  # SL — no native voice, keep multilingual default
-    "hr": "FXFcxnjikw0naYO1PPrU",  # Adnan — Energetic, Educational
-    "rs": "eWKPI657Btpf4xbqX4x6",
-    "hu": "M336tBVZHWWiWb4R54ui",
-    "cz": "uYFJyGaibp4N2VwYQshk",
-    "sk": "2ST3sI2j7fz4A5oXjnbA",
-    "pl": "H5xTcsAIeS5RAykjz57a",
-    "gr": "6z1Ks05MOtac6wYNh9PJ",
-    "ro": "xHIzJ4zBhlGcvJscsdON",
-    "bg": "pVnrL6sighQX7hVz89cp",
+    "sl": "pNInz6obpgDQGcFmaJgB",  # Adam — multilingual
+    "hr": "pNInz6obpgDQGcFmaJgB",
+    "rs": "pNInz6obpgDQGcFmaJgB",
+    "hu": "pNInz6obpgDQGcFmaJgB",
+    "cz": "pNInz6obpgDQGcFmaJgB",
+    "sk": "pNInz6obpgDQGcFmaJgB",
+    "pl": "pNInz6obpgDQGcFmaJgB",
+    "gr": "pNInz6obpgDQGcFmaJgB",
+    "ro": "pNInz6obpgDQGcFmaJgB",
+    "bg": "pNInz6obpgDQGcFmaJgB",
 }
 
 def _parse_words(alignment: dict):
@@ -2424,7 +2452,7 @@ async def generate_audio(data: dict):
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": "ELEVENLABS_API_KEY ni nastavljen."}, status_code=400)
 
-    voice_id = ELEVENLABS_VOICES.get(lang, "lxYfHSkYm1EzQzGhdbfc")
+    voice_id = ELEVENLABS_VOICES.get(lang, "pNInz6obpgDQGcFmaJgB")
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as hc:
