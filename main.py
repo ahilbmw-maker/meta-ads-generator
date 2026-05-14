@@ -287,7 +287,6 @@ async def startup_event():
     try:
         import static_ffmpeg
         static_ffmpeg.add_paths()
-        # Test klic da preverim ali binary res deluje
         import subprocess
         result = subprocess.run(["ffmpeg", "-version"], capture_output=True, timeout=30)
         if result.returncode == 0:
@@ -2347,36 +2346,41 @@ def build_srt(alignment: dict) -> str:
 
 
 def get_subtitle_style_for_format(width: int, height: int) -> dict:
-    """Vrne optimalne subtitle nastavitve glede na video format."""
+    """Vrne optimalne subtitle nastavitve glede na video format.
+    MarginV optimiran za Facebook (Feed + Reels) — podnapisi nad UI cono."""
     if width == 0 or height == 0:
         # Default: assume 9:16
-        return {"fontsize": 64, "marginv": 150, "outline": 5, "max_words": 4, "playresx": 1080, "playresy": 1920}
+        return {"fontsize": 64, "marginv": 230, "outline": 5, "max_words": 5, "playresx": 1080, "playresy": 1920}
 
     ratio = width / height
 
     # MarginV kot % višine — podnapisi so vedno vidni ne glede na crop
-    # Za pokončne videe damo podnapise višje (večji %) da ne padejo v safe-zone
+    # Za pokončne videe damo podnapise višje (večji %) da ne padejo v FB UI safe-zone
     if ratio < 0.4:
-        # Ultra ozki pokončni videi (6:19, 9:21 ipd.) — podnapisi zelo visoko
-        # ker se spodnji del pogosto odreže pri predvajanju
-        marginv = max(int(height * 0.35), 120)
+        # Ultra ozki pokončni videi (6:19, 9:21 ipd.)
+        # FB ne reže tako agresivno kot TikTok, zato 20% (prej 35%)
+        marginv = max(int(height * 0.20), 100)
         return {"fontsize": max(int(height * 0.038), 48), "marginv": marginv, "outline": 5, "max_words": 3, "playresx": width, "playresy": height}
     elif ratio < 0.7:
-        # 9:16 vertical (TikTok, Reels, Stories) — 0.5625
-        marginv = max(int(height * 0.08), 100)
-        return {"fontsize": max(int(height * 0.038), 56), "marginv": marginv, "outline": 5, "max_words": 4, "playresx": width, "playresy": height}
+        # 9:16 vertical (FB Reels) — 0.5625
+        # 12% (prej 8%) — FB Reels UI prekriva manj kot TikTok ampak še vedno safe zone potrebna
+        marginv = max(int(height * 0.12), 130)
+        return {"fontsize": max(int(height * 0.038), 56), "marginv": marginv, "outline": 5, "max_words": 5, "playresx": width, "playresy": height}
     elif ratio < 1.2:
-        # 1:1 square (Insta/FB feed)
-        marginv = max(int(height * 0.07), 60)
-        return {"fontsize": max(int(height * 0.045), 44), "marginv": marginv, "outline": 4, "max_words": 5, "playresx": width, "playresy": height}
+        # 1:1 square in 4:5 portrait (FB Feed) — najpogostejši FB ad format
+        # 12% (prej 7%) — FB feed UI (ime, opis, like/komentar gumbi) prekriva ~10-13% spodnjega dela
+        marginv = max(int(height * 0.12), 90)
+        return {"fontsize": max(int(height * 0.045), 44), "marginv": marginv, "outline": 4, "max_words": 6, "playresx": width, "playresy": height}
     elif ratio < 1.6:
         # 4:3
-        marginv = max(int(height * 0.07), 50)
-        return {"fontsize": max(int(height * 0.05), 40), "marginv": marginv, "outline": 4, "max_words": 5, "playresx": width, "playresy": height}
+        # 10% (prej 7%)
+        marginv = max(int(height * 0.10), 70)
+        return {"fontsize": max(int(height * 0.05), 40), "marginv": marginv, "outline": 4, "max_words": 6, "playresx": width, "playresy": height}
     else:
         # 16:9 horizontal
-        marginv = max(int(height * 0.06), 40)
-        return {"fontsize": max(int(height * 0.055), 36), "marginv": marginv, "outline": 3, "max_words": 6, "playresx": width, "playresy": height}
+        # 8% (prej 6%)
+        marginv = max(int(height * 0.08), 50)
+        return {"fontsize": max(int(height * 0.055), 36), "marginv": marginv, "outline": 3, "max_words": 7, "playresx": width, "playresy": height}
 
 def build_ass(alignment: dict, video_width: int = 1080, video_height: int = 1920) -> str:
     """Generira ASS karaoke podnapise — Stil B (bela+rumena, debela obroba), prilagojen formatu."""
