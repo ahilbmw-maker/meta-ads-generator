@@ -13331,9 +13331,10 @@ function pgRenderOutput(result) {
     <div class="card" style="margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <span class="slabel">📖 GLAVNI OPIS</span>
-        ${copyBtn(data.glavni_opis, 'Kopiraj opis')}
+        ${copyBtn(data.glavni_opis, 'Kopiraj HTML')}
       </div>
-      <div style="padding:10px;background:var(--surface2);border-radius:6px;font-size:13px;line-height:1.6;white-space:pre-wrap">${pgEscape(data.glavni_opis)}</div>
+      <div style="padding:10px;background:var(--surface2);border-radius:6px;font-size:13px;line-height:1.6">${data.glavni_opis}</div>
+      <div style="margin-top:6px;font-size:10px;color:var(--text-tertiary)">💡 V Maaarket adminu klikni gumb <code>&lt;&gt;</code> v editorju, prilepi, nato klikni nazaj v navadni način.</div>
     </div>
 
     <div class="card" style="margin-bottom:12px">
