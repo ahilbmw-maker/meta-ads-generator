@@ -7215,7 +7215,7 @@ function storageRender() {
     // Country breakdown
     const langs = new Set();
     for (const v of s.videos) {
-      const m = v.filename.match(/^video_([a-z]{2})_v/);
+      const m = v.filename.match(/_([a-z]{2})_v\d+\.mp4$/);
       if (m) langs.add(m[1]);
     }
     const flagsHtml = [...langs].sort().map(l => `<span title="${l}" style="font-size:14px">${flagMap[l] || l}</span>`).join(' ');
