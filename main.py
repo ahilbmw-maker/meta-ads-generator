@@ -2494,6 +2494,7 @@ async def generate_audio(data: dict):
             "audio_base64": audio_b64,
             "srt": srt,
             "ass": ass,
+            "alignment": alignment,
             "lang": lang
         }
 
@@ -2660,8 +2661,9 @@ async def merge_video_audio(
     audio: UploadFile = File(...),
     lang: str = "sl",
     srt: UploadFile = File(None),
+    emojis_json: str = Form(None),
 ):
-    """Spoji video + audio (+ opcijsko SRT podnapisi) z FFmpeg."""
+    """Spoji video + audio (+ opcijsko SRT podnapisi + emoji overlay) z FFmpeg."""
     import subprocess, tempfile
     from fastapi.responses import JSONResponse as JR
     # Uporabi static-ffmpeg da dobimo ffmpeg binarko brez root
@@ -2736,27 +2738,94 @@ async def merge_video_audio(
                 with open(ass_path, "wb") as f:
                     f.write(ass_content_orig)
 
+            # Pripravi emoji overlay (če imamo emojis_json)
+            emoji_inputs = []  # tuples (png_path, start, end, segment_idx)
+            if emojis_json:
+                try:
+                    emoji_data = json.loads(emojis_json)
+                    for seg in emoji_data.get("segments", []):
+                        emoji = seg.get("emoji")
+                        if not emoji:
+                            continue
+                        start = float(seg.get("start", 0))
+                        end = float(seg.get("end", 0))
+                        if end <= start:
+                            continue
+                        png_path = _get_twemoji_png(emoji)
+                        if png_path:
+                            emoji_inputs.append((str(png_path), start, end))
+                    print(f"[merge] Emoji overlays prepared: {len(emoji_inputs)}")
+                except Exception as e:
+                    print(f"[merge] Emoji parsing failed: {e}")
+
             if has_srt:
                 # ASS karaoke ali SRT fallback
                 sub_file = ass_path if has_srt == 'ass' else srt_path
                 if has_srt == 'ass':
-                    vf = f"ass={sub_file}"
+                    sub_filter = f"ass={sub_file}"
                 else:
-                    # SRT fallback — prilagodi format glede na video
                     s = get_subtitle_style_for_format(video_width, video_height)
-                    vf = f"subtitles={sub_file}:force_style='FontName=Arial,FontSize={s['fontsize']},PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Outline={s['outline']},Bold=1,Alignment=2,MarginV={s['marginv']}'"
-                cmd = [
-                    "ffmpeg", "-y",
-                    "-i", video_path,
-                    "-i", audio_path,
-                    "-vf", vf,
-                    "-map", "0:v:0",
-                    "-map", "1:a:0",
-                    "-c:v", "libx264",
-                    "-c:a", "aac",
-                    "-shortest",
-                    output_path
-                ]
+                    sub_filter = f"subtitles={sub_file}:force_style='FontName=Arial,FontSize={s['fontsize']},PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Outline={s['outline']},Bold=1,Alignment=2,MarginV={s['marginv']}'"
+
+                # Sestavi FFmpeg ukaz — z emoji overlay ali brez
+                if emoji_inputs and video_width > 0 and video_height > 0:
+                    # Emoji size = ~10% višine videa (pri 9:16 = ~192px za 1920 height)
+                    style_e = get_subtitle_style_for_format(video_width, video_height)
+                    emoji_size = max(int(video_height * 0.09), 80)
+                    # Emoji y position = 100px NAD podnapisi (kjer marginV je od dna)
+                    # Subtitle baseline ≈ height - marginV; emoji = height - marginV - subtitle_height - emoji_height - gap
+                    emoji_y = video_height - style_e["marginv"] - style_e["fontsize"] * 2 - emoji_size - 20
+                    emoji_y = max(emoji_y, 50)  # ne pod 50px od vrha
+
+                    # Build complex filter graph
+                    # Input 0 = video, Input 1 = audio, Inputs 2..N = PNG emojis
+                    inputs = ["-i", video_path, "-i", audio_path]
+                    for png_path, _, _ in emoji_inputs:
+                        inputs.extend(["-i", png_path])
+
+                    # Filter graph: scale every emoji, then chain overlays
+                    filter_parts = []
+                    # Subtitle filter first
+                    filter_parts.append(f"[0:v]{sub_filter}[v0]")
+
+                    last_label = "v0"
+                    for i, (_, start, end) in enumerate(emoji_inputs):
+                        emoji_input_idx = 2 + i  # offset za video+audio
+                        # Scale emoji
+                        filter_parts.append(f"[{emoji_input_idx}:v]scale={emoji_size}:{emoji_size}[e{i}]")
+                        # Overlay z časovnim pogojem (centered horizontally)
+                        next_label = f"v{i+1}"
+                        filter_parts.append(
+                            f"[{last_label}][e{i}]overlay=x=(W-w)/2:y={emoji_y}:enable='between(t,{start:.2f},{end:.2f})'[{next_label}]"
+                        )
+                        last_label = next_label
+
+                    filter_complex = ";".join(filter_parts)
+
+                    cmd = ["ffmpeg", "-y"] + inputs + [
+                        "-filter_complex", filter_complex,
+                        "-map", f"[{last_label}]",
+                        "-map", "1:a:0",
+                        "-c:v", "libx264",
+                        "-c:a", "aac",
+                        "-shortest",
+                        output_path
+                    ]
+                else:
+                    # Brez emoji overlay — stari flow
+                    vf = sub_filter
+                    cmd = [
+                        "ffmpeg", "-y",
+                        "-i", video_path,
+                        "-i", audio_path,
+                        "-vf", vf,
+                        "-map", "0:v:0",
+                        "-map", "1:a:0",
+                        "-c:v", "libx264",
+                        "-c:a", "aac",
+                        "-shortest",
+                        output_path
+                    ]
             else:
                 # Samo audio zamenjava, video brez rekodiranja
                 cmd = [
@@ -9029,6 +9098,139 @@ VRNI EXACT JSON v tej obliki, brez dodatnega teksta:
             "warnings": scraping_warnings,
         }
 
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+# ─── EMOJI OVERLAY ZA PODNAPISE ─────────────────────────────────────────────
+
+TWEMOJI_DIR = DATA_DIR / "twemoji_cache"
+TWEMOJI_DIR.mkdir(exist_ok=True, parents=True)
+TWEMOJI_CDN = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72"
+
+
+def _emoji_to_codepoint(emoji: str) -> str:
+    """Pretvori emoji znak v hex codepoint za Twemoji URL.
+    Primer: '🔒' -> '1f512', '🇸🇮' (flag) -> '1f1f8-1f1ee'."""
+    codes = []
+    for ch in emoji:
+        cp = ord(ch)
+        # Filter ZWJ (zero-width joiner) in variation selectors (FE0F)
+        if cp == 0xFE0F:
+            continue
+        codes.append(f"{cp:x}")
+    return "-".join(codes)
+
+
+def _get_twemoji_png(emoji: str) -> Path | None:
+    """Vrne pot do PNG datoteke za emoji. Če manjka, prenesi iz CDN.
+    Vrne None če download failed."""
+    codepoint = _emoji_to_codepoint(emoji)
+    if not codepoint:
+        return None
+    png_path = TWEMOJI_DIR / f"{codepoint}.png"
+    if png_path.exists() and png_path.stat().st_size > 100:
+        return png_path
+
+    # Download iz Twemoji CDN
+    url = f"{TWEMOJI_CDN}/{codepoint}.png"
+    try:
+        import httpx as _httpx
+        with _httpx.Client(timeout=10.0, follow_redirects=True) as client:
+            resp = client.get(url)
+            if resp.status_code == 200 and len(resp.content) > 100:
+                png_path.write_bytes(resp.content)
+                return png_path
+    except Exception as e:
+        print(f"[twemoji] Download failed for {emoji} ({codepoint}): {e}")
+    return None
+
+
+class SuggestEmojisRequest(BaseModel):
+    text: str
+    alignment: dict  # ElevenLabs alignment object
+    lang: str = "sl"
+
+
+@app.post("/suggest-emojis")
+async def suggest_emojis(req: SuggestEmojisRequest):
+    """Claude analizira tekst in predlaga emoji za ~30% segmentov (mix style)."""
+    try:
+        # Razdeli tekst v stavke/segmente
+        words = _parse_words(req.alignment)
+        if not words:
+            return {"ok": False, "error": "Ni alignment podatkov"}
+
+        # Grupiraj v segmente (vrstice) — uporabimo isto logiko kot build_ass
+        # Vsakih 4-6 besed = 1 segment
+        segments = []
+        i = 0
+        while i < len(words):
+            grp = [words[i]]; i += 1
+            while i < len(words) and len(grp) < 5 and (words[i][1] - grp[0][1]) < 2.5:
+                grp.append(words[i]); i += 1
+            seg_text = " ".join(w[0] for w in grp)
+            seg_start = grp[0][1]
+            seg_end = grp[-1][2]
+            segments.append({"text": seg_text, "start": seg_start, "end": seg_end})
+
+        # Claude prompt — predlagaj emoji samo za KLJUČNE segmente (mix style)
+        segments_json = json.dumps([{"idx": i, "text": s["text"]} for i, s in enumerate(segments)], ensure_ascii=False)
+
+        prompt = f"""Imaš seznam tekstualnih segmentov iz video oglasa (jezik: {req.lang}).
+
+Tvoja naloga: za nekatere segmente predlagaj 1 emoji ki vizualno poudari ključni koncept.
+
+PRAVILA:
+- Emoji predlagaj samo za KLJUČNE segmente (cca. 30-50% segmentov, NE vse)
+- Preskoči segmente ki so:
+  - Splošni opisi brez vizualnega konteksta ("ki vam pomaga", "in zato")
+  - Drugi del stavka (povezovalni)
+  - Manjši kot 2 besedi
+- Predlagaj emoji za segmente kjer:
+  - Glavna beseda ima jasen vizualni koncept (okna → 🪟, hitrost → ⚡, varnost → 🔒)
+  - Klavzule glavnih koristi (lažje → 💪, doma → 🏠, naravno → 🌿)
+  - Močne čustvene besede (super → ✨, novo → 🆕, brez skrbi → 😌)
+- Uporabljaj POPULARNE emoji (✨ 🔥 💪 ⚡ 🎯 🪟 🔒 🏠 🌿 💧 🌡 🛡 ⏱ 📦 🎁 ❤️ 👶 🐾 🌟 💎 🍃 ☀️ 🌙 🛌 👍 🚀)
+- Različni emoji za različne segmente (NE isti emoji vsakič)
+
+SEGMENTI:
+{segments_json}
+
+VRNI EXACT JSON brez markdown:
+{{"emojis": [{{"idx": 0, "emoji": "🪟"}}, {{"idx": 3, "emoji": "🔒"}}, ...]}}
+
+Vrni samo segmente ki potrebujejo emoji, ostale preskoči."""
+
+        text = await call_claude(prompt, "claude-sonnet-4-6", None, 2000)
+        parsed = parse_json_response(text)
+        if not parsed:
+            return {"ok": False, "error": "JSON parse failed", "raw": text[:300]}
+
+        emoji_map = {}  # segment_idx -> emoji
+        for item in parsed.get("emojis", []):
+            try:
+                idx = int(item["idx"])
+                emoji = item["emoji"]
+                if 0 <= idx < len(segments):
+                    emoji_map[idx] = emoji
+            except Exception:
+                continue
+
+        # Pripravi rezultat
+        result_segments = []
+        for i, seg in enumerate(segments):
+            result_segments.append({
+                "idx": i,
+                "text": seg["text"],
+                "start": seg["start"],
+                "end": seg["end"],
+                "emoji": emoji_map.get(i, None),
+            })
+
+        return {"ok": True, "segments": result_segments}
     except Exception as e:
         import traceback
         traceback.print_exc()
