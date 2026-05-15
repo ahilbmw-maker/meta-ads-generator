@@ -2285,16 +2285,22 @@ Vrni SAMO JSON brez markdown:
 # ─── VIDEO ADS — ELEVENLABS AUDIO ────────────────────────────────────────────
 
 ELEVENLABS_VOICES = {
-    "sl": "lxYfHSkYm1EzQzGhdbfc",  # SL — multilingual default (no native)
+    "sl": "bu5eKETbFKC8G702EAU4",  # Liam — Energetic, Social Media Creator (v3)
     "hr": "FXFcxnjikw0naYO1PPrU",  # Adnan — Energetic, Educational
     "rs": "eWKPI657Btpf4xbqX4x6",
     "hu": "M336tBVZHWWiWb4R54ui",
     "cz": "uYFJyGaibp4N2VwYQshk",
     "sk": "2ST3sI2j7fz4A5oXjnbA",
     "pl": "H5xTcsAIeS5RAykjz57a",
-    "gr": "6z1Ks05MOtac6wYNh9PJ",
+    "gr": "n0vzWypeCK1NlWPVwhOc",
     "ro": "xHIzJ4zBhlGcvJscsdON",
     "bg": "pVnrL6sighQX7hVz89cp",
+}
+
+# Per-language model — SLO gre na novi v3 (z audio tagi), ostali ohranijo v2
+ELEVENLABS_MODELS = {
+    "sl": "eleven_v3",
+    # vsi ostali jeziki: eleven_multilingual_v2 (default)
 }
 
 def _parse_words(alignment: dict):
@@ -2456,7 +2462,7 @@ async def generate_audio(data: dict):
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": "ELEVENLABS_API_KEY ni nastavljen."}, status_code=400)
 
-    voice_id = ELEVENLABS_VOICES.get(lang, "lxYfHSkYm1EzQzGhdbfc")
+    voice_id = ELEVENLABS_VOICES.get(lang, "bu5eKETbFKC8G702EAU4")
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as hc:
@@ -2469,7 +2475,7 @@ async def generate_audio(data: dict):
                 },
                 json={
                     "text": text,
-                    "model_id": "eleven_multilingual_v2",
+                    "model_id": ELEVENLABS_MODELS.get(lang, "eleven_multilingual_v2"),
                     "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
                 }
             )
