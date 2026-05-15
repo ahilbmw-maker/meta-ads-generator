@@ -2368,9 +2368,9 @@ def get_subtitle_style_for_format(width: int, height: int) -> dict:
         marginv = max(int(height * 0.20), 100)
         return {"fontsize": max(int(height * 0.038), 48), "marginv": marginv, "outline": 5, "max_words": 3, "playresx": width, "playresy": height}
     elif ratio < 0.7:
-        # 9:16 vertical (FB Reels) — 0.5625
-        # 12% (prej 8%) — FB Reels UI prekriva manj kot TikTok ampak še vedno safe zone potrebna
-        marginv = max(int(height * 0.12), 130)
+        # 9:16 vertical (FB Reels + FB Feed prikaz vertikalnega) — 0.5625
+        # 16% (prej 12%) — varneje za FB Feed kjer ima vec UI elementov spodaj
+        marginv = max(int(height * 0.16), 170)
         return {"fontsize": max(int(height * 0.038), 56), "marginv": marginv, "outline": 5, "max_words": 5, "playresx": width, "playresy": height}
     elif ratio < 1.2:
         # 1:1 square in 4:5 portrait (FB Feed) — najpogostejši FB ad format
