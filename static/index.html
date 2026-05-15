@@ -6250,6 +6250,26 @@ async function vadsGenerateAudio(langCode) {
     window._vadsSrts = window._vadsSrts || {};
     window._vadsSrts[langCode] = data.ass || data.srt || '';
 
+    // Shrani alignment za emoji suggestion
+    window._vadsAlignments = window._vadsAlignments || {};
+    window._vadsAlignments[langCode] = data.alignment || null;
+
+    // Avtomatsko predlagaj emoji-je (background, ne blokira)
+    if (data.alignment && data.alignment.characters) {
+      fetch('/suggest-emojis', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text: script, alignment: data.alignment, lang: langCode})
+      }).then(r => r.json()).then(em => {
+        if (em.ok && em.segments) {
+          window._vadsEmojis = window._vadsEmojis || {};
+          window._vadsEmojis[langCode] = em.segments;
+          const emojiCount = em.segments.filter(s => s.emoji).length;
+          console.log(`[emoji] ${langCode}: ${emojiCount}/${em.segments.length} segments`);
+        }
+      }).catch(e => console.log('[emoji] failed:', e));
+    }
+
     // SRT download URL (za ročni download)
     const srtBlob = new Blob([data.srt || ''], {type: 'text/plain'});
     const srtUrl = URL.createObjectURL(srtBlob);
@@ -6299,6 +6319,12 @@ async function _vadsMerge(langCode, btn, withSrt) {
     if (withSrt && window._vadsSrts?.[langCode]) {
       const srtBlob = new Blob([window._vadsSrts[langCode]], {type: 'text/plain'});
       formData.append('srt', srtBlob, 'subs.srt');
+    }
+
+    // Dodaj emoji segmente (če smo jih predlagali)
+    if (withSrt && window._vadsEmojis?.[langCode]) {
+      const emojiData = {segments: window._vadsEmojis[langCode]};
+      formData.append('emojis_json', JSON.stringify(emojiData));
     }
 
     const res = await fetch('/merge-video-audio', {method: 'POST', body: formData});
