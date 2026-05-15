@@ -8058,7 +8058,7 @@ async def video_save_to_disk(
         sku_dir = VIDEO_OUTPUTS_DIR / sku
         sku_dir.mkdir(parents=True, exist_ok=True)
 
-        filename = f"video_{lang}_v{video_version}.mp4"
+        filename = f"{sku}_{lang}_v{video_version}.mp4"
         target = sku_dir / filename
 
         content_bytes = await video.read()
@@ -8131,8 +8131,10 @@ async def video_batch_country_zip(sku: str, country_code: str):
         raise HTTPException(status_code=404, detail="SKU not found")
 
     lang = country_code.lower()
-    pattern = f"video_{lang}_v*.mp4"
-    files = sorted(sku_dir.glob(pattern))
+    # Podpora za stari format (video_xx_v*.mp4) IN novi format (SKU_xx_v*.mp4)
+    files_old = list(sku_dir.glob(f"video_{lang}_v*.mp4"))
+    files_new = list(sku_dir.glob(f"{sku_safe}_{lang}_v*.mp4"))
+    files = sorted(set(files_old + files_new))
     if not files:
         raise HTTPException(status_code=404, detail=f"No videos for country {country_code}")
 
@@ -8357,7 +8359,9 @@ async def video_download_page(sku: str):
     for f in sorted(sku_dir.glob("*.mp4")):
         size_mb = round(f.stat().st_size / 1024 / 1024, 2)
         url = f"/video-batch/{sku_safe}/{f.name}"
-        m = _re.match(r'video_([a-z]{2})_v(\d+)\.mp4', f.name)
+        # Podpora za stari format (video_xx_v<n>.mp4) IN novi format (SKU_xx_v<n>.mp4)
+        # Vzami zadnje _xx_v<n>.mp4 (jezik + verzija) iz katerega koli prefiksa
+        m = _re.search(r'_([a-z]{2})_v(\d+)\.mp4$', f.name)
         lang = m.group(1) if m else 'xx'
         version = int(m.group(2)) if m else 0
         video_info = {"filename": f.name, "size_mb": size_mb, "url": url, "version": version}
