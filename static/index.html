@@ -2558,8 +2558,8 @@ input[type="text"].error { border-color: var(--red) !important; }
     </div>
 
     <div id="cfDashboard" style="display:none">
-      <!-- KPI cards -->
-      <div id="cfKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px"></div>
+      <!-- KPI cards (vidni) -->
+      <div id="cfKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:14px"></div>
 
       <!-- Main chart: Cash Flow trend -->
       <div class="card" style="margin-bottom:14px">
@@ -2567,7 +2567,7 @@ input[type="text"].error { border-color: var(--red) !important; }
         <canvas id="cfChartMain" style="margin-top:10px;width:100%;max-height:380px"></canvas>
       </div>
 
-      <!-- Grid: zaloga + računi + posojila -->
+      <!-- Grid: zaloga + računi -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px;margin-bottom:14px">
         <div class="card">
           <span class="slabel">📦 ZALOGA & ŠT. KOSOV</span>
@@ -2580,10 +2580,6 @@ input[type="text"].error { border-color: var(--red) !important; }
         <div class="card">
           <span class="slabel">🏦 RAČUNI SKOZI ČAS</span>
           <canvas id="cfChartAccountsTime" style="margin-top:10px;width:100%;max-height:280px"></canvas>
-        </div>
-        <div class="card">
-          <span class="slabel">💳 POSOJILA</span>
-          <canvas id="cfChartLoans" style="margin-top:10px;width:100%;max-height:280px"></canvas>
         </div>
       </div>
 
@@ -2620,9 +2616,27 @@ input[type="text"].error { border-color: var(--red) !important; }
       </div>
 
       <!-- Stats panel -->
-      <div class="card">
+      <div class="card" style="margin-bottom:14px">
         <span class="slabel">📊 STATISTIKA OBDOBJA</span>
         <div id="cfMetrics" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px"></div>
+      </div>
+
+      <!-- TOGGLE GUMB za skrite podatke -->
+      <div style="text-align:center;margin:20px 0">
+        <button id="cfToggleBtn" onclick="cfToggleHidden()" style="padding:10px 20px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">👁 Pokaži več (posojila, leverage)</button>
+      </div>
+
+      <!-- SKRITI BLOCK -->
+      <div class="cf-hidden-block" style="display:none">
+        <div id="cfKpisHidden" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:14px"></div>
+        <div class="card" style="margin-bottom:14px">
+          <span class="slabel">💳 POSOJILA SKOZI ČAS</span>
+          <canvas id="cfChartLoans" style="margin-top:10px;width:100%;max-height:280px"></canvas>
+        </div>
+        <div class="card">
+          <span class="slabel">📊 LEVERAGE & DEBT METRIKE</span>
+          <div id="cfDebtMetrics" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px"></div>
+        </div>
       </div>
     </div>
 
@@ -13652,27 +13666,42 @@ function cfRenderKpis(rows) {
   const firstPosojila = first.posojila || 0;
   const posojilaChange = lastPosojila - firstPosojila;
 
-  // Net cash (CF − posojila) = realna lastniška vrednost
   const lastNet = lastCf - lastPosojila;
   const firstNet = firstCf - firstPosojila;
   const netChange = lastNet - firstNet;
 
-  const kpis = [
+  // Vidne KPI (vedno)
+  const kpisVisible = [
     {label: 'CF (trenutni)', value: cfFmtEur(lastCf), sub: cfPct(cfChangePct), color: '#3b82f6'},
     {label: 'CF + posojila', value: cfFmtEur(lastCfLoan), sub: 'sprem: ' + (cfLoanChange >= 0 ? '+' : '') + cfFmtEur(cfLoanChange), color: '#8b5cf6'},
-    {label: 'Net (CF − posojila)', value: cfFmtEur(lastNet), sub: 'sprem: ' + (netChange >= 0 ? '+' : '') + cfFmtEur(netChange), color: netChange >= 0 ? '#22c55e' : '#ef4444'},
-    {label: 'Posojila', value: cfFmtEur(lastPosojila), sub: 'sprem: ' + (posojilaChange >= 0 ? '+' : '') + cfFmtEur(posojilaChange), color: '#f59e0b'},
     {label: 'Zaloga (€)', value: cfFmtEur(lastStock), sub: 'sprem: ' + (stockChange >= 0 ? '+' : '') + cfFmtEur(stockChange), color: '#06b6d4'},
     {label: 'Št. kosov v zalogi', value: cfFmtNum(lastKosov), sub: 'sprem: ' + (kosovChange >= 0 ? '+' : '') + cfFmtNum(kosovChange), color: '#10b981'},
   ];
 
-  document.getElementById('cfKpis').innerHTML = kpis.map(k => `
+  // Skrita KPI (toggle)
+  const kpisHidden = [
+    {label: 'Net (CF − posojila)', value: cfFmtEur(lastNet), sub: 'sprem: ' + (netChange >= 0 ? '+' : '') + cfFmtEur(netChange), color: netChange >= 0 ? '#22c55e' : '#ef4444'},
+    {label: 'Posojila', value: cfFmtEur(lastPosojila), sub: 'sprem: ' + (posojilaChange >= 0 ? '+' : '') + cfFmtEur(posojilaChange), color: '#f59e0b'},
+  ];
+
+  const renderKpi = (k) => `
     <div class="card" style="border-left:4px solid ${k.color};padding:14px">
       <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">${k.label}</div>
       <div style="font-size:22px;font-weight:700;color:var(--text);margin-top:6px">${k.value}</div>
       <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">${k.sub}</div>
     </div>
-  `).join('');
+  `;
+
+  document.getElementById('cfKpis').innerHTML = kpisVisible.map(renderKpi).join('');
+  document.getElementById('cfKpisHidden').innerHTML = kpisHidden.map(renderKpi).join('');
+}
+
+function cfToggleHidden() {
+  const blocks = document.querySelectorAll('.cf-hidden-block');
+  const btn = document.getElementById('cfToggleBtn');
+  const isHidden = blocks[0].style.display === 'none' || blocks[0].style.display === '';
+  blocks.forEach(b => { b.style.display = isHidden ? '' : 'none'; });
+  btn.textContent = isHidden ? '🙈 Skrij dodatne podatke' : '👁 Pokaži več (posojila, leverage)';
 }
 
 function cfRenderMainChart(rows) {
@@ -14038,7 +14067,7 @@ function cfRenderMetrics(rows) {
   const cfChange = (last.cf_all || 0) - (first.cf_all || 0);
   const avgDaily = rows.length > 1 ? cfChange / (rows.length - 1) : 0;
 
-  // Volatilnost — std dev dnevnih sprememb
+  // Volatilnost
   const deltas = [];
   for (let i = 1; i < rows.length; i++) {
     if (rows[i].cf_all != null && rows[i-1].cf_all != null) {
@@ -14049,29 +14078,19 @@ function cfRenderMetrics(rows) {
   const variance = deltas.length ? deltas.reduce((s, d) => s + Math.pow(d - meanDelta, 2), 0) / deltas.length : 0;
   const stdDev = Math.sqrt(variance);
 
-  // Stevilo dni z rastjo vs padcem
   const upDays = deltas.filter(d => d > 0).length;
   const downDays = deltas.filter(d => d < 0).length;
-  const flatDays = deltas.filter(d => d === 0).length;
 
-  // CF / kos
-  const lastCfPerKos = (last.st_kosov || 0) > 0 ? (last.cf_all || 0) / last.st_kosov : 0;
-
-  // Zaloga / CF razmerje
   const stockRatio = (last.cf_all || 0) > 0 ? ((last.zaloga || 0) / last.cf_all * 100) : 0;
-
-  // Posojila / CF razmerje (leverage)
-  const leverage = (last.cf_all || 0) > 0 ? ((last.posojila || 0) / last.cf_all * 100) : 0;
 
   const metrics = [
     {label: 'Max CF', value: cfFmtEur(maxCf), sub: maxCfRow ? maxCfRow.date : '—'},
     {label: 'Min CF', value: cfFmtEur(minCf), sub: minCfRow ? minCfRow.date : '—'},
     {label: 'Pov. dnevni prirast', value: cfFmtEur(avgDaily), sub: rows.length + ' dni'},
     {label: 'Volatilnost (σ)', value: cfFmtEur(stdDev), sub: 'std dev dnevnih sprememb'},
-    {label: 'Dni rasti', value: upDays, sub: `${(upDays / deltas.length * 100).toFixed(0)}% obdobja`},
-    {label: 'Dni padca', value: downDays, sub: `${(downDays / deltas.length * 100).toFixed(0)}% obdobja`},
+    {label: 'Dni rasti', value: upDays, sub: deltas.length ? `${(upDays / deltas.length * 100).toFixed(0)}% obdobja` : '—'},
+    {label: 'Dni padca', value: downDays, sub: deltas.length ? `${(downDays / deltas.length * 100).toFixed(0)}% obdobja` : '—'},
     {label: 'Zaloga / CF', value: stockRatio.toFixed(1) + '%', sub: 'delež CF v zalogi'},
-    {label: 'Leverage', value: leverage.toFixed(1) + '%', sub: 'posojila / CF'},
   ];
 
   document.getElementById('cfMetrics').innerHTML = metrics.map(m => `
@@ -14081,6 +14100,30 @@ function cfRenderMetrics(rows) {
       <div style="font-size:10px;color:var(--text-secondary);margin-top:2px">${m.sub}</div>
     </div>
   `).join('');
+
+  // Debt metrics (skrito)
+  const leverage = (last.cf_all || 0) > 0 ? ((last.posojila || 0) / last.cf_all * 100) : 0;
+  const netDebt = (last.posojila || 0) - (last.cf_all || 0);
+  const debtToStock = (last.zaloga || 0) > 0 ? ((last.posojila || 0) / last.zaloga * 100) : 0;
+  const cashCoverage = (last.posojila || 0) > 0 ? ((last.cf_all || 0) / last.posojila * 100) : 0;
+
+  const debtMetrics = [
+    {label: 'Leverage', value: leverage.toFixed(1) + '%', sub: 'posojila / CF'},
+    {label: 'Net dolg', value: cfFmtEur(netDebt), sub: netDebt > 0 ? '⚠️ pozit. dolg' : '✓ neto pozitiven'},
+    {label: 'Posojila / Zaloga', value: debtToStock.toFixed(1) + '%', sub: 'lahko poplačaš zalogo z dolgom?'},
+    {label: 'Cash Coverage', value: cashCoverage.toFixed(0) + '%', sub: 'CF / posojila (>100% varno)'},
+  ];
+
+  const debtBox = document.getElementById('cfDebtMetrics');
+  if (debtBox) {
+    debtBox.innerHTML = debtMetrics.map(m => `
+      <div style="background:var(--surface2);padding:10px;border-radius:6px;border:1px solid var(--border)">
+        <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase">${m.label}</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text);margin-top:4px">${m.value}</div>
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px">${m.sub}</div>
+      </div>
+    `).join('');
+  }
 }
 // ── /CASH FLOW ────────────────────────────────────────
 </script>
