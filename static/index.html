@@ -2561,22 +2561,14 @@ input[type="text"].error { border-color: var(--red) !important; }
       <!-- KPI cards -->
       <div id="cfKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px"></div>
 
-      <!-- Main chart: Cash Flow + Promet trend -->
+      <!-- Main chart: Cash Flow trend -->
       <div class="card" style="margin-bottom:14px">
         <span class="slabel">💰 CASH FLOW TREND</span>
         <canvas id="cfChartMain" style="margin-top:10px;width:100%;max-height:380px"></canvas>
       </div>
 
-      <!-- Grid: ads + promet vs naročila + zaloga -->
+      <!-- Grid: zaloga + računi + posojila -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px;margin-bottom:14px">
-        <div class="card">
-          <span class="slabel">📊 OGLAŠEVANJE (FB + GOOGLE + TIKTOK)</span>
-          <canvas id="cfChartAds" style="margin-top:10px;width:100%;max-height:280px"></canvas>
-        </div>
-        <div class="card">
-          <span class="slabel">🛒 PROMET VS NAROČILA</span>
-          <canvas id="cfChartRevenue" style="margin-top:10px;width:100%;max-height:280px"></canvas>
-        </div>
         <div class="card">
           <span class="slabel">📦 ZALOGA & ŠT. KOSOV</span>
           <canvas id="cfChartStock" style="margin-top:10px;width:100%;max-height:280px"></canvas>
@@ -2584,6 +2576,14 @@ input[type="text"].error { border-color: var(--red) !important; }
         <div class="card">
           <span class="slabel">💵 PORAZDELITEV PO RAČUNIH (zadnji dan)</span>
           <canvas id="cfChartAccounts" style="margin-top:10px;width:100%;max-height:280px"></canvas>
+        </div>
+        <div class="card">
+          <span class="slabel">🏦 RAČUNI SKOZI ČAS</span>
+          <canvas id="cfChartAccountsTime" style="margin-top:10px;width:100%;max-height:280px"></canvas>
+        </div>
+        <div class="card">
+          <span class="slabel">💳 POSOJILA</span>
+          <canvas id="cfChartLoans" style="margin-top:10px;width:100%;max-height:280px"></canvas>
         </div>
       </div>
 
@@ -2609,7 +2609,7 @@ input[type="text"].error { border-color: var(--red) !important; }
 
       <!-- Monthly table -->
       <div class="card" style="margin-bottom:14px">
-        <span class="slabel">📅 MESEČNI PREGLED</span>
+        <span class="slabel">📅 MESEČNI PREGLED (snapshot ob koncu meseca)</span>
         <div id="cfMonthlyTable" style="margin-top:12px;overflow-x:auto"></div>
       </div>
 
@@ -2619,9 +2619,9 @@ input[type="text"].error { border-color: var(--red) !important; }
         <canvas id="cfChartYearly" style="margin-top:10px;width:100%;max-height:260px"></canvas>
       </div>
 
-      <!-- ROI / metrics -->
+      <!-- Stats panel -->
       <div class="card">
-        <span class="slabel">🎯 KLJUČNI KAZALCI</span>
+        <span class="slabel">📊 STATISTIKA OBDOBJA</span>
         <div id="cfMetrics" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px"></div>
       </div>
     </div>
@@ -13617,10 +13617,10 @@ function cfRender() {
   if (!rows.length) return;
   cfRenderKpis(rows);
   cfRenderMainChart(rows);
-  cfRenderAdsChart(rows);
-  cfRenderRevenueChart(rows);
   cfRenderStockChart(rows);
   cfRenderAccountsChart(rows);
+  cfRenderAccountsTimeChart(rows);
+  cfRenderLoansChart(rows);
   cfRenderInsights(rows);
   cfRenderMonthly(rows);
   cfRenderYearlyChart();
@@ -13630,32 +13630,40 @@ function cfRender() {
 function cfRenderKpis(rows) {
   const last = rows[rows.length - 1];
   const first = rows[0];
+
   const lastCf = last.cf_all || 0;
   const firstCf = first.cf_all || 0;
   const cfChange = lastCf - firstCf;
   const cfChangePct = firstCf ? (cfChange / firstCf * 100) : 0;
 
-  // Sum metrike v obdobju
-  const totalPromet = rows.reduce((s, r) => s + (r.promet || 0), 0);
-  // st_narocil je kumulativen — vzami zadnjega minus prvega kjer obstajata
-  const ordersStart = rows.find(r => r.narocila != null)?.narocila || 0;
-  const ordersEnd = [...rows].reverse().find(r => r.narocila != null)?.narocila || 0;
-  const totalOrders = ordersEnd - ordersStart;
-
-  const totalAds = rows.reduce((s, r) => s + (r.ads_total || 0), 0);
-  const roas = totalAds > 0 && totalPromet > 0 ? totalPromet / totalAds : null;
+  const lastCfLoan = last.cf_w_loan || 0;
+  const firstCfLoan = first.cf_w_loan || 0;
+  const cfLoanChange = lastCfLoan - firstCfLoan;
 
   const lastStock = last.zaloga || 0;
   const firstStock = first.zaloga || 0;
   const stockChange = lastStock - firstStock;
 
+  const lastKosov = last.st_kosov || 0;
+  const firstKosov = first.st_kosov || 0;
+  const kosovChange = lastKosov - firstKosov;
+
+  const lastPosojila = last.posojila || 0;
+  const firstPosojila = first.posojila || 0;
+  const posojilaChange = lastPosojila - firstPosojila;
+
+  // Net cash (CF − posojila) = realna lastniška vrednost
+  const lastNet = lastCf - lastPosojila;
+  const firstNet = firstCf - firstPosojila;
+  const netChange = lastNet - firstNet;
+
   const kpis = [
     {label: 'CF (trenutni)', value: cfFmtEur(lastCf), sub: cfPct(cfChangePct), color: '#3b82f6'},
-    {label: 'CF rast (obdobje)', value: cfFmtEur(cfChange), sub: 'začetek: ' + cfFmtEur(firstCf), color: cfChange >= 0 ? '#22c55e' : '#ef4444'},
-    {label: 'Promet (skupaj)', value: cfFmtEur(totalPromet), sub: rows.length + ' dni', color: '#8b5cf6'},
-    {label: 'Naročila (skupaj)', value: cfFmtNum(totalOrders), sub: 'pov. ' + cfFmtEur(totalOrders ? totalPromet / totalOrders : 0) + '/nar.', color: '#f59e0b'},
-    {label: 'Oglaševanje', value: cfFmtEur(totalAds), sub: roas ? 'ROAS ' + roas.toFixed(2) + 'x' : '—', color: '#ef4444'},
-    {label: 'Zaloga (trenutna)', value: cfFmtEur(lastStock), sub: (stockChange >= 0 ? '+' : '') + cfFmtEur(stockChange), color: '#06b6d4'},
+    {label: 'CF + posojila', value: cfFmtEur(lastCfLoan), sub: 'sprem: ' + (cfLoanChange >= 0 ? '+' : '') + cfFmtEur(cfLoanChange), color: '#8b5cf6'},
+    {label: 'Net (CF − posojila)', value: cfFmtEur(lastNet), sub: 'sprem: ' + (netChange >= 0 ? '+' : '') + cfFmtEur(netChange), color: netChange >= 0 ? '#22c55e' : '#ef4444'},
+    {label: 'Posojila', value: cfFmtEur(lastPosojila), sub: 'sprem: ' + (posojilaChange >= 0 ? '+' : '') + cfFmtEur(posojilaChange), color: '#f59e0b'},
+    {label: 'Zaloga (€)', value: cfFmtEur(lastStock), sub: 'sprem: ' + (stockChange >= 0 ? '+' : '') + cfFmtEur(stockChange), color: '#06b6d4'},
+    {label: 'Št. kosov v zalogi', value: cfFmtNum(lastKosov), sub: 'sprem: ' + (kosovChange >= 0 ? '+' : '') + cfFmtNum(kosovChange), color: '#10b981'},
   ];
 
   document.getElementById('cfKpis').innerHTML = kpis.map(k => `
@@ -13717,50 +13725,78 @@ function cfRenderMainChart(rows) {
   });
 }
 
-function cfRenderAdsChart(rows) {
-  cfDestroyChart('ads');
-  const ctx = document.getElementById('cfChartAds').getContext('2d');
-  // Aggregate v mesece za boljši pogled
-  const monthly = cfAggregateMonthly(rows);
-  cfCharts.ads = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: monthly.map(m => m.label),
-      datasets: [
-        {label: 'FB', data: monthly.map(m => m.fb), backgroundColor: '#1877f2'},
-        {label: 'Google', data: monthly.map(m => m.google), backgroundColor: '#ea4335'},
-        {label: 'TikTok', data: monthly.map(m => m.tiktok), backgroundColor: '#000'},
-      ]
-    },
+function cfRenderAccountsTimeChart(rows) {
+  cfDestroyChart('accountsTime');
+  const ctx = document.getElementById('cfChartAccountsTime').getContext('2d');
+  // Top 5 računov po zadnji vrednosti
+  const last = [...rows].reverse().find(r =>
+    [r.paypal, r.wise, r.intesa_hr, r.unicredit, r.intesa_slo, r.intesa_rs, r.suban].filter(v => v != null && v > 0).length > 2
+  ) || rows[rows.length - 1];
+
+  const accountsConfig = [
+    {key: 'paypal', name: 'Paypal+Stripe', color: '#0070ba'},
+    {key: 'wise', name: 'Wise', color: '#9fe870'},
+    {key: 'intesa_hr', name: 'Intesa HR', color: '#1565c0'},
+    {key: 'unicredit', name: 'Unicredit', color: '#ed1c24'},
+    {key: 'intesa_slo', name: 'Intesa SLO', color: '#2563eb'},
+    {key: 'racun_dh', name: 'Račun DH', color: '#7c3aed'},
+    {key: 'suban', name: 'Suban', color: '#f59e0b'},
+    {key: 'intesa_rs', name: 'Intesa RS', color: '#10b981'},
+    {key: 'silux_b', name: 'Silux B', color: '#ec4899'},
+    {key: 'ibkr', name: 'IBKR', color: '#d10000'},
+  ];
+
+  const datasets = accountsConfig
+    .filter(a => last[a.key] != null && last[a.key] > 0)
+    .map(a => ({
+      label: a.name,
+      data: rows.map(r => r[a.key]),
+      borderColor: a.color,
+      backgroundColor: a.color + '20',
+      borderWidth: 1.5,
+      tension: 0.3,
+      pointRadius: 0,
+      spanGaps: true,
+    }));
+
+  cfCharts.accountsTime = new Chart(ctx, {
+    type: 'line',
+    data: {labels: rows.map(r => r.date), datasets},
     options: {
       responsive: true, maintainAspectRatio: false,
-      scales: {x: {stacked: true, ticks: {font: {size: 10}}}, y: {stacked: true, ticks: {callback: v => (v/1000).toFixed(0) + 'k €', font: {size: 10}}}},
-      plugins: {legend: {position: 'top', labels: {font: {size: 11}, usePointStyle: true}}, tooltip: {callbacks: {label: c => c.dataset.label + ': ' + cfFmtEur(c.parsed.y)}}}
+      scales: {
+        x: {ticks: {maxTicksLimit: 8, font: {size: 10}}},
+        y: {ticks: {callback: v => (v/1000).toFixed(0) + 'k €', font: {size: 10}}}
+      },
+      plugins: {
+        legend: {position: 'top', labels: {font: {size: 10}, usePointStyle: true, boxWidth: 8}},
+        tooltip: {callbacks: {label: c => c.dataset.label + ': ' + cfFmtEur(c.parsed.y)}}
+      }
     }
   });
 }
 
-function cfRenderRevenueChart(rows) {
-  cfDestroyChart('revenue');
-  const ctx = document.getElementById('cfChartRevenue').getContext('2d');
-  const monthly = cfAggregateMonthly(rows);
-  cfCharts.revenue = new Chart(ctx, {
-    type: 'bar',
+function cfRenderLoansChart(rows) {
+  cfDestroyChart('loans');
+  const ctx = document.getElementById('cfChartLoans').getContext('2d');
+  cfCharts.loans = new Chart(ctx, {
+    type: 'line',
     data: {
-      labels: monthly.map(m => m.label),
+      labels: rows.map(r => r.date),
       datasets: [
-        {label: 'Promet (€)', data: monthly.map(m => m.promet), backgroundColor: '#8b5cf6', yAxisID: 'y'},
-        {label: 'Naročila', type: 'line', data: monthly.map(m => m.narocila), borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.3, yAxisID: 'y1', borderWidth: 2}
+        {label: 'Posojila (€)', data: rows.map(r => r.posojila), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.15)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0}
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       scales: {
-        x: {ticks: {font: {size: 10}}},
-        y: {position: 'left', ticks: {callback: v => (v/1000).toFixed(0) + 'k €', font: {size: 10}}},
-        y1: {position: 'right', grid: {display: false}, ticks: {font: {size: 10}}}
+        x: {ticks: {maxTicksLimit: 8, font: {size: 10}}},
+        y: {ticks: {callback: v => (v/1000).toFixed(0) + 'k €', font: {size: 10}}}
       },
-      plugins: {legend: {position: 'top', labels: {font: {size: 11}, usePointStyle: true}}}
+      plugins: {
+        legend: {display: false},
+        tooltip: {callbacks: {label: c => 'Posojila: ' + cfFmtEur(c.parsed.y)}}
+      }
     }
   });
 }
@@ -13827,20 +13863,36 @@ function cfRenderAccountsChart(rows) {
 }
 
 function cfAggregateMonthly(rows) {
+  // Za vsak mesec vzami ZADNJI snapshot (konec meseca)
   const monthMap = {};
   rows.forEach(r => {
     const key = r.date.substring(0, 7);  // YYYY-MM
-    if (!monthMap[key]) monthMap[key] = {label: key, promet: 0, narocila: 0, fb: 0, google: 0, tiktok: 0, count: 0};
-    const m = monthMap[key];
-    m.promet += r.promet || 0;
-    m.fb += r.fb || 0;
-    m.google += r.google || 0;
-    m.tiktok += r.tiktok || 0;
-    m.count++;
-    // Narocila: kumulativen — vzami zadnjega
-    if (r.narocila != null) m.narocila = r.narocila;
+    // Vedno prepiši (sortirano kronološko, zadnji = konec meseca)
+    monthMap[key] = {
+      label: key,
+      date: r.date,
+      cf: r.cf_all,
+      cf_w_loan: r.cf_w_loan,
+      zaloga: r.zaloga,
+      st_kosov: r.st_kosov,
+      posojila: r.posojila,
+    };
   });
-  return Object.values(monthMap).sort((a, b) => a.label.localeCompare(b.label));
+  // Tudi začetni snapshot za vsak mesec
+  const monthStart = {};
+  rows.forEach(r => {
+    const key = r.date.substring(0, 7);
+    if (!monthStart[key]) {
+      monthStart[key] = {cf: r.cf_all, zaloga: r.zaloga, posojila: r.posojila};
+    }
+  });
+  return Object.values(monthMap).sort((a, b) => a.label.localeCompare(b.label)).map(m => ({
+    ...m,
+    cfStart: monthStart[m.label].cf,
+    cfGrowth: (m.cf || 0) - (monthStart[m.label].cf || 0),
+    zalogaGrowth: (m.zaloga || 0) - (monthStart[m.label].zaloga || 0),
+    posojilaGrowth: (m.posojila || 0) - (monthStart[m.label].posojila || 0),
+  }));
 }
 
 function cfRenderInsights(rows) {
@@ -13853,34 +13905,23 @@ function cfRenderInsights(rows) {
     return;
   }
 
-  // CF rast po mesecih
-  const cfPerMonth = [];
-  monthly.forEach(m => {
-    const monthRows = rows.filter(r => r.date.startsWith(m.label));
-    if (monthRows.length) {
-      const startCf = monthRows[0].cf_all || 0;
-      const endCf = monthRows[monthRows.length - 1].cf_all || 0;
-      cfPerMonth.push({label: m.label, growth: endCf - startCf, end: endCf, promet: m.promet});
-    }
-  });
-
-  const sortedGrowth = [...cfPerMonth].sort((a, b) => b.growth - a.growth);
+  const sortedGrowth = [...monthly].sort((a, b) => b.cfGrowth - a.cfGrowth);
   const best = sortedGrowth[0];
   const worst = sortedGrowth[sortedGrowth.length - 1];
 
   document.getElementById('cfBestMonth').innerHTML = `
     <div style="font-size:18px;font-weight:700;color:#22c55e">${best.label}</div>
-    <div style="margin-top:4px">Rast CF: <strong>${cfFmtEur(best.growth)}</strong></div>
-    <div style="color:var(--text-secondary);font-size:11px">Promet: ${cfFmtEur(best.promet)}</div>
+    <div style="margin-top:4px">Rast CF: <strong>${best.cfGrowth >= 0 ? '+' : ''}${cfFmtEur(best.cfGrowth)}</strong></div>
+    <div style="color:var(--text-secondary);font-size:11px">Konec meseca: ${cfFmtEur(best.cf)}</div>
   `;
 
   document.getElementById('cfWorstMonth').innerHTML = `
     <div style="font-size:18px;font-weight:700;color:#ef4444">${worst.label}</div>
-    <div style="margin-top:4px">Rast CF: <strong>${cfFmtEur(worst.growth)}</strong></div>
-    <div style="color:var(--text-secondary);font-size:11px">Promet: ${cfFmtEur(worst.promet)}</div>
+    <div style="margin-top:4px">Rast CF: <strong>${worst.cfGrowth >= 0 ? '+' : ''}${cfFmtEur(worst.cfGrowth)}</strong></div>
+    <div style="color:var(--text-secondary);font-size:11px">Konec meseca: ${cfFmtEur(worst.cf)}</div>
   `;
 
-  // Status: ali raste ali pada zadnjih 7 dni
+  // Zadnjih 7 dni
   const last7 = rows.slice(-7);
   if (last7.length >= 2) {
     const startCf = last7[0].cf_all || 0;
@@ -13896,7 +13937,7 @@ function cfRenderInsights(rows) {
     `;
   }
 
-  // Projekcija 30 dni — preprost linear trend iz zadnjih 30 dni
+  // Projekcija — iz zadnjih 30 dni
   const last30 = rows.slice(-30);
   if (last30.length >= 5) {
     const startCf = last30[0].cf_all || 0;
@@ -13916,30 +13957,18 @@ function cfRenderMonthly(rows) {
   const monthly = cfAggregateMonthly(rows);
   if (monthly.length === 0) return;
 
-  // Dodaj CF, ROAS, AOV
-  monthly.forEach(m => {
-    const monthRows = rows.filter(r => r.date.startsWith(m.label));
-    m.cfEnd = monthRows.length ? (monthRows[monthRows.length - 1].cf_all || 0) : 0;
-    m.cfStart = monthRows.length ? (monthRows[0].cf_all || 0) : 0;
-    m.cfGrowth = m.cfEnd - m.cfStart;
-    m.adsTotal = m.fb + m.google + m.tiktok;
-    m.roas = m.adsTotal > 0 ? m.promet / m.adsTotal : null;
-    m.aov = m.narocila > 0 ? m.promet / m.narocila : null;
-  });
-
-  // Show last 24 months max
   const display = monthly.slice(-24).reverse();
   const html = `
     <table style="width:100%;border-collapse:collapse;font-size:12px">
       <thead>
         <tr style="text-align:left;border-bottom:2px solid var(--border)">
           <th style="padding:8px 10px">Mesec</th>
-          <th style="padding:8px 10px;text-align:right">Promet</th>
-          <th style="padding:8px 10px;text-align:right">Oglaševanje</th>
-          <th style="padding:8px 10px;text-align:right">ROAS</th>
-          <th style="padding:8px 10px;text-align:right">AOV</th>
           <th style="padding:8px 10px;text-align:right">CF konec</th>
+          <th style="padding:8px 10px;text-align:right">CF + posojila</th>
           <th style="padding:8px 10px;text-align:right">CF rast</th>
+          <th style="padding:8px 10px;text-align:right">Zaloga €</th>
+          <th style="padding:8px 10px;text-align:right">Št. kosov</th>
+          <th style="padding:8px 10px;text-align:right">Posojila</th>
         </tr>
       </thead>
       <tbody>
@@ -13948,12 +13977,12 @@ function cfRenderMonthly(rows) {
           return `
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:8px 10px;font-weight:600">${m.label}</td>
-            <td style="padding:8px 10px;text-align:right">${cfFmtEur(m.promet)}</td>
-            <td style="padding:8px 10px;text-align:right">${cfFmtEur(m.adsTotal)}</td>
-            <td style="padding:8px 10px;text-align:right">${m.roas ? m.roas.toFixed(2) + 'x' : '—'}</td>
-            <td style="padding:8px 10px;text-align:right">${m.aov ? cfFmtEur(m.aov) : '—'}</td>
-            <td style="padding:8px 10px;text-align:right">${cfFmtEur(m.cfEnd)}</td>
+            <td style="padding:8px 10px;text-align:right">${cfFmtEur(m.cf)}</td>
+            <td style="padding:8px 10px;text-align:right">${cfFmtEur(m.cf_w_loan)}</td>
             <td style="padding:8px 10px;text-align:right;color:${growthColor};font-weight:600">${m.cfGrowth >= 0 ? '+' : ''}${cfFmtEur(m.cfGrowth)}</td>
+            <td style="padding:8px 10px;text-align:right">${cfFmtEur(m.zaloga)}</td>
+            <td style="padding:8px 10px;text-align:right">${cfFmtNum(m.st_kosov)}</td>
+            <td style="padding:8px 10px;text-align:right">${cfFmtEur(m.posojila)}</td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -13995,35 +14024,54 @@ function cfRenderYearlyChart() {
 }
 
 function cfRenderMetrics(rows) {
-  // Sumirane metrike v obdobju
-  const totalPromet = rows.reduce((s, r) => s + (r.promet || 0), 0);
-  const totalFb = rows.reduce((s, r) => s + (r.fb || 0), 0);
-  const totalGoogle = rows.reduce((s, r) => s + (r.google || 0), 0);
-  const totalTiktok = rows.reduce((s, r) => s + (r.tiktok || 0), 0);
-  const totalAds = totalFb + totalGoogle + totalTiktok;
+  const last = rows[rows.length - 1];
+  const first = rows[0];
 
-  const ordersStart = rows.find(r => r.narocila != null)?.narocila || 0;
-  const ordersEnd = [...rows].reverse().find(r => r.narocila != null)?.narocila || 0;
-  const totalOrders = ordersEnd - ordersStart;
+  // Max/min CF v obdobju
+  const cfValues = rows.map(r => r.cf_all).filter(v => v != null);
+  const maxCf = cfValues.length ? Math.max(...cfValues) : 0;
+  const minCf = cfValues.length ? Math.min(...cfValues) : 0;
+  const maxCfRow = rows.find(r => r.cf_all === maxCf);
+  const minCfRow = rows.find(r => r.cf_all === minCf);
 
-  const avgAov = totalOrders > 0 ? totalPromet / totalOrders : 0;
-  const roas = totalAds > 0 ? totalPromet / totalAds : 0;
-  const cpa = totalOrders > 0 ? totalAds / totalOrders : 0;
-  const adsShare = totalPromet > 0 ? totalAds / totalPromet * 100 : 0;
+  // Povprečen dnevni prirast CF
+  const cfChange = (last.cf_all || 0) - (first.cf_all || 0);
+  const avgDaily = rows.length > 1 ? cfChange / (rows.length - 1) : 0;
 
-  const fbShare = totalAds > 0 ? totalFb / totalAds * 100 : 0;
-  const googleShare = totalAds > 0 ? totalGoogle / totalAds * 100 : 0;
-  const tiktokShare = totalAds > 0 ? totalTiktok / totalAds * 100 : 0;
+  // Volatilnost — std dev dnevnih sprememb
+  const deltas = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].cf_all != null && rows[i-1].cf_all != null) {
+      deltas.push(rows[i].cf_all - rows[i-1].cf_all);
+    }
+  }
+  const meanDelta = deltas.length ? deltas.reduce((a, b) => a + b, 0) / deltas.length : 0;
+  const variance = deltas.length ? deltas.reduce((s, d) => s + Math.pow(d - meanDelta, 2), 0) / deltas.length : 0;
+  const stdDev = Math.sqrt(variance);
+
+  // Stevilo dni z rastjo vs padcem
+  const upDays = deltas.filter(d => d > 0).length;
+  const downDays = deltas.filter(d => d < 0).length;
+  const flatDays = deltas.filter(d => d === 0).length;
+
+  // CF / kos
+  const lastCfPerKos = (last.st_kosov || 0) > 0 ? (last.cf_all || 0) / last.st_kosov : 0;
+
+  // Zaloga / CF razmerje
+  const stockRatio = (last.cf_all || 0) > 0 ? ((last.zaloga || 0) / last.cf_all * 100) : 0;
+
+  // Posojila / CF razmerje (leverage)
+  const leverage = (last.cf_all || 0) > 0 ? ((last.posojila || 0) / last.cf_all * 100) : 0;
 
   const metrics = [
-    {label: 'ROAS', value: roas.toFixed(2) + 'x', sub: 'promet / ads'},
-    {label: 'AOV', value: cfFmtEur(avgAov), sub: 'pov. na naročilo'},
-    {label: 'CPA', value: cfFmtEur(cpa), sub: 'cena na naročilo'},
-    {label: 'Ads % od prometa', value: adsShare.toFixed(1) + '%', sub: 'manj = boljše'},
-    {label: 'FB delež', value: fbShare.toFixed(1) + '%', sub: cfFmtEur(totalFb)},
-    {label: 'Google delež', value: googleShare.toFixed(1) + '%', sub: cfFmtEur(totalGoogle)},
-    {label: 'TikTok delež', value: tiktokShare.toFixed(1) + '%', sub: cfFmtEur(totalTiktok)},
-    {label: 'Dnevi v obdobju', value: rows.length, sub: 'analiziranih dni'},
+    {label: 'Max CF', value: cfFmtEur(maxCf), sub: maxCfRow ? maxCfRow.date : '—'},
+    {label: 'Min CF', value: cfFmtEur(minCf), sub: minCfRow ? minCfRow.date : '—'},
+    {label: 'Pov. dnevni prirast', value: cfFmtEur(avgDaily), sub: rows.length + ' dni'},
+    {label: 'Volatilnost (σ)', value: cfFmtEur(stdDev), sub: 'std dev dnevnih sprememb'},
+    {label: 'Dni rasti', value: upDays, sub: `${(upDays / deltas.length * 100).toFixed(0)}% obdobja`},
+    {label: 'Dni padca', value: downDays, sub: `${(downDays / deltas.length * 100).toFixed(0)}% obdobja`},
+    {label: 'Zaloga / CF', value: stockRatio.toFixed(1) + '%', sub: 'delež CF v zalogi'},
+    {label: 'Leverage', value: leverage.toFixed(1) + '%', sub: 'posojila / CF'},
   ];
 
   document.getElementById('cfMetrics').innerHTML = metrics.map(m => `
