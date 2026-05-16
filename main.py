@@ -9245,3 +9245,108 @@ Vrni samo segmente ki potrebujejo emoji, ostale preskoči."""
         import traceback
         traceback.print_exc()
         return {"ok": False, "error": str(e)}
+
+
+# ─── CASHFLOW ANALIZA (iz Excel uploada) ────────────────────────────────────
+
+CASHFLOW_FILE = DATA_DIR / "cashflow.xlsx"
+
+
+@app.post("/cashflow-upload")
+async def cashflow_upload(file: UploadFile = File(...)):
+    """Naloži in shrani CashFlow.xlsx. Vrne število uspešno parsanih vrstic."""
+    try:
+        content = await file.read()
+        if len(content) > 50 * 1024 * 1024:  # 50MB max
+            return {"ok": False, "error": "File too large (max 50MB)"}
+        CASHFLOW_FILE.write_bytes(content)
+
+        # Test parse
+        import openpyxl
+        from io import BytesIO
+        wb = openpyxl.load_workbook(BytesIO(content), data_only=True)
+        if "Cash Flow" not in wb.sheetnames:
+            return {"ok": False, "error": f"Tab 'Cash Flow' ne obstaja. Tabi: {wb.sheetnames}"}
+        ws = wb["Cash Flow"]
+        n_rows = 0
+        for r in range(2, ws.max_row + 1):
+            d = ws.cell(row=r, column=1).value
+            if hasattr(d, 'year'):
+                n_rows += 1
+        return {"ok": True, "rows": n_rows, "size_kb": round(len(content) / 1024, 1)}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/cashflow-data")
+async def cashflow_data():
+    """Vrne strukturirane podatke iz CashFlow.xlsx (samo tab 'Cash Flow')."""
+    try:
+        if not CASHFLOW_FILE.exists():
+            return {"ok": False, "error": "no_file", "message": "CashFlow.xlsx še ni naložen."}
+
+        import openpyxl
+        from datetime import datetime as _dt
+        wb = openpyxl.load_workbook(CASHFLOW_FILE, data_only=True)
+        if "Cash Flow" not in wb.sheetnames:
+            return {"ok": False, "error": "Tab 'Cash Flow' ne obstaja."}
+        ws = wb["Cash Flow"]
+
+        rows = []
+        for r in range(2, ws.max_row + 1):
+            d = ws.cell(row=r, column=1).value
+            if not hasattr(d, 'year'):
+                continue
+            # Skip rows where everything is None/empty
+            cf_all = ws.cell(row=r, column=15).value
+            suma_promet = ws.cell(row=r, column=21).value
+            if cf_all is None and suma_promet is None:
+                continue
+
+            def num(c):
+                v = ws.cell(row=r, column=c).value
+                if v is None or v == '':
+                    return None
+                try:
+                    return float(v)
+                except Exception:
+                    return None
+
+            rows.append({
+                "date": d.strftime('%Y-%m-%d'),
+                "paypal": num(3),
+                "wise": num(4),
+                "intesa_hr": num(5),
+                "unicredit": num(6),
+                "ibkr": num(7),
+                "intesa_slo": num(8),
+                "racun_dh": num(9),
+                "suban": num(10),
+                "srbija_rsd": num(11),
+                "intesa_rs": num(12),
+                "silux_b": num(13),
+                "op_cf": num(14),
+                "cf_all": num(15),
+                "google": num(16),
+                "fb": num(17),
+                "tiktok": num(18),
+                "ads_total": num(19),
+                "promet": num(21),
+                "narocila": num(23),
+                "pov_na": num(24),
+                "cf_w_loan": num(25),
+                "zaloga": num(27),
+                "st_kosov": num(28),
+                "posojila": num(29),
+                "ddv": num(30),
+                "cpo": num(31),
+                "roi": num(33),
+            })
+
+        return {"ok": True, "rows": rows, "count": len(rows)}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
