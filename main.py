@@ -9327,22 +9327,11 @@ async def cashflow_data():
                 "srbija_rsd": num(11),
                 "intesa_rs": num(12),
                 "silux_b": num(13),
-                "op_cf": num(14),
                 "cf_all": num(15),
-                "google": num(16),
-                "fb": num(17),
-                "tiktok": num(18),
-                "ads_total": num(19),
-                "promet": num(21),
-                "narocila": num(23),
-                "pov_na": num(24),
                 "cf_w_loan": num(25),
                 "zaloga": num(27),
                 "st_kosov": num(28),
                 "posojila": num(29),
-                "ddv": num(30),
-                "cpo": num(31),
-                "roi": num(33),
             })
 
         return {"ok": True, "rows": rows, "count": len(rows)}
