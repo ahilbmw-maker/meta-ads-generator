@@ -2689,8 +2689,8 @@ input[type="text"].error { border-color: var(--red) !important; }
     <!-- Dashboard (display:block when loaded) -->
     <div id="shipDashboard" style="display:none">
 
-      <!-- ─── STICKY FILTER BAR ─── -->
-      <div id="shipFilterBar" style="position:sticky;top:0;z-index:50;background:rgba(255,255,255,0.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:10px 16px;margin:-14px -14px 0 -14px">
+      <!-- ─── STICKY FILTER FOOTER ─── -->
+      <div id="shipFilterBar" style="position:fixed;bottom:0;left:200px;right:0;z-index:50;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:10px 16px;box-shadow:0 -2px 12px rgba(0,0,0,0.06)">
 
         <!-- Vrstica 1: Meseci + desno: Primerjaj + Upload -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -2717,7 +2717,7 @@ input[type="text"].error { border-color: var(--red) !important; }
       </div>
 
       <!-- ─── CONTENT ─── -->
-      <div style="padding:24px 14px">
+      <div style="padding:24px 14px 120px 14px">
 
         <!-- Title context -->
         <div style="margin-bottom:24px">
@@ -2906,6 +2906,9 @@ input[type="text"].error { border-color: var(--red) !important; }
         color: var(--text-secondary);
         white-space: nowrap;
         flex-shrink: 0;
+      }
+      @media(max-width: 600px) {
+        #shipFilterBar { left: 0 !important; bottom: 60px !important; }
       }
       .ship-chip:hover { border-color: var(--text-tertiary); background: var(--surface2); }
       .ship-chip.active { background: var(--text); color: white; border-color: var(--text); }
