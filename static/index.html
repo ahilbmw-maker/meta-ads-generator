@@ -575,6 +575,7 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('ttkreative')">TikTok Kreative</div>
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('beta')">🧪 Analiza Beta</div>
     <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('cashflow')">💰 Cash Flow</div>
+    <div class="nav-sub-item" onclick="switchPage('analiza');switchAnalizaTab('shipping')">🚚 Stroški pošte</div>
   </div>
 
   <div class="nav-item nav-knjigovodstvo" id="nav-knjigovodstvo" onclick="switchPage('knjigovodstvo')">
@@ -2200,6 +2201,7 @@ input[type="text"].error { border-color: var(--red) !important; }
       <button class="analiza-tab-btn" id="analizaTab-ttkreative" onclick="switchAnalizaTab('ttkreative')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🎬 TikTok Kreative</button>
       <button class="analiza-tab-btn" id="analizaTab-beta" onclick="switchAnalizaTab('beta')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🧪 Analiza Beta</button>
       <button class="analiza-tab-btn" id="analizaTab-cashflow" onclick="switchAnalizaTab('cashflow')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">💰 Cash Flow</button>
+      <button class="analiza-tab-btn" id="analizaTab-shipping" onclick="switchAnalizaTab('shipping')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">🚚 Stroški pošte</button>
     </div>
 
     <!-- TAB: Meta Ads -->
@@ -2661,6 +2663,92 @@ input[type="text"].error { border-color: var(--red) !important; }
       <div style="font-size:48px;margin-bottom:12px">💰</div>
       Naloži <strong>CashFlow.xlsx</strong> da začnemo z analizo.<br>
       <span style="font-size:11px">Bere se samo tab "Cash Flow"</span>
+    </div>
+  </div>
+
+
+  <!-- TAB: Shipping -->
+  <div id="analizaSubpage-shipping" style="display:none;padding:14px 0 0 0">
+    <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="k-dropzone" style="flex:0 0 auto;padding:12px 18px;cursor:pointer;display:flex;align-items:center;gap:10px" onclick="document.getElementById('shipUploadInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="shipHandleDrop(event)">
+        <span style="font-size:13px">📤 Naloži XLS (Inventory ali Descr)</span>
+      </div>
+      <input type="file" id="shipUploadInput" accept=".xls,.xlsx" style="display:none" onchange="shipUploadFile(this.files[0])">
+      <div id="shipStatus" style="font-size:12px;color:var(--text-secondary);flex:1"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:11px;color:var(--text-secondary)">Mesec:</label>
+        <select id="shipMonthFilter" onchange="shipRender()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit">
+          <option value="all">Vsi meseci</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="shipDashboard" style="display:none">
+      <div id="shipKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:14px"></div>
+
+      <div class="card" style="margin-bottom:14px">
+        <span class="slabel">📈 STROŠEK PO MESECIH</span>
+        <canvas id="shipChartTrend" style="margin-top:10px;width:100%;max-height:340px"></canvas>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px;margin-bottom:14px">
+        <div class="card">
+          <span class="slabel">🌍 PAKETI PO DRŽAVAH</span>
+          <canvas id="shipChartCountries" style="margin-top:10px;width:100%;max-height:280px"></canvas>
+        </div>
+        <div class="card">
+          <span class="slabel">💵 RAZDELITEV STROŠKOV</span>
+          <canvas id="shipChartCostBreakdown" style="margin-top:10px;width:100%;max-height:280px"></canvas>
+        </div>
+        <div class="card">
+          <span class="slabel">⚖️ DISTRIBUCIJA PO TEŽI</span>
+          <canvas id="shipChartWeight" style="margin-top:10px;width:100%;max-height:280px"></canvas>
+        </div>
+        <div class="card">
+          <span class="slabel">🚚 KURIRJI (delež paketov)</span>
+          <canvas id="shipChartCouriers" style="margin-top:10px;width:100%;max-height:280px"></canvas>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <span class="slabel">📊 PRIMERJAVA PO DRŽAVAH</span>
+        <div id="shipCountryTable" style="margin-top:12px;overflow-x:auto"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:14px">
+        <div class="card">
+          <span class="slabel">📦 NAJTEŽJI PAKET</span>
+          <div id="shipHeaviestBox" style="margin-top:10px;font-size:13px;line-height:1.7"></div>
+        </div>
+        <div class="card">
+          <span class="slabel">💰 NAJDRAŽJI PAKET</span>
+          <div id="shipPriciestBox" style="margin-top:10px;font-size:13px;line-height:1.7"></div>
+        </div>
+        <div class="card">
+          <span class="slabel">🎯 COD VS NON-COD</span>
+          <div id="shipCodBox" style="margin-top:10px;font-size:13px;line-height:1.7"></div>
+        </div>
+        <div class="card">
+          <span class="slabel">⛽ DELEŽ FUEL TAX</span>
+          <div id="shipFuelBox" style="margin-top:10px;font-size:13px;line-height:1.7"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <span class="slabel">💸 PODROBNA RAZDELITEV STROŠKOV</span>
+        <div id="shipCostDetails" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px"></div>
+      </div>
+
+      <div class="card">
+        <span class="slabel">🗂 NALOŽENI MESECI</span>
+        <div id="shipMonthsList" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div id="shipEmpty" style="text-align:center;padding:60px 20px;color:var(--text-tertiary);font-size:14px">
+      <div style="font-size:48px;margin-bottom:12px">🚚</div>
+      Naloži <strong>protocol_inventory_*.xls</strong> ali <strong>Descr-*.xls</strong>.<br>
+      <span style="font-size:11px">Mesec se zazna avtomatsko iz datumov v fajlu.</span>
     </div>
   </div>
 
@@ -9420,7 +9508,7 @@ let anSortCol = 'stock';
 let anSortDir = -1;
 
 function switchAnalizaTab(tab) {
-  ['meta', 'obrat14', 'obrat14tt', 'ttkreative', 'beta', 'cashflow'].forEach(t => {
+  ['meta', 'obrat14', 'obrat14tt', 'ttkreative', 'beta', 'cashflow', 'shipping'].forEach(t => {
     const btn = document.getElementById('analizaTab-' + t);
     const sub = document.getElementById('analizaSubpage-' + t);
     if (t === tab) {
@@ -9437,6 +9525,7 @@ function switchAnalizaTab(tab) {
   if (tab === 'ttkreative') { ttKrLoadData(); }
   if (tab === 'beta') { betaLoadHistory(); }
   if (tab === 'cashflow') { cfLoadData(); }
+  if (tab === 'shipping') { shipLoadData(); }
   try { localStorage.setItem('slx_active_subtab', tab); } catch(e) {}
 }
 
@@ -14330,6 +14419,521 @@ function cfRenderMetrics(rows) {
   }
 }
 // ── /CASH FLOW ────────────────────────────────────────
+
+
+// ─── SHIPPING COSTS ANALIZA ──────────────────────────────────────────────
+let shipRowsAll = [];
+let shipMonthsMeta = {};
+let shipCharts = {};
+
+const COUNTRY_NAMES = {
+  CZE: '🇨🇿 Češka', HRV: '🇭🇷 Hrvaška', SVK: '🇸🇰 Slovaška', GRC: '🇬🇷 Grčija',
+  BGR: '🇧🇬 Bolgarija', ROU: '🇷🇴 Romunija', HUN: '🇭🇺 Madžarska', POL: '🇵🇱 Poljska',
+  SRB: '🇷🇸 Srbija', SVN: '🇸🇮 Slovenija', AUT: '🇦🇹 Avstrija', ITA: '🇮🇹 Italija',
+  DEU: '🇩🇪 Nemčija', BIH: '🇧🇦 BiH', MKD: '🇲🇰 Sev. Makedonija', MNE: '🇲🇪 Črna Gora',
+  ALB: '🇦🇱 Albanija', KOS: '🇽🇰 Kosovo', NLD: '🇳🇱 Nizozemska', BEL: '🇧🇪 Belgija',
+};
+
+function shipCountryLabel(code) {
+  return COUNTRY_NAMES[code] || code;
+}
+
+function shipFmtEur(v, dec = 2) {
+  if (v == null || isNaN(v)) return '—';
+  return new Intl.NumberFormat('sl-SI', {style: 'currency', currency: 'EUR', maximumFractionDigits: dec, minimumFractionDigits: dec}).format(v);
+}
+
+function shipFmtNum(v, dec = 0) {
+  if (v == null || isNaN(v)) return '—';
+  return new Intl.NumberFormat('sl-SI', {maximumFractionDigits: dec}).format(v);
+}
+
+function shipDestroyChart(name) {
+  if (shipCharts[name]) { shipCharts[name].destroy(); delete shipCharts[name]; }
+}
+
+function shipHandleDrop(e) {
+  e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) shipUploadFile(e.dataTransfer.files[0]);
+}
+
+async function shipUploadFile(file) {
+  if (!file) return;
+  const status = document.getElementById('shipStatus');
+  status.textContent = '⏳ Razdelujem ' + file.name + '... (lahko traja 10-30s)';
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await fetch('/shipping-upload', {method: 'POST', body: fd});
+    const d = await r.json();
+    if (!d.ok) {
+      status.innerHTML = '<span style="color:#ef4444">❌ ' + (d.error || 'napaka') + '</span>';
+      return;
+    }
+    const coverage = Math.round((d.coverage || 0) * 100);
+    status.innerHTML = `<span style="color:#22c55e">✓ Naloženo: ${d.count} paketov, mesec <strong>${d.month}</strong> (${coverage}% datumov)</span>`;
+    shipLoadData();
+  } catch (e) {
+    status.innerHTML = '<span style="color:#ef4444">❌ ' + e.message + '</span>';
+  }
+}
+
+async function shipLoadData() {
+  try {
+    const r = await fetch('/shipping-data?month=all');
+    const d = await r.json();
+    if (!d.ok || !d.rows || d.rows.length === 0) {
+      document.getElementById('shipEmpty').style.display = 'block';
+      document.getElementById('shipDashboard').style.display = 'none';
+      return;
+    }
+    shipRowsAll = d.rows;
+    shipMonthsMeta = d.months || {};
+    document.getElementById('shipEmpty').style.display = 'none';
+    document.getElementById('shipDashboard').style.display = 'block';
+    shipUpdateMonthFilter();
+    shipRender();
+  } catch (e) {
+    console.error('shipLoadData:', e);
+  }
+}
+
+function shipUpdateMonthFilter() {
+  const sel = document.getElementById('shipMonthFilter');
+  const prev = sel.value;
+  const months = Object.keys(shipMonthsMeta).sort();
+  sel.innerHTML = '<option value="all">Vsi meseci (' + months.length + ')</option>' +
+    months.map(m => `<option value="${m}">${m}</option>`).join('');
+  if (months.includes(prev) || prev === 'all') sel.value = prev;
+}
+
+function shipFilteredRows() {
+  const m = document.getElementById('shipMonthFilter').value;
+  if (m === 'all') return shipRowsAll;
+  return shipRowsAll.filter(r => r._month === m);
+}
+
+function shipRender() {
+  const rows = shipFilteredRows();
+  if (!rows.length) return;
+  shipRenderKpis(rows);
+  shipRenderTrend();
+  shipRenderCountries(rows);
+  shipRenderCostBreakdown(rows);
+  shipRenderWeight(rows);
+  shipRenderCouriers(rows);
+  shipRenderCountryTable(rows);
+  shipRenderInsights(rows);
+  shipRenderCostDetails(rows);
+  shipRenderMonthsList();
+}
+
+function shipSumTotal(r) {
+  // Total without VAT če imamo, drugače sestavimo
+  if (r.total_no_vat && r.total_no_vat > 0) return r.total_no_vat;
+  return (r.weight_price || 0) + (r.cod_price || 0) + (r.sms_price || 0) +
+         (r.insurance_price || 0) + (r.fuel_tax || 0) + (r.extra_cost || 0) -
+         (r.disc_sum || 0);
+}
+
+function shipRenderKpis(rows) {
+  const totalCost = rows.reduce((s, r) => s + shipSumTotal(r), 0);
+  const totalCount = rows.length;
+  const avgCost = totalCount > 0 ? totalCost / totalCount : 0;
+  const totalWeight = rows.reduce((s, r) => s + (r.weight_kg || 0), 0);
+  const avgWeight = totalCount > 0 ? totalWeight / totalCount : 0;
+
+  // Top country
+  const byCountry = {};
+  rows.forEach(r => {
+    if (!byCountry[r.country]) byCountry[r.country] = 0;
+    byCountry[r.country]++;
+  });
+  const topCountry = Object.entries(byCountry).sort((a, b) => b[1] - a[1])[0];
+
+  const kpis = [
+    {label: 'Skupna cena (brez DDV)', value: shipFmtEur(totalCost), sub: rows.length + ' paketov', color: '#3b82f6'},
+    {label: 'Povp. cena/paket', value: shipFmtEur(avgCost), sub: 'brez DDV', color: '#8b5cf6'},
+    {label: 'Skupna teža', value: shipFmtNum(totalWeight, 1) + ' kg', sub: 'pov. ' + avgWeight.toFixed(2) + ' kg/paket', color: '#06b6d4'},
+    {label: 'Št. paketov', value: shipFmtNum(totalCount), sub: Object.keys(byCountry).length + ' držav', color: '#10b981'},
+    {label: 'Top država', value: topCountry ? shipCountryLabel(topCountry[0]) : '—', sub: topCountry ? topCountry[1] + ' paketov' : '', color: '#f59e0b'},
+  ];
+
+  document.getElementById('shipKpis').innerHTML = kpis.map(k => `
+    <div class="card" style="border-left:4px solid ${k.color};padding:14px">
+      <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">${k.label}</div>
+      <div style="font-size:20px;font-weight:700;color:var(--text);margin-top:6px">${k.value}</div>
+      <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">${k.sub}</div>
+    </div>
+  `).join('');
+}
+
+function shipRenderTrend() {
+  // Trend po mesecih (vedno vse mesece, ne filtrirano)
+  shipDestroyChart('trend');
+  const monthMap = {};
+  shipRowsAll.forEach(r => {
+    const m = r._month;
+    if (!monthMap[m]) monthMap[m] = {month: m, count: 0, cost: 0, weight: 0};
+    monthMap[m].count++;
+    monthMap[m].cost += shipSumTotal(r);
+    monthMap[m].weight += r.weight_kg || 0;
+  });
+  const monthly = Object.values(monthMap).sort((a, b) => a.month.localeCompare(b.month));
+
+  const ctx = document.getElementById('shipChartTrend').getContext('2d');
+  shipCharts.trend = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: monthly.map(m => m.month),
+      datasets: [
+        {label: 'Strošek (€)', data: monthly.map(m => m.cost), backgroundColor: '#3b82f6', yAxisID: 'y', borderRadius: 6},
+        {label: 'Št. paketov', type: 'line', data: monthly.map(m => m.count), borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.3, yAxisID: 'y1', borderWidth: 2},
+        {label: 'Pov. cena/paket', type: 'line', data: monthly.map(m => m.count > 0 ? m.cost / m.count : 0), borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.3, yAxisID: 'y2', borderWidth: 2, borderDash: [4,4]},
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: {ticks: {font: {size: 10}}},
+        y: {position: 'left', ticks: {callback: v => (v/1000).toFixed(1) + 'k €', font: {size: 10}}, title: {display: true, text: 'Strošek (€)', font: {size: 10}}},
+        y1: {position: 'right', grid: {display: false}, ticks: {font: {size: 10}}, title: {display: true, text: 'Št. paketov', font: {size: 10}}},
+        y2: {display: false}
+      },
+      plugins: {
+        legend: {position: 'top', labels: {font: {size: 11}, usePointStyle: true}},
+        tooltip: {callbacks: {
+          label: c => {
+            if (c.dataset.label === 'Pov. cena/paket') return c.dataset.label + ': ' + shipFmtEur(c.parsed.y);
+            if (c.dataset.label === 'Strošek (€)') return c.dataset.label + ': ' + shipFmtEur(c.parsed.y);
+            return c.dataset.label + ': ' + shipFmtNum(c.parsed.y);
+          }
+        }}
+      }
+    }
+  });
+}
+
+function shipRenderCountries(rows) {
+  shipDestroyChart('countries');
+  const byCountry = {};
+  rows.forEach(r => {
+    if (!byCountry[r.country]) byCountry[r.country] = {count: 0, cost: 0};
+    byCountry[r.country].count++;
+    byCountry[r.country].cost += shipSumTotal(r);
+  });
+  const sorted = Object.entries(byCountry)
+    .map(([code, v]) => ({code, ...v}))
+    .sort((a, b) => b.cost - a.cost)
+    .slice(0, 15);
+
+  const ctx = document.getElementById('shipChartCountries').getContext('2d');
+  shipCharts.countries = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(s => shipCountryLabel(s.code).replace(/^[^\w]*\s/, '')),
+      datasets: [
+        {label: 'Strošek (€)', data: sorted.map(s => s.cost), backgroundColor: '#3b82f6', borderRadius: 4}
+      ]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: {x: {ticks: {callback: v => (v/1000).toFixed(1) + 'k €', font: {size: 10}}}, y: {ticks: {font: {size: 10}}}},
+      plugins: {
+        legend: {display: false},
+        tooltip: {callbacks: {label: c => {
+          const idx = c.dataIndex;
+          return [shipFmtEur(sorted[idx].cost), sorted[idx].count + ' paketov', 'pov. ' + shipFmtEur(sorted[idx].cost / sorted[idx].count)];
+        }}}
+      }
+    }
+  });
+}
+
+function shipRenderCostBreakdown(rows) {
+  shipDestroyChart('breakdown');
+  const totals = {
+    weight: rows.reduce((s, r) => s + (r.weight_price || 0), 0),
+    cod: rows.reduce((s, r) => s + (r.cod_price || 0), 0),
+    sms: rows.reduce((s, r) => s + (r.sms_price || 0), 0),
+    insurance: rows.reduce((s, r) => s + (r.insurance_price || 0), 0),
+    fuel: rows.reduce((s, r) => s + (r.fuel_tax || 0), 0),
+    extra: rows.reduce((s, r) => s + (r.extra_cost || 0), 0),
+  };
+
+  const ctx = document.getElementById('shipChartCostBreakdown').getContext('2d');
+  shipCharts.breakdown = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Teža', 'COD', 'SMS', 'Zavarovanje', 'Fuel tax', 'Extra cost'],
+      datasets: [{
+        data: [totals.weight, totals.cod, totals.sms, totals.insurance, totals.fuel, totals.extra],
+        backgroundColor: ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'],
+        borderWidth: 2, borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {position: 'right', labels: {font: {size: 11}, usePointStyle: true}},
+        tooltip: {callbacks: {label: c => c.label + ': ' + shipFmtEur(c.parsed)}}
+      }
+    }
+  });
+}
+
+function shipRenderWeight(rows) {
+  shipDestroyChart('weight');
+  // Histogram bucketi
+  const buckets = [
+    {label: '< 0.5 kg', min: 0, max: 0.5, count: 0, cost: 0},
+    {label: '0.5 - 1 kg', min: 0.5, max: 1, count: 0, cost: 0},
+    {label: '1 - 2 kg', min: 1, max: 2, count: 0, cost: 0},
+    {label: '2 - 5 kg', min: 2, max: 5, count: 0, cost: 0},
+    {label: '5 - 10 kg', min: 5, max: 10, count: 0, cost: 0},
+    {label: '> 10 kg', min: 10, max: 1e9, count: 0, cost: 0},
+  ];
+  rows.forEach(r => {
+    const w = r.weight_kg || 0;
+    const c = shipSumTotal(r);
+    for (const b of buckets) {
+      if (w >= b.min && w < b.max) {
+        b.count++; b.cost += c;
+        break;
+      }
+    }
+  });
+
+  const ctx = document.getElementById('shipChartWeight').getContext('2d');
+  shipCharts.weight = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: buckets.map(b => b.label),
+      datasets: [
+        {label: 'Št. paketov', data: buckets.map(b => b.count), backgroundColor: '#06b6d4', yAxisID: 'y', borderRadius: 4},
+        {label: 'Pov. cena/paket', type: 'line', data: buckets.map(b => b.count > 0 ? b.cost / b.count : 0), borderColor: '#f59e0b', tension: 0.3, yAxisID: 'y1', borderWidth: 2, pointRadius: 4}
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: {ticks: {font: {size: 10}}},
+        y: {position: 'left', ticks: {font: {size: 10}}, title: {display: true, text: 'Št. paketov', font: {size: 10}}},
+        y1: {position: 'right', grid: {display: false}, ticks: {callback: v => v.toFixed(2) + ' €', font: {size: 10}}, title: {display: true, text: 'Pov. €', font: {size: 10}}}
+      },
+      plugins: {legend: {position: 'top', labels: {font: {size: 10}, usePointStyle: true}}}
+    }
+  });
+}
+
+function shipRenderCouriers(rows) {
+  shipDestroyChart('couriers');
+  const byCourier = {};
+  rows.forEach(r => {
+    const c = r.courier || 'Unknown';
+    if (!byCourier[c]) byCourier[c] = 0;
+    byCourier[c]++;
+  });
+  const sorted = Object.entries(byCourier).sort((a, b) => b[1] - a[1]);
+
+  const ctx = document.getElementById('shipChartCouriers').getContext('2d');
+  shipCharts.couriers = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: sorted.map(([k]) => k),
+      datasets: [{
+        data: sorted.map(([_, v]) => v),
+        backgroundColor: ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#84cc16', '#6366f1', '#14b8a6'],
+        borderWidth: 2, borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {position: 'right', labels: {font: {size: 10}, usePointStyle: true}},
+        tooltip: {callbacks: {label: c => c.label + ': ' + c.parsed + ' paketov'}}
+      }
+    }
+  });
+}
+
+function shipRenderCountryTable(rows) {
+  const byCountry = {};
+  rows.forEach(r => {
+    const c = r.country;
+    if (!byCountry[c]) byCountry[c] = {count: 0, cost: 0, weight: 0, codCount: 0, discSum: 0};
+    const stats = byCountry[c];
+    stats.count++;
+    stats.cost += shipSumTotal(r);
+    stats.weight += r.weight_kg || 0;
+    if (r.cod_eur && r.cod_eur > 0) stats.codCount++;
+    stats.discSum += r.disc_sum || 0;
+  });
+
+  const sorted = Object.entries(byCountry)
+    .map(([code, s]) => ({
+      code, ...s,
+      avgCost: s.count > 0 ? s.cost / s.count : 0,
+      avgWeight: s.count > 0 ? s.weight / s.count : 0,
+      codPct: s.count > 0 ? s.codCount / s.count * 100 : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const html = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="text-align:left;border-bottom:2px solid var(--border)">
+          <th style="padding:8px 10px">Država</th>
+          <th style="padding:8px 10px;text-align:right">Paketov</th>
+          <th style="padding:8px 10px;text-align:right">Pov. teža</th>
+          <th style="padding:8px 10px;text-align:right">Skupaj €</th>
+          <th style="padding:8px 10px;text-align:right">Pov. cena</th>
+          <th style="padding:8px 10px;text-align:right">COD %</th>
+          <th style="padding:8px 10px;text-align:right">Popust €</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted.map(s => `
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px 10px;font-weight:600">${shipCountryLabel(s.code)}</td>
+            <td style="padding:8px 10px;text-align:right">${shipFmtNum(s.count)}</td>
+            <td style="padding:8px 10px;text-align:right">${s.avgWeight.toFixed(2)} kg</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:600">${shipFmtEur(s.cost)}</td>
+            <td style="padding:8px 10px;text-align:right;color:var(--accent);font-weight:600">${shipFmtEur(s.avgCost)}</td>
+            <td style="padding:8px 10px;text-align:right">${s.codPct.toFixed(0)}%</td>
+            <td style="padding:8px 10px;text-align:right;color:${s.discSum > 0 ? '#22c55e' : 'var(--text-tertiary)'}">${s.discSum > 0 ? '-' + shipFmtEur(s.discSum) : '—'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  document.getElementById('shipCountryTable').innerHTML = html;
+}
+
+function shipRenderInsights(rows) {
+  if (!rows.length) return;
+
+  // Najtežji
+  const heaviest = [...rows].sort((a, b) => (b.weight_kg || 0) - (a.weight_kg || 0))[0];
+  document.getElementById('shipHeaviestBox').innerHTML = heaviest ? `
+    <div style="font-size:18px;font-weight:700;color:#06b6d4">${(heaviest.weight_kg || 0).toFixed(2)} kg</div>
+    <div style="margin-top:4px;font-size:11px">${shipCountryLabel(heaviest.country)} · ${heaviest.city || '—'}</div>
+    <div style="color:var(--text-secondary);font-size:11px">Cena: ${shipFmtEur(shipSumTotal(heaviest))}</div>
+    <div style="font-family:monospace;font-size:10px;color:var(--text-tertiary);margin-top:3px">${heaviest.waybill || ''}</div>
+  ` : '—';
+
+  // Najdražji
+  const priciest = [...rows].sort((a, b) => shipSumTotal(b) - shipSumTotal(a))[0];
+  document.getElementById('shipPriciestBox').innerHTML = priciest ? `
+    <div style="font-size:18px;font-weight:700;color:#ef4444">${shipFmtEur(shipSumTotal(priciest))}</div>
+    <div style="margin-top:4px;font-size:11px">${shipCountryLabel(priciest.country)} · ${priciest.city || '—'}</div>
+    <div style="color:var(--text-secondary);font-size:11px">Teža: ${(priciest.weight_kg || 0).toFixed(2)} kg</div>
+    <div style="font-family:monospace;font-size:10px;color:var(--text-tertiary);margin-top:3px">${priciest.waybill || ''}</div>
+  ` : '—';
+
+  // COD vs non-COD
+  const codCount = rows.filter(r => (r.cod_eur || 0) > 0).length;
+  const codPct = rows.length > 0 ? codCount / rows.length * 100 : 0;
+  const codCost = rows.reduce((s, r) => s + (r.cod_price || 0), 0);
+  document.getElementById('shipCodBox').innerHTML = `
+    <div style="font-size:18px;font-weight:700;color:#8b5cf6">${codPct.toFixed(0)}%</div>
+    <div style="margin-top:4px;font-size:11px">${shipFmtNum(codCount)} COD paketov od ${shipFmtNum(rows.length)}</div>
+    <div style="color:var(--text-secondary);font-size:11px">COD strošek skupaj: ${shipFmtEur(codCost)}</div>
+  `;
+
+  // Fuel tax delež
+  const totalCost = rows.reduce((s, r) => s + shipSumTotal(r), 0);
+  const fuelSum = rows.reduce((s, r) => s + (r.fuel_tax || 0), 0);
+  const fuelPct = totalCost > 0 ? fuelSum / totalCost * 100 : 0;
+  document.getElementById('shipFuelBox').innerHTML = `
+    <div style="font-size:18px;font-weight:700;color:#f59e0b">${fuelPct.toFixed(1)}%</div>
+    <div style="margin-top:4px;font-size:11px">Fuel tax: ${shipFmtEur(fuelSum)}</div>
+    <div style="color:var(--text-secondary);font-size:11px">od skupne ${shipFmtEur(totalCost)}</div>
+  `;
+}
+
+function shipRenderCostDetails(rows) {
+  const totals = {
+    weight: rows.reduce((s, r) => s + (r.weight_price || 0), 0),
+    cod: rows.reduce((s, r) => s + (r.cod_price || 0), 0),
+    sms: rows.reduce((s, r) => s + (r.sms_price || 0), 0),
+    insurance: rows.reduce((s, r) => s + (r.insurance_price || 0), 0),
+    fuel: rows.reduce((s, r) => s + (r.fuel_tax || 0), 0),
+    extra: rows.reduce((s, r) => s + (r.extra_cost || 0), 0),
+    disc: rows.reduce((s, r) => s + (r.disc_sum || 0), 0),
+  };
+  const grand = totals.weight + totals.cod + totals.sms + totals.insurance + totals.fuel + totals.extra - totals.disc;
+  const items = [
+    {label: 'Teža', value: totals.weight, color: '#3b82f6'},
+    {label: 'COD', value: totals.cod, color: '#8b5cf6'},
+    {label: 'SMS', value: totals.sms, color: '#06b6d4'},
+    {label: 'Zavarovanje', value: totals.insurance, color: '#10b981'},
+    {label: 'Fuel tax', value: totals.fuel, color: '#f59e0b'},
+    {label: 'Extra cost', value: totals.extra, color: '#ef4444'},
+    {label: 'Popust', value: -totals.disc, color: '#22c55e'},
+    {label: 'SKUPAJ', value: grand, color: '#0f172a'},
+  ];
+  document.getElementById('shipCostDetails').innerHTML = items.map(m => {
+    const pct = grand > 0 ? Math.abs(m.value) / grand * 100 : 0;
+    return `
+      <div style="background:var(--surface2);padding:10px;border-radius:6px;border:1px solid var(--border);border-top:3px solid ${m.color}">
+        <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase">${m.label}</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text);margin-top:4px">${shipFmtEur(m.value)}</div>
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px">${pct.toFixed(1)}% celote</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function shipRenderMonthsList() {
+  const months = Object.entries(shipMonthsMeta).sort((a, b) => b[0].localeCompare(a[0]));
+  if (months.length === 0) {
+    document.getElementById('shipMonthsList').innerHTML = '<div style="color:var(--text-tertiary);font-size:12px">Ni naloženih mesecev</div>';
+    return;
+  }
+  const html = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="text-align:left;border-bottom:2px solid var(--border)">
+          <th style="padding:8px 10px">Mesec</th>
+          <th style="padding:8px 10px">Tip</th>
+          <th style="padding:8px 10px;text-align:right">Št. paketov</th>
+          <th style="padding:8px 10px;text-align:right">Akcije</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${months.map(([m, meta]) => `
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px 10px;font-weight:600">${m}</td>
+            <td style="padding:8px 10px">${meta.kind === 'inventory' ? '📋 Inventory' : meta.kind === 'descr' ? '📝 Descr' : '📄 Other'}</td>
+            <td style="padding:8px 10px;text-align:right">${shipFmtNum(meta.count)}</td>
+            <td style="padding:8px 10px;text-align:right">
+              <button onclick="shipDeleteMonth('${m}')" style="padding:4px 10px;background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:4px;font-size:11px;cursor:pointer">🗑 Izbriši</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  document.getElementById('shipMonthsList').innerHTML = html;
+}
+
+async function shipDeleteMonth(month) {
+  if (!confirm(`Izbriši vse podatke za ${month}?`)) return;
+  try {
+    const r = await fetch('/shipping-month/' + month, {method: 'DELETE'});
+    const d = await r.json();
+    if (d.ok) {
+      document.getElementById('shipStatus').innerHTML = '<span style="color:#22c55e">✓ Izbrisan ' + month + '</span>';
+      shipLoadData();
+    } else {
+      alert('Napaka: ' + (d.error || 'neznana'));
+    }
+  } catch (e) {
+    alert('Napaka: ' + e.message);
+  }
+}
+// ── /SHIPPING ────────────────────────────────────────
 </script>
 <div class="k-hover-preview" id="kHoverPreview">
   <img id="kHoverPreviewImg" src="" alt="">
