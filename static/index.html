@@ -3410,7 +3410,7 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
               <div>
                 <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">IMAP Server</label>
-                <input id="emailImapHost" type="text" placeholder="mail.domena.si" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
+                <input id="emailImapHost" type="text" placeholder="mail.domena.si" value="mail.maaarket.eu" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
                 <div>
@@ -3424,7 +3424,7 @@ input[type="text"].error { border-color: var(--red) !important; }
               </div>
               <div>
                 <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Email naslov</label>
-                <input id="emailAddress" type="email" placeholder="racuni@domena.si" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
+                <input id="emailAddress" type="email" placeholder="racuni@domena.si" value="parcel@maaarket.eu" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
               </div>
               <div>
                 <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Geslo <span style="font-weight:400;opacity:0.7">(ali nastavi EMAIL_PASSWORD env var)</span></label>
@@ -15916,10 +15916,10 @@ async function emailLoadStatus() {
     }
 
     // Prefill form
-    if (document.getElementById('emailImapHost').value === '') {
-      document.getElementById('emailImapHost').value = cfg.imap_host || '';
+    if (document.getElementById('emailImapHost').value === '' || document.getElementById('emailImapHost').value === 'mail.maaarket.eu') {
+      document.getElementById('emailImapHost').value = cfg.imap_host || 'mail.maaarket.eu';
       document.getElementById('emailImapPort').value = cfg.imap_port || 993;
-      document.getElementById('emailAddress').value = cfg.email || '';
+      document.getElementById('emailAddress').value = cfg.email || 'parcel@maaarket.eu';
       document.getElementById('emailProcessedFolder').value = cfg.processed_folder || 'Processed';
     }
 
