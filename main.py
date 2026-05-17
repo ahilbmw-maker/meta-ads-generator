@@ -739,6 +739,306 @@ async def email_log_clear():
     return {"ok": True}
 
 
+# ─── KNJIGOVODSTVO EMAIL BATCH PROCESSING ────────────────────────────────────
+
+STORAGE_KNJ_DIR = DATA_DIR / "storage" / "knjigovodstvo"
+STORAGE_KNJ_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@app.post("/knjigovodstvo-process-emails")
+async def knjigovodstvo_process_emails():
+    """Sproži ročno obdelavo neprebranih emailov v parcels@.
+    Zbere XML/PDF attachmente, razdeli na DU/NU, zazipira vse, shrani v storage."""
+    try:
+        cfg = _load_email_config()
+        if not cfg.get("imap_host") or not cfg.get("email"):
+            return {"ok": False, "error": "Email ni konfiguriran (Knjigovodstvo → Email avtomatizacija)"}
+        password = _email_get_password(cfg)
+        if not password:
+            return {"ok": False, "error": "Geslo manjka"}
+
+        # Background obdelava (lahko traja par 10s)
+        result = await asyncio.get_event_loop().run_in_executor(
+            None, _process_emails_to_batch_zip, cfg, password
+        )
+        return result
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+def _process_emails_to_batch_zip(cfg: dict, password: str) -> dict:
+    """Sinhrona obdelava — teče v executorju.
+    1. IMAP fetch UNSEEN
+    2. Zberi vse XML + PDF attachmente
+    3. Razdeli XML-je na DU + NU
+    4. Generiraj CSV-je
+    5. Zapakiraj vse + PDF-je v 1 ZIP
+    6. Shrani v storage
+    7. Označi emaile kot prebrane
+    """
+    import imaplib
+    import email as email_lib
+    from email.header import decode_header as _dh
+    import io
+    import zipfile
+    import csv
+    from datetime import datetime as _dt
+
+    host = cfg["imap_host"]
+    port = int(cfg.get("imap_port", 993))
+    username = cfg["email"]
+
+    try:
+        if port == 993:
+            mail = imaplib.IMAP4_SSL(host, port)
+        else:
+            mail = imaplib.IMAP4(host, port)
+            mail.starttls()
+        mail.login(username, password)
+    except Exception as e:
+        return {"ok": False, "error": f"IMAP login failed: {e}"}
+
+    debit_rows = []
+    credit_rows = []
+    pdf_files = []  # (filename_in_zip, content_bytes)
+    xml_files = []  # (filename, content_str)
+    processed_email_nums = []
+    email_meta = []  # za log
+
+    try:
+        mail.select("INBOX")
+        _, msg_nums = mail.search(None, "UNSEEN")
+        if not msg_nums[0]:
+            mail.logout()
+            return {"ok": True, "message": "Ni novih emailov", "emails": 0, "zip_filename": None}
+
+        for num in msg_nums[0].split():
+            try:
+                _, msg_data = mail.fetch(num, "(RFC822)")
+                raw = msg_data[0][1]
+                msg = email_lib.message_from_bytes(raw)
+
+                subj_parts = _dh(msg.get("Subject", ""))
+                subject = "".join(p.decode(enc or "utf-8") if isinstance(p, bytes) else p for p, enc in subj_parts)
+                sender = msg.get("From", "")
+                date_hdr = msg.get("Date", "")
+
+                email_attachments = []
+                for part in msg.walk():
+                    cd = part.get("Content-Disposition", "")
+                    if "attachment" not in cd and "inline" not in cd:
+                        continue
+                    filename = part.get_filename()
+                    if not filename:
+                        continue
+                    fn_parts = _dh(filename)
+                    filename = "".join(p.decode(enc or "utf-8") if isinstance(p, bytes) else p for p, enc in fn_parts)
+                    content = part.get_payload(decode=True)
+                    if content:
+                        email_attachments.append((filename, content))
+
+                if not email_attachments:
+                    continue  # Ne procesiraj emailov brez attachmentov, pusti UNSEEN
+
+                # Klasifikacija attachmentov
+                ext_count = {"xml": 0, "pdf": 0, "other": 0}
+                for fn, content in email_attachments:
+                    fn_up = fn.upper()
+                    if fn_up.endswith(".XML"):
+                        # Polcar XML — UTF-16 z BOM
+                        try:
+                            xml_text = content.decode('utf-16')
+                        except UnicodeDecodeError:
+                            try:
+                                xml_text = content.decode('utf-8-sig')
+                            except UnicodeDecodeError:
+                                xml_text = content.decode('utf-8', errors='ignore')
+
+                        if '_DU_' in fn_up or '_DU.' in fn_up or 'DU.XML' in fn_up:
+                            debit_rows.extend(_parse_polcar_debit(xml_text))
+                        elif '_NU_' in fn_up or '_NU.' in fn_up or 'NU.XML' in fn_up:
+                            credit_rows.extend(_parse_polcar_credit(xml_text))
+                        else:
+                            # Heuristika
+                            d = _parse_polcar_debit(xml_text)
+                            c = _parse_polcar_credit(xml_text)
+                            if d and not c: debit_rows.extend(d)
+                            elif c and not d: credit_rows.extend(c)
+                            elif len(d) > len(c): debit_rows.extend(d)
+                            else: credit_rows.extend(c)
+
+                        xml_files.append((fn, content))
+                        ext_count["xml"] += 1
+                    elif fn_up.endswith(".PDF"):
+                        pdf_files.append((fn, content))
+                        ext_count["pdf"] += 1
+                    else:
+                        # Vse ostalo dodaj v ZIP raw
+                        pdf_files.append((fn, content))
+                        ext_count["other"] += 1
+
+                processed_email_nums.append(num)
+                email_meta.append({
+                    "from": sender, "subject": subject, "date": date_hdr,
+                    "attachments": ext_count
+                })
+
+            except Exception as e:
+                print(f"[knjigovodstvo-batch] Error parsing email {num}: {e}")
+                continue
+
+        if not processed_email_nums:
+            mail.logout()
+            return {"ok": True, "message": "Ni novih emailov z veljavnimi attachmenti", "emails": 0, "zip_filename": None}
+
+        # === GENERIRAJ CSV-je ===
+        def _make_csv(rows: list, kind: str) -> str:
+            if not rows:
+                return ""
+            buf = io.StringIO()
+            writer = csv.DictWriter(buf, fieldnames=list(rows[0].keys()), delimiter=';')
+            writer.writeheader()
+            writer.writerows(rows)
+            return buf.getvalue()
+
+        debit_csv = _make_csv(debit_rows, "DU")
+        credit_csv = _make_csv(credit_rows, "NU")
+
+        # === ZAPAKIRAJ V ZIP ===
+        ts = _dt.now().strftime("%Y-%m-%d_%H%M%S")
+        zip_name = f"{ts}_batch.zip"
+        zip_path = STORAGE_KNJ_DIR / zip_name
+
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            if debit_csv:
+                zf.writestr("DU_polcar.csv", debit_csv.encode("utf-8-sig"))
+            if credit_csv:
+                zf.writestr("NU_polcar.csv", credit_csv.encode("utf-8-sig"))
+
+            # PDF-je v podmapo
+            for fn, content in pdf_files:
+                safe_fn = _safe_filename(fn)
+                if not safe_fn.lower().endswith(".pdf") and fn.lower().endswith(".pdf"):
+                    safe_fn += ".pdf"
+                zf.writestr(f"PDFs/{safe_fn}", content)
+
+            # Originalni XML-ji (backup)
+            for fn, content in xml_files:
+                safe_fn = _safe_filename(fn)
+                if not safe_fn.lower().endswith(".xml"):
+                    safe_fn += ".xml"
+                zf.writestr(f"XMLs/{safe_fn}", content)
+
+            # Manifest
+            manifest = {
+                "created_at": _dt.now().isoformat(),
+                "emails_processed": len(processed_email_nums),
+                "debit_rows": len(debit_rows),
+                "credit_rows": len(credit_rows),
+                "pdf_count": len([p for p in pdf_files if p[0].lower().endswith(".pdf")]),
+                "xml_count": len(xml_files),
+                "emails": email_meta,
+            }
+            zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+
+        # === Označi kot prebrane ===
+        for num in processed_email_nums:
+            try:
+                mail.store(num, "+FLAGS", "\\Seen")
+            except Exception:
+                pass
+        mail.logout()
+
+        # Log
+        _append_email_log({
+            "ts": _dt.now().isoformat(),
+            "type": "batch",
+            "from": f"{len(processed_email_nums)} emailov",
+            "subject": f"Batch ZIP: {zip_name}",
+            "batch_zip": zip_name,
+            "debit_rows": len(debit_rows),
+            "credit_rows": len(credit_rows),
+            "pdf_count": len(pdf_files),
+        })
+
+        return {
+            "ok": True,
+            "message": f"Obdelano {len(processed_email_nums)} emailov",
+            "emails": len(processed_email_nums),
+            "debit_rows": len(debit_rows),
+            "credit_rows": len(credit_rows),
+            "pdf_count": len(pdf_files),
+            "zip_filename": zip_name,
+            "zip_size_kb": round(zip_path.stat().st_size / 1024, 1),
+        }
+
+    except Exception as e:
+        try: mail.logout()
+        except: pass
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/storage-knjigovodstvo")
+async def storage_knj_list():
+    """Vrne seznam vseh ZIP-ov v knjigovodstvo storage."""
+    try:
+        items = []
+        for f in sorted(STORAGE_KNJ_DIR.iterdir(), reverse=True):
+            if not f.is_file() or not f.name.endswith(".zip"):
+                continue
+            stat = f.stat()
+            # Read manifest from inside zip for details
+            import zipfile
+            manifest = {}
+            try:
+                with zipfile.ZipFile(f, "r") as zf:
+                    if "manifest.json" in zf.namelist():
+                        manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
+            except Exception:
+                pass
+            from datetime import datetime as _dts
+            items.append({
+                "filename": f.name,
+                "size_kb": round(stat.st_size / 1024, 1),
+                "modified": _dts.fromtimestamp(stat.st_mtime).isoformat(),
+                "manifest": manifest,
+            })
+        return {"ok": True, "items": items}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/storage-knjigovodstvo/{filename}")
+async def storage_knj_download(filename: str):
+    """Download ZIP."""
+    from fastapi.responses import FileResponse
+    safe = filename.replace("/", "").replace("..", "")
+    f = STORAGE_KNJ_DIR / safe
+    if not f.exists():
+        return {"ok": False, "error": "Ne obstaja"}
+    return FileResponse(str(f), filename=safe, media_type="application/zip")
+
+
+@app.delete("/storage-knjigovodstvo/{filename}")
+async def storage_knj_delete(filename: str):
+    """Briše ZIP."""
+    safe = filename.replace("/", "").replace("..", "")
+    f = STORAGE_KNJ_DIR / safe
+    if not f.exists():
+        return {"ok": False, "error": "Ne obstaja"}
+    try:
+        f.unlink()
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 
 # ─── PROMPT BUILDERS ─────────────────────────────────────────────────────────
 
