@@ -2953,6 +2953,62 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:10px">Ni shranjenih CSV-jev</div>
           </div>
         </div>
+
+        <!-- EMAIL AUTOMATION -->
+        <div class="card" style="border-left:3px solid var(--accent)">
+          <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="emailTogglePanel()">
+            <span class="slabel">📧 EMAIL AVTOMATIZACIJA</span>
+            <span id="emailToggleArrow" style="font-size:14px;color:var(--text-secondary);transition:transform 0.2s">▸</span>
+          </div>
+          <div id="emailStatusBadge" style="margin-top:6px;font-size:11px;color:var(--text-tertiary)">⏳ Nalagam status...</div>
+
+          <div id="emailPanel" style="display:none;margin-top:12px">
+            <div id="emailStatusBar" style="font-size:11px;margin-bottom:12px;padding:8px 10px;background:var(--surface2);border-radius:6px;line-height:1.5"></div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+              <div>
+                <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">IMAP Server</label>
+                <input id="emailImapHost" type="text" placeholder="mail.domena.si" value="mail.maaarket.eu" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <div>
+                  <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Port</label>
+                  <input id="emailImapPort" type="number" value="993" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
+                </div>
+                <div>
+                  <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">SSL</label>
+                  <div style="margin-top:6px;font-size:11px;color:var(--text-secondary)">Port 993 = SSL ✓</div>
+                </div>
+              </div>
+              <div>
+                <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Email naslov</label>
+                <input id="emailAddress" type="email" placeholder="racuni@domena.si" value="parcel@maaarket.eu" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
+              </div>
+              <div>
+                <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Geslo <span style="font-weight:400;opacity:0.7">(ali nastavi EMAIL_PASSWORD env var)</span></label>
+                <input id="emailPassword" type="password" placeholder="••••••••" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
+              </div>
+              <div>
+                <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Folder za obdelane emaile</label>
+                <input id="emailProcessedFolder" type="text" value="Processed" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <button onclick="emailSaveConfig()" style="padding:8px;background:var(--accent);color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">💾 Shrani nastavitve</button>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <button onclick="emailTestConnection()" style="padding:7px;background:transparent;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">🔌 Test povezave</button>
+                <button onclick="emailCheckNow()" style="padding:7px;background:transparent;border:1px solid #16a34a;color:#16a34a;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">📥 Preveri zdaj</button>
+              </div>
+            </div>
+            <div id="emailActionStatus" style="margin-top:8px;font-size:11px;min-height:16px"></div>
+            <div style="margin-top:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Log (zadnjih 20)</span>
+                <button onclick="emailClearLog()" style="font-size:10px;color:var(--text-tertiary);background:transparent;border:none;cursor:pointer">Zbriši</button>
+              </div>
+              <div id="emailLog" style="max-height:280px;overflow-y:auto;font-size:11px"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- DESNO: Rezultat tabela -->
@@ -3394,69 +3450,6 @@ input[type="text"].error { border-color: var(--red) !important; }
           </div>
         </div>
 
-        <!-- EMAIL AUTOMATION -->
-        <div class="card" style="border-left:3px solid var(--accent)">
-          <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="emailTogglePanel()">
-            <span class="slabel">📧 EMAIL AVTOMATIZACIJA</span>
-            <span id="emailToggleArrow" style="font-size:14px;color:var(--text-secondary);transition:transform 0.2s">▸</span>
-          </div>
-          <div id="emailStatusBadge" style="margin-top:6px;font-size:11px;color:var(--text-tertiary)">⏳ Nalagam status...</div>
-
-          <div id="emailPanel" style="display:none;margin-top:12px">
-            <!-- Status bar -->
-            <div id="emailStatusBar" style="font-size:11px;margin-bottom:12px;padding:8px 10px;background:var(--surface2);border-radius:6px;line-height:1.5"></div>
-
-            <!-- Config form -->
-            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
-              <div>
-                <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">IMAP Server</label>
-                <input id="emailImapHost" type="text" placeholder="mail.domena.si" value="mail.maaarket.eu" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-                <div>
-                  <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Port</label>
-                  <input id="emailImapPort" type="number" value="993" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
-                </div>
-                <div>
-                  <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">SSL</label>
-                  <div style="margin-top:6px;font-size:11px;color:var(--text-secondary)">Port 993 = SSL ✓</div>
-                </div>
-              </div>
-              <div>
-                <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Email naslov</label>
-                <input id="emailAddress" type="email" placeholder="racuni@domena.si" value="parcel@maaarket.eu" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
-              </div>
-              <div>
-                <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Geslo <span style="font-weight:400;opacity:0.7">(ali nastavi EMAIL_PASSWORD env var)</span></label>
-                <input id="emailPassword" type="password" placeholder="••••••••" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
-              </div>
-              <div>
-                <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Folder za obdelane emaile</label>
-                <input id="emailProcessedFolder" type="text" value="Processed" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
-              </div>
-            </div>
-
-            <!-- Buttons -->
-            <div style="display:flex;flex-direction:column;gap:6px">
-              <button onclick="emailSaveConfig()" style="padding:8px;background:var(--accent);color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">💾 Shrani nastavitve</button>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-                <button onclick="emailTestConnection()" style="padding:7px;background:transparent;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">🔌 Test povezave</button>
-                <button onclick="emailCheckNow()" style="padding:7px;background:transparent;border:1px solid #16a34a;color:#16a34a;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">📥 Preveri zdaj</button>
-              </div>
-            </div>
-
-            <div id="emailActionStatus" style="margin-top:8px;font-size:11px;min-height:16px"></div>
-
-            <!-- Log -->
-            <div style="margin-top:14px">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                <span style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Log (zadnjih 20)</span>
-                <button onclick="emailClearLog()" style="font-size:10px;color:var(--text-tertiary);background:transparent;border:none;cursor:pointer">Zbriši</button>
-              </div>
-              <div id="emailLog" style="max-height:280px;overflow-y:auto;font-size:11px"></div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- DESNO: preview + export -->
@@ -16056,12 +16049,12 @@ async function emailClearLog() {
   emailLoadLog();
 }
 
-// Init email status on prevzemi page load
+// Init email status on Knjigovodstvo page load
 (function() {
   const orig = window.switchPage;
   window.switchPage = function(page) {
     orig(page);
-    if (page === 'prevzemi') {
+    if (page === 'knjigovodstvo') {
       setTimeout(emailLoadStatus, 200);
     }
   };
