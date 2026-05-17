@@ -10093,6 +10093,140 @@ def _parse_shipping_xls(content: bytes) -> dict:
     }
 
 
+def _aggregate_shipping_rows(rows: list, month: str = None, kind: str = "inventory") -> dict:
+    """Sestavi vse agregate iz seznama rows. Vrne summary objekt."""
+    from collections import defaultdict
+
+    def safe_total(r):
+        t = r.get("total_no_vat") or 0
+        if t > 0:
+            return float(t)
+        # Fallback če manjka
+        return (r.get("weight_price") or 0) + (r.get("cod_price") or 0) + (r.get("sms_price") or 0) + \
+               (r.get("insurance_price") or 0) + (r.get("fuel_tax") or 0) + (r.get("extra_cost") or 0) - \
+               (r.get("disc_sum") or 0)
+
+    def is_zero(r):
+        return (r.get("total_no_vat") or 0) == 0
+
+    def is_successful_cod(r):
+        return (r.get("cod_eur") or 0) > 0 and (r.get("total_no_vat") or 0) > 0
+
+    # KPI summary
+    total_cost = 0.0
+    total_weight = 0.0
+    by_country = defaultdict(lambda: {"count": 0, "cost": 0.0, "weight": 0.0, "cod_count": 0,
+                                       "cod_success": 0, "zero_count": 0, "cod_amount_sum": 0.0,
+                                       "disc_sum": 0.0})
+    by_courier = defaultdict(int)
+    cost_breakdown = {"weight": 0.0, "cod": 0.0, "sms": 0.0, "insurance": 0.0,
+                      "fuel": 0.0, "extra": 0.0, "disc": 0.0}
+    weight_buckets = [
+        {"label": "< 0.5 kg", "min": 0, "max": 0.5, "count": 0, "cost": 0.0},
+        {"label": "0.5 - 1 kg", "min": 0.5, "max": 1, "count": 0, "cost": 0.0},
+        {"label": "1 - 2 kg", "min": 1, "max": 2, "count": 0, "cost": 0.0},
+        {"label": "2 - 5 kg", "min": 2, "max": 5, "count": 0, "cost": 0.0},
+        {"label": "5 - 10 kg", "min": 5, "max": 10, "count": 0, "cost": 0.0},
+        {"label": "> 10 kg", "min": 10, "max": 1e9, "count": 0, "cost": 0.0},
+    ]
+    # Heaviest & priciest
+    heaviest = None
+    priciest = None
+    # COD packages list (for sub-analysis)
+    cod_rows_summary = []  # samo basic info za nadaljnjo agregacijo per country-month
+
+    for r in rows:
+        cost = safe_total(r)
+        weight = r.get("weight_kg") or 0
+        country = r.get("country") or ""
+
+        total_cost += cost
+        total_weight += weight
+
+        c = by_country[country]
+        c["count"] += 1
+        c["cost"] += cost
+        c["weight"] += weight
+        c["disc_sum"] += r.get("disc_sum") or 0
+        if (r.get("cod_eur") or 0) > 0:
+            c["cod_count"] += 1
+            c["cod_amount_sum"] += r.get("cod_eur") or 0
+        if is_successful_cod(r):
+            c["cod_success"] += 1
+        if is_zero(r):
+            c["zero_count"] += 1
+
+        by_courier[r.get("courier") or "Unknown"] += 1
+
+        cost_breakdown["weight"] += r.get("weight_price") or 0
+        cost_breakdown["cod"] += r.get("cod_price") or 0
+        cost_breakdown["sms"] += r.get("sms_price") or 0
+        cost_breakdown["insurance"] += r.get("insurance_price") or 0
+        cost_breakdown["fuel"] += r.get("fuel_tax") or 0
+        cost_breakdown["extra"] += r.get("extra_cost") or 0
+        cost_breakdown["disc"] += r.get("disc_sum") or 0
+
+        for b in weight_buckets:
+            if b["min"] <= weight < b["max"]:
+                b["count"] += 1
+                b["cost"] += cost
+                break
+
+        if heaviest is None or weight > (heaviest.get("weight_kg") or 0):
+            heaviest = {"waybill": r.get("waybill"), "country": country, "city": r.get("city"),
+                        "weight_kg": weight, "cost": cost}
+        if priciest is None or cost > (priciest.get("cost") or 0):
+            priciest = {"waybill": r.get("waybill"), "country": country, "city": r.get("city"),
+                        "weight_kg": weight, "cost": cost}
+
+        # COD packages — keep minimal info for cross-month aggregation
+        if is_successful_cod(r):
+            cod_rows_summary.append({
+                "country": country,
+                "month": month,
+                "cost": cost,
+                "weight": weight,
+                "cod_amount": r.get("cod_eur") or 0,
+            })
+
+    cod_count_total = sum(c["cod_count"] for c in by_country.values())
+    cod_success_total = sum(c["cod_success"] for c in by_country.values())
+    zero_total = sum(c["zero_count"] for c in by_country.values())
+
+    return {
+        "month": month,
+        "kind": kind,
+        "row_count": len(rows),
+        "total_cost": total_cost,
+        "total_weight": total_weight,
+        "by_country": dict(by_country),
+        "by_courier": dict(by_courier),
+        "cost_breakdown": cost_breakdown,
+        "weight_buckets": weight_buckets,
+        "heaviest": heaviest,
+        "priciest": priciest,
+        "cod_count_total": cod_count_total,
+        "cod_success_total": cod_success_total,
+        "zero_total": zero_total,
+        "cod_rows": cod_rows_summary,
+    }
+
+
+def _build_shipping_summary_for_month(month_dir):
+    """Iz rows_<kind>.json gradi summary.json za en mesec."""
+    for kind in ["inventory", "descr", "other"]:
+        rf = month_dir / f"rows_{kind}.json"
+        if rf.exists():
+            try:
+                rows = json.loads(rf.read_text(encoding='utf-8'))
+                summary = _aggregate_shipping_rows(rows, month=month_dir.name, kind=kind)
+                (month_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False), encoding='utf-8')
+                return summary
+            except Exception as e:
+                print(f"[shipping-summary] Failed for {month_dir.name}: {e}")
+    return None
+
+
 @app.post("/shipping-upload")
 async def shipping_upload(file: UploadFile = File(...)):
     """Naloži XLS fajl pošte. Auto-detect mesec, shrani v /data/shipping/YYYY-MM/."""
@@ -10125,7 +10259,6 @@ async def shipping_upload(file: UploadFile = File(...)):
 
         # Parsed JSON (lahko se prepiše če uploadaš oba file-a)
         parsed_file = month_dir / f"parsed_{kind}.json"
-        # Stripping rows je velik, shrani brez rows pa še posebej rows.json
         meta = {k: v for k, v in parsed.items() if k != "rows"}
         meta["kind"] = kind
         meta["original_filename"] = file.filename
@@ -10135,6 +10268,10 @@ async def shipping_upload(file: UploadFile = File(...)):
         parsed_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding='utf-8')
         (month_dir / f"rows_{kind}.json").write_text(json.dumps(parsed["rows"], ensure_ascii=False), encoding='utf-8')
 
+        # Build summary cache TAKOJ ob uploadu
+        summary = _aggregate_shipping_rows(parsed["rows"], month=month, kind=kind)
+        (month_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False), encoding='utf-8')
+
         return {
             "ok": True,
             "month": month,
@@ -10143,6 +10280,49 @@ async def shipping_upload(file: UploadFile = File(...)):
             "coverage": parsed["coverage"],
             "all_months": parsed["all_months"],
         }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/shipping-summary")
+async def shipping_summary():
+    """Vrne agregirane summary podatke iz vseh mesecev. RES HITRO."""
+    try:
+        summaries = {}
+        for month_dir in sorted(SHIPPING_DIR.iterdir()):
+            if not month_dir.is_dir():
+                continue
+            sf = month_dir / "summary.json"
+            # Če summary ne obstaja (stari upload), zgradi zdaj
+            if not sf.exists():
+                _build_shipping_summary_for_month(month_dir)
+            if sf.exists():
+                try:
+                    summaries[month_dir.name] = json.loads(sf.read_text(encoding='utf-8'))
+                except Exception as e:
+                    print(f"[shipping-summary] Read failed for {month_dir.name}: {e}")
+                    continue
+        return {"ok": True, "summaries": summaries}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/shipping-rebuild-cache")
+async def shipping_rebuild_cache():
+    """Force-rebuild summary.json za vse mesece (npr. po update-u logike agregacije)."""
+    try:
+        rebuilt = []
+        for month_dir in sorted(SHIPPING_DIR.iterdir()):
+            if not month_dir.is_dir():
+                continue
+            s = _build_shipping_summary_for_month(month_dir)
+            if s:
+                rebuilt.append({"month": month_dir.name, "rows": s.get("row_count", 0)})
+        return {"ok": True, "rebuilt": rebuilt}
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -10236,3 +10416,53 @@ async def shipping_delete(month: str):
         return {"ok": True, "deleted": month_safe}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@app.get("/shipping-debug")
+async def shipping_debug():
+    """Diagnostika: pokaže pot, ali obstaja, ali je persistent, koliko prostora, koliko fajlov."""
+    import shutil
+    from datetime import datetime as _dtdbg
+    try:
+        info = {
+            "data_dir": str(DATA_DIR),
+            "data_dir_exists": DATA_DIR.exists(),
+            "data_dir_is_writable": os.access(str(DATA_DIR), os.W_OK) if DATA_DIR.exists() else False,
+            "shipping_dir": str(SHIPPING_DIR),
+            "shipping_dir_exists": SHIPPING_DIR.exists(),
+            "env_DATA_DIR": os.environ.get("DATA_DIR", "(not set, default /data)"),
+        }
+        if DATA_DIR.exists():
+            usage = shutil.disk_usage(str(DATA_DIR))
+            info["disk_total_gb"] = round(usage.total / 1024**3, 2)
+            info["disk_used_gb"] = round(usage.used / 1024**3, 2)
+            info["disk_free_gb"] = round(usage.free / 1024**3, 2)
+        # Files in shipping
+        files = []
+        if SHIPPING_DIR.exists():
+            for month_dir in sorted(SHIPPING_DIR.iterdir()):
+                if not month_dir.is_dir():
+                    continue
+                month_files = []
+                for f in month_dir.iterdir():
+                    month_files.append({
+                        "name": f.name,
+                        "size_kb": round(f.stat().st_size / 1024, 1),
+                        "modified": _dtdbg.fromtimestamp(f.stat().st_mtime).isoformat(),
+                    })
+                files.append({"month": month_dir.name, "files": month_files})
+        info["shipping_contents"] = files
+        # Also count all top-level items in /data
+        if DATA_DIR.exists():
+            top = []
+            for f in DATA_DIR.iterdir():
+                top.append({
+                    "name": f.name,
+                    "is_dir": f.is_dir(),
+                    "size_kb": round(f.stat().st_size / 1024, 1) if f.is_file() else None,
+                })
+            info["data_dir_top_level"] = top
+        return info
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
