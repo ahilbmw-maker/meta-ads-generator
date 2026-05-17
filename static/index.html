@@ -3126,12 +3126,12 @@ input[type="text"].error { border-color: var(--red) !important; }
       <!-- LEVO: upload + history -->
       <div style="display:flex;flex-direction:column;gap:12px">
         <div class="card">
-          <span class="slabel">NALOŽI PDF RAČUN</span>
-          <p style="font-size:11px;color:var(--text-secondary);margin:6px 0 8px;line-height:1.4">PDF dobaviteljevega računa (AMIO, ipd.). Razdela ga in pripravi seznam postavk za izvoz v XLS.</p>
+          <span class="slabel">NALOŽI RAČUN DOBAVITELJA</span>
+          <p style="font-size:11px;color:var(--text-secondary);margin:6px 0 8px;line-height:1.4">Podprto: <strong>AMiO, MotoProfil, Ikonka, Intercars, Abakus</strong> (PDF, CSV, XML, XLSX). Dobavitelj se prepozna avtomatsko.</p>
           <div id="prevzemiDropZone" class="k-dropzone" style="padding:14px;cursor:pointer" onclick="document.getElementById('prevzemiPdfInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="prevzemiHandleDrop(event)">
-            <span style="font-size:11px">📄 Klikni ali povleci PDF</span>
+            <span style="font-size:11px">📄 Klikni ali povleci datoteko</span>
           </div>
-          <input type="file" id="prevzemiPdfInput" accept=".pdf" style="display:none" onchange="prevzemiUploadPdf(this.files[0])">
+          <input type="file" id="prevzemiPdfInput" accept=".pdf,.csv,.xml,.xlsx,.xls" style="display:none" onchange="prevzemiUploadFile(this.files[0])">
           <div id="prevzemiStatus" style="margin-top:8px;font-size:11px;color:var(--text-tertiary);text-align:center;display:none"></div>
         </div>
 
@@ -7461,31 +7461,140 @@ function prevzemiHandleDrop(e) {
   e.preventDefault();
   e.target.classList.remove('drag-over');
   const f = e.dataTransfer.files[0];
-  if (f && f.type === 'application/pdf') prevzemiUploadPdf(f);
+  if (f) prevzemiUploadFile(f);
 }
 
-async function prevzemiUploadPdf(file) {
+async function prevzemiUploadFile(file) {
   if (!file) return;
   const status = document.getElementById('prevzemiStatus');
   status.style.display = 'block';
-  status.textContent = '⏳ Razdelujem PDF (Claude AI)... lahko traja 30-60s';
+  const isPdf = (file.name || '').toLowerCase().endsWith('.pdf');
+  status.textContent = isPdf
+    ? '⏳ Razdelujem PDF (Claude AI)... lahko traja 30-60s'
+    : '⏳ Razdelujem ' + file.name + '...';
 
   const fd = new FormData();
   fd.append('file', file);
 
   try {
-    const r = await fetch('/prevzemi-parse-pdf', {method: 'POST', body: fd});
-    const d = await r.json();
+    // Najprej poskusi multi-supplier endpoint (auto-detect)
+    let r = await fetch('/prevzemi-parse-supplier', {method: 'POST', body: fd});
+    let d = await r.json();
+
+    // Če auto-detect kaže "amio" → uporabi obstoječi PDF endpoint
+    if (!d.ok && d.redirect === 'amio') {
+      const fd2 = new FormData();
+      fd2.append('file', file);
+      r = await fetch('/prevzemi-parse-pdf', {method: 'POST', body: fd2});
+      d = await r.json();
+    }
+    // Če pa noben dobavitelj ni prepoznan ampak je PDF → fallback na obstoječi PDF parser (Claude)
+    else if (!d.ok && isPdf && (d.error || '').includes('ni prepoznan')) {
+      status.textContent = '⏳ Avto-detect failed, poskušam s Claude PDF parserjem...';
+      const fd2 = new FormData();
+      fd2.append('file', file);
+      r = await fetch('/prevzemi-parse-pdf', {method: 'POST', body: fd2});
+      d = await r.json();
+    }
+
     if (!d.ok) {
       status.textContent = '❌ ' + (d.error || 'Napaka');
       return;
     }
-    status.textContent = `✓ ${d.parsed.items.length} postavk najdenih`;
+
+    const supplierLabel = d.supplier_name ? ` (${d.supplier_name})` : '';
+    status.textContent = `✓ ${d.parsed.items.length} postavk najdenih${supplierLabel}`;
     prevzemiRecordId = d.record_id;
     prevzemiData = d.parsed;
-    prevzemiSelected = new Set(d.parsed.items.map((_, i) => i)); // vse default checked
-    prevzemiRender();
+    prevzemiSelected = new Set(d.parsed.items.map((_, i) => i));
+
+    // Če Intercars (ali drug supplier z _missing_names flag) → prikaz prompt za vpis imen
+    if (d.missing_names || d.parsed._missing_names) {
+      prevzemiPromptMissingNames();
+    } else {
+      prevzemiRender();
+    }
     prevzemiLoadHistory();
+  } catch(e) {
+    status.textContent = '❌ ' + e.message;
+  }
+}
+
+// Compat: če ostane stari klic, ga preusmerimo
+async function prevzemiUploadPdf(file) {
+  return prevzemiUploadFile(file);
+}
+
+function prevzemiPromptMissingNames() {
+  // Naredimo banner z opozorilom: imena izdelkov manjkajo, treba vpisati ročno
+  prevzemiRender();
+  const items = prevzemiData.items || [];
+  const missingCount = items.filter(it => !it.product_name || it.product_name.trim() === '').length;
+  if (missingCount === 0) return;
+
+  // Vrini opozorilo + gumb za save na vrh preview-ja
+  const wrap = document.getElementById('prevzemiPreviewWrap');
+  if (!wrap) return;
+  // Odstrani staro opozorilo če obstaja
+  const oldBanner = document.getElementById('prevzemiMissingBanner');
+  if (oldBanner) oldBanner.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'prevzemiMissingBanner';
+  banner.style.cssText = 'background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:#78350f;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px';
+  banner.innerHTML = `
+    <div>
+      ⚠️ <strong>Manjkajo imena izdelkov</strong> (${missingCount} od ${items.length}). Vpiši jih v tabeli spodaj v stolpcu "Ime izdelka", nato klikni <strong>Shrani imena</strong>.
+    </div>
+    <button onclick="prevzemiSaveItemNames()" style="padding:8px 14px;background:#f59e0b;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">💾 Shrani imena</button>
+  `;
+  wrap.insertBefore(banner, wrap.firstChild);
+
+  // Zagotovi da so imena editabilna — to je že tako z prevzemiRender editabilnim renderjem (preveri spodaj če rabim spremembe v render funkciji)
+}
+
+async function prevzemiSaveItemNames() {
+  if (!prevzemiRecordId || !prevzemiData) return;
+  const status = document.getElementById('prevzemiStatus');
+  status.style.display = 'block';
+  status.textContent = '⏳ Shranjujem imena...';
+
+  // Vzami trenutne values iz inputov v tabeli
+  const items = (prevzemiData.items || []).map((it, i) => {
+    const nameInput = document.querySelector(`[data-prev-item-name="${i}"]`);
+    return {
+      ...it,
+      product_name: nameInput ? nameInput.value.trim() : (it.product_name || '')
+    };
+  });
+
+  // Preveri če vsa imena vpisana
+  const empty = items.filter(it => !it.product_name).length;
+  if (empty > 0) {
+    if (!confirm(`Še vedno manjka ${empty} imen. Vseeno shranim?`)) {
+      status.textContent = '';
+      return;
+    }
+  }
+
+  try {
+    const r = await fetch('/prevzemi-update-items', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({record_id: prevzemiRecordId, items: items})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      status.textContent = '✓ Imena shranjena (' + d.item_count + ' postavk)';
+      // Update local + remove banner
+      prevzemiData.items = items;
+      delete prevzemiData._missing_names;
+      const banner = document.getElementById('prevzemiMissingBanner');
+      if (banner) banner.remove();
+      prevzemiRender();
+    } else {
+      status.textContent = '❌ ' + (d.error || 'napaka');
+    }
   } catch(e) {
     status.textContent = '❌ ' + e.message;
   }
@@ -7538,11 +7647,19 @@ function prevzemiRender() {
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     const isSel = prevzemiSelected.has(i);
+    const missingNames = prevzemiData._missing_names === true;
+    const nameCell = missingNames
+      ? `<div style="line-height:1.35">
+          <input type="text" data-prev-item-name="${i}" value="${(it.product_name || '').replace(/"/g, '&quot;')}" placeholder="vpiši ime izdelka..." style="width:100%;padding:5px 8px;border:1px solid ${(!it.product_name || it.product_name.trim() === '') ? '#f59e0b' : 'var(--border)'};border-radius:5px;font-size:13px;font-family:inherit;background:${(!it.product_name || it.product_name.trim() === '') ? '#fffbeb' : 'var(--surface2)'}">
+          <div style="font-size:10px;color:var(--text-tertiary);font-family:monospace;margin-top:3px">EAN: ${it.ean || '—'}</div>
+        </div>`
+      : `<div style="color:var(--text);line-height:1.35"><div>${(it.product_name || '').replace(/</g,'&lt;')}</div><div style="font-size:10px;color:var(--text-tertiary);font-family:monospace;margin-top:3px">EAN: ${it.ean || '—'}</div></div>`;
+
     html += `<div style="display:grid;grid-template-columns:40px 50px 110px minmax(280px, 700px) 90px 70px 110px 110px;gap:0;font-size:13px;padding:10px 14px;border-bottom:1px solid var(--border);background:${isSel ? 'rgba(83,74,183,0.04)' : 'transparent'};align-items:center">
       <input type="checkbox" ${isSel ? 'checked' : ''} onchange="prevzemiToggleItem(${i}, this.checked)" style="cursor:pointer;width:16px;height:16px;accent-color:var(--accent)">
       <div style="font-family:monospace;color:var(--text-tertiary);font-size:12px">${it.lp || ''}</div>
       <div style="font-family:monospace;font-weight:700;color:var(--text);font-size:13px">${it.product_number || ''}</div>
-      <div style="color:var(--text);line-height:1.35"><div>${(it.product_name || '').replace(/</g,'&lt;')}</div><div style="font-size:10px;color:var(--text-tertiary);font-family:monospace;margin-top:3px">EAN: ${it.ean || '—'}</div></div>
+      ${nameCell}
       <div style="text-align:right;font-family:monospace;color:var(--text);font-size:13px">${it.qty || ''} ${it.unit || ''}</div>
       <div style="text-align:center;color:var(--text-tertiary);font-size:12px">${it.vat || ''}</div>
       <div style="text-align:right;font-family:monospace;color:var(--text);font-size:13px">${it.unit_price || ''}</div>
