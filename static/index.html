@@ -2690,33 +2690,29 @@ input[type="text"].error { border-color: var(--red) !important; }
     <div id="shipDashboard" style="display:none">
 
       <!-- ─── STICKY FILTER BAR ─── -->
-      <div id="shipFilterBar" style="position:sticky;top:0;z-index:50;background:rgba(255,255,255,0.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:14px 16px;margin:-14px -14px 0 -14px">
-        <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
-          <!-- Months -->
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.6px">📅 Mesec</span>
-            <div id="shipFilterMonths" style="display:flex;gap:4px;flex-wrap:wrap"></div>
-          </div>
-          <!-- Countries -->
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.6px">🌍 Države</span>
-            <div id="shipFilterCountries" style="display:flex;gap:4px;flex-wrap:wrap;max-width:600px"></div>
-          </div>
-          <!-- Compare -->
-          <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
-            <span style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.6px">Primerjaj</span>
-            <select id="shipCompareMode" onchange="shipRender()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;background:white">
-              <option value="prev">vs prejšnji mesec</option>
-              <option value="avg3">vs povp. (3 mes)</option>
+      <div id="shipFilterBar" style="position:sticky;top:0;z-index:50;background:rgba(255,255,255,0.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:10px 16px;margin:-14px -14px 0 -14px">
+
+        <!-- Vrstica 1: Meseci + desno: Primerjaj + Upload -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:10px;color:var(--text-tertiary);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;min-width:48px">📅 MES</span>
+          <div id="shipFilterMonths" style="display:flex;gap:3px;flex:1;overflow-x:auto;scrollbar-width:none"></div>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">
+            <select id="shipCompareMode" onchange="shipRender()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;background:white;white-space:nowrap">
+              <option value="prev">vs prejšnji mes.</option>
+              <option value="avg3">vs povp. 3 mes.</option>
               <option value="none">brez primerjave</option>
             </select>
-          </div>
-          <!-- Upload button (compact) -->
-          <div style="display:flex;align-items:center;gap:8px">
             <input type="file" id="shipUploadInput" accept=".xls,.xlsx" style="display:none" onchange="shipUploadFile(this.files[0])">
-            <button onclick="document.getElementById('shipUploadInput').click()" style="padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text-secondary)">📤 Naloži nov</button>
+            <button onclick="document.getElementById('shipUploadInput').click()" style="padding:5px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text-secondary);white-space:nowrap">📤 Naloži</button>
           </div>
         </div>
+
+        <!-- Vrstica 2: Države -->
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;color:var(--text-tertiary);font-weight:700;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;min-width:48px">🌍 TRG</span>
+          <div id="shipFilterCountries" style="display:flex;gap:3px;flex:1;overflow-x:auto;scrollbar-width:none"></div>
+        </div>
+
         <div id="shipStatus" style="font-size:11px;color:var(--text-secondary);margin-top:6px;display:none"></div>
       </div>
 
@@ -2898,10 +2894,10 @@ input[type="text"].error { border-color: var(--red) !important; }
     <!-- Chip CSS -->
     <style>
       .ship-chip {
-        padding: 5px 11px;
+        padding: 4px 10px;
         border: 1px solid var(--border);
         background: white;
-        border-radius: 6px;
+        border-radius: 5px;
         font-size: 11px;
         font-weight: 500;
         cursor: pointer;
@@ -2909,6 +2905,7 @@ input[type="text"].error { border-color: var(--red) !important; }
         transition: all 0.15s;
         color: var(--text-secondary);
         white-space: nowrap;
+        flex-shrink: 0;
       }
       .ship-chip:hover { border-color: var(--text-tertiary); background: var(--surface2); }
       .ship-chip.active { background: var(--text); color: white; border-color: var(--text); }
