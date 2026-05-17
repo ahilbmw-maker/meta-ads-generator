@@ -3127,12 +3127,29 @@ input[type="text"].error { border-color: var(--red) !important; }
         <div id="vracilaSavePill" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(34,197,94,0.1);color:#16a34a;border-radius:100px;font-size:11px;font-weight:600">✓ Shranjeno</div>
       </div>
 
-      <!-- Scanner input -->
-      <div style="background:var(--surface);border:2px solid var(--accent);border-radius:12px;padding:16px 20px;margin-bottom:14px;box-shadow:0 0 0 4px rgba(58,111,255,0.08);display:flex;gap:14px;align-items:center">
-        <label style="font-size:11px;color:var(--text-secondary);font-weight:700;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;line-height:1.3">📸 Skenirajte<br>ID naročila</label>
-        <input id="vracilaScanInput" type="text" autocomplete="off" placeholder="Tukaj se zapiše barkoda..." style="flex:1;border:none;outline:none;font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:var(--text);padding:6px 0;background:transparent">
-        <div id="vracilaCount" style="font-size:28px;font-weight:800;color:var(--accent);font-family:'DM Mono',monospace">0</div>
+      <!-- C-Stream Scanner Hero -->
+      <div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);border-radius:14px;margin-bottom:14px;overflow:hidden">
+        <!-- Status bar -->
+        <div style="padding:8px 18px;background:rgba(0,0,0,0.3);display:flex;justify-content:space-between;align-items:center;font-size:11px;font-family:'DM Mono',monospace;color:rgba(255,255,255,0.85)">
+          <span><span id="vracilaLiveDot" style="width:8px;height:8px;background:#22c55e;border-radius:50%;display:inline-block;margin-right:6px;box-shadow:0 0 8px #22c55e;animation:vracilaPulseDot 1.5s infinite"></span>SCANNER · LIVE</span>
+          <span id="vracilaStatusLine" style="opacity:0.55">session: idle · auto_save: ON</span>
+        </div>
+        <!-- Input row -->
+        <div style="padding:24px 28px;display:flex;gap:18px;align-items:center;position:relative">
+          <div style="position:absolute;left:0;top:0;right:0;bottom:0;background:repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(34,211,238,0.04) 60px,rgba(34,211,238,0.04) 61px);pointer-events:none"></div>
+          <div style="position:relative;z-index:1;flex:1">
+            <div style="font-family:'DM Mono',monospace;color:#22d3ee;font-size:10px;letter-spacing:1.5px;font-weight:700;margin-bottom:2px">SCAN_INPUT</div>
+            <input id="vracilaScanInput" type="text" autocomplete="off" placeholder="picknite barkodo..." style="width:100%;background:transparent;border:none;outline:none;font-size:34px;font-weight:800;color:#f8fafc;font-family:'DM Mono',monospace;letter-spacing:2px;padding:2px 0">
+          </div>
+          <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:4px;align-items:flex-end;text-align:right;flex-shrink:0">
+            <div id="vracilaCount" style="font-size:44px;font-weight:900;font-family:'DM Mono',monospace;color:#22d3ee;line-height:1;letter-spacing:-2px">00</div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.5);font-family:'DM Mono',monospace">Skenirano</div>
+          </div>
+        </div>
       </div>
+      <style>
+        @keyframes vracilaPulseDot { 0%,100% { opacity:1 } 50% { opacity:0.35 } }
+      </style>
 
       <!-- Duplikat alert -->
       <div id="vracilaAlert" style="display:none;background:rgba(220,38,38,0.08);border:1px solid #fca5a5;color:#991b1b;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:600;margin-bottom:12px;align-items:center;gap:8px"></div>
@@ -16313,6 +16330,21 @@ let vracilaItems = [];      // [{id, comment, ts, _isDup}]
 let vracilaSaveTimer = null;
 let vracilaSaving = false;
 let vracilaAlertTimer = null;
+let vracilaStatusInterval = null;
+
+function _vracilaAgo(iso) {
+  try {
+    const dt = new Date(iso);
+    const sec = Math.max(0, Math.floor((Date.now() - dt.getTime()) / 1000));
+    if (sec < 5) return 'just_now';
+    if (sec < 60) return sec + 's ago';
+    const min = Math.floor(sec / 60);
+    if (min < 60) return min + 'm ago';
+    const h = Math.floor(min / 60);
+    if (h < 24) return h + 'h ago';
+    return Math.floor(h / 24) + 'd ago';
+  } catch (e) { return ''; }
+}
 
 function switchZalogaTab(tab) {
   ['zaloga', 'vracila'].forEach(t => {
@@ -16356,6 +16388,13 @@ async function vracilaInit() {
     const inp = document.getElementById('vracilaScanInput');
     if (inp) inp.focus();
   }, 100);
+  // Refresh "last X ago" text every 10s
+  if (vracilaStatusInterval) clearInterval(vracilaStatusInterval);
+  vracilaStatusInterval = setInterval(() => {
+    if (document.getElementById('zalogaSubpage-vracila').style.display !== 'none' && vracilaItems.length > 0) {
+      vracilaRender();
+    }
+  }, 10000);
 }
 
 // Auto-detect "scanner paste" — barcode scanner v HID mode pošlje znake hitro + na koncu \n (Enter)
@@ -16445,9 +16484,24 @@ function vracilaRender() {
   const tbody = document.getElementById('vracilaTableBody');
   const empty = document.getElementById('vracilaEmptyMsg');
   const count = document.getElementById('vracilaCount');
-  if (count) count.textContent = vracilaItems.length;
+  const n = vracilaItems.length;
+  if (count) count.textContent = n < 100 ? String(n).padStart(2, '0') : String(n);
 
-  if (vracilaItems.length === 0) {
+  // Update status line (C-stream style)
+  const statusLine = document.getElementById('vracilaStatusLine');
+  if (statusLine) {
+    const dupCount = vracilaItems.filter(it => it._isDup).length;
+    if (n === 0) {
+      statusLine.textContent = 'session: idle · auto_save: ON · čaka prvo barkodo';
+    } else {
+      const last = vracilaItems[0];
+      const lastId = last ? last.id : '';
+      const ago = last && last.ts ? _vracilaAgo(last.ts) : '';
+      statusLine.innerHTML = `<span style="opacity:0.75">session: ${n} ids${dupCount ? ` · <span style="color:#fca5a5">${dupCount} dup</span>` : ''} · last: <span style="color:#22d3ee">${lastId}</span> · ${ago}</span>`;
+    }
+  }
+
+  if (n === 0) {
     if (tbody) tbody.innerHTML = '';
     if (empty) empty.style.display = 'block';
     return;
@@ -16487,8 +16541,9 @@ function vracilaUpdateComment(idx, value) {
 
 function vracilaDelete(idx) {
   if (idx < 0 || idx >= vracilaItems.length) return;
+  const it = vracilaItems[idx];
+  if (!confirm(`Izbrišem ID "${it.id}"${it.comment ? ' (' + it.comment + ')' : ''}?`)) return;
   vracilaItems.splice(idx, 1);
-  // Re-check duplicates after delete (an earlier item might no longer be a dup of nothing)
   vracilaRecheckDuplicates();
   vracilaRender();
   vracilaSaveDebounced();
@@ -16594,11 +16649,16 @@ async function vracilaArchive() {
     alert('Ni ID-jev za arhiviranje');
     return;
   }
-  if (!confirm(`Zapri sejo z ${vracilaItems.length} ID-ji? Seja se shrani v zgodovino.`)) return;
+  const n = vracilaItems.length;
+  const dupCount = vracilaItems.filter(it => it._isDup).length;
+  let msg = `📁 Zapreti sejo in arhivirati ${n} ID-jev?`;
+  if (dupCount > 0) {
+    msg += `\n\n⚠️ ${dupCount} duplikatov bo prav tako arhiviranih. Ali si jih ročno pobrisal?`;
+  }
+  msg += `\n\nPo arhiviranju se začne nova prazna seja.`;
+  if (!confirm(msg)) return;
   try {
-    // Najprej save current state
     await vracilaSaveNow();
-    // Potem archive
     const r = await fetch('/vracila-archive', {method: 'POST'});
     const d = await r.json();
     if (d.ok) {
@@ -16606,7 +16666,6 @@ async function vracilaArchive() {
       vracilaRender();
       document.getElementById('vracilaSessionInfo').textContent = 'Seja arhivirana ✓ · Nova seja pripravljena';
       vracilaShowAlert(`✓ Arhivirano <strong>${d.items || 0}</strong> ID-jev v ${d.archived}`);
-      // Refresh history if visible
       const wrap = document.getElementById('vracilaHistoryWrap');
       if (wrap && wrap.style.display !== 'none') vracilaLoadHistory();
     } else {
@@ -16618,11 +16677,24 @@ async function vracilaArchive() {
 }
 
 function vracilaClearAll() {
-  if (vracilaItems.length === 0) return;
-  if (!confirm(`Izbrisati VSE ${vracilaItems.length} ID-jev? (Niso arhivirani — trajno izgubljeni)`)) return;
+  if (vracilaItems.length === 0) {
+    alert('Tabela je že prazna');
+    return;
+  }
+  const n = vracilaItems.length;
+  // 1. korak — opozorilo
+  if (!confirm(`⚠️ POZOR: Izbrisati VSEH ${n} ID-jev?\n\nNiso arhivirani — trajno izgubljeni!\n\nČe želiš shraniti, raje uporabi "Zapri sejo".`)) return;
+  // 2. korak — drugi confirm s tipkanjem
+  const typed = prompt(`Za potrditev vpiši število ${n} (število ID-jev za brisanje):`);
+  if (typed === null) return;
+  if (typed.trim() !== String(n)) {
+    alert('Napačno število. Brisanje preklicano.');
+    return;
+  }
   vracilaItems = [];
   vracilaRender();
   vracilaSaveNow();
+  vracilaShowAlert(`✓ Izbrisano <strong>${n}</strong> ID-jev`);
 }
 
 async function vracilaToggleHistory() {
@@ -16697,12 +16769,23 @@ async function vracilaHistoryDownload(filename) {
 }
 
 async function vracilaHistoryDelete(filename) {
-  if (!confirm('Izbriši arhiv "' + filename + '"?')) return;
+  // Strožja validacija za arhive — trajno izbrisani
+  if (!confirm(`⚠️ TRAJNO BRISANJE\n\nIzbrisati arhiv "${filename}"?\n\nTo je trajno — arhiv ne bo več obnovljiv!`)) return;
+  // 2. korak — vpisi "DA"
+  const confirmText = prompt('Za potrditev vpiši "DA" (z velikimi črkami):');
+  if (confirmText === null) return;
+  if (confirmText.trim().toUpperCase() !== 'DA') {
+    alert('Nepravilna potrditev. Brisanje preklicano.');
+    return;
+  }
   try {
     const r = await fetch('/vracila-history/' + encodeURIComponent(filename), {method: 'DELETE'});
     const d = await r.json();
-    if (d.ok) vracilaLoadHistory();
-    else alert('Napaka: ' + (d.error || 'neznana'));
+    if (d.ok) {
+      vracilaLoadHistory();
+    } else {
+      alert('Napaka: ' + (d.error || 'neznana'));
+    }
   } catch (e) {
     alert('Napaka: ' + e.message);
   }
