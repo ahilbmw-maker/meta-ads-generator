@@ -9389,17 +9389,36 @@ def _sync_cashflow_from_sheets(sheet_id: str = None, tab_name: str = "Cash Flow"
     try:
         service, sa_email = _get_sheets_service()
 
+        # Najprej dobimo seznam vseh tabov da najdemo pravega
+        try:
+            meta = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+            all_tabs = [s["properties"]["title"] for s in meta.get("sheets", [])]
+        except Exception as e:
+            return {"ok": False, "error": f"Cannot read sheet metadata: {e}. Check sharing permissions."}
+
+        # Avto-resolve tab name (case insensitive + brez presledkov)
+        target_tab = None
+        tab_lower = tab_name.lower().replace(" ", "")
+        for t in all_tabs:
+            t_norm = t.lower().replace(" ", "")
+            if t_norm == tab_lower or t_norm == "cashflow":
+                target_tab = t
+                break
+
+        if not target_tab:
+            return {"ok": False, "error": f"Tab '{tab_name}' ne obstaja. Najdeni tabi: {', '.join(all_tabs)}"}
+
         # Vzami vse podatke iz tab-a
         result = service.spreadsheets().values().get(
             spreadsheetId=sheet_id,
-            range=f"'{tab_name}'",
+            range=f"'{target_tab}'",
             valueRenderOption="UNFORMATTED_VALUE",
             dateTimeRenderOption="FORMATTED_STRING"
         ).execute()
 
         values = result.get("values", [])
         if not values:
-            return {"ok": False, "error": f"Tab '{tab_name}' je prazen ali ne obstaja"}
+            return {"ok": False, "error": f"Tab '{target_tab}' je prazen"}
 
         # Konvertiraj v Excel format in shrani na disk
         import openpyxl
@@ -9413,9 +9432,11 @@ def _sync_cashflow_from_sheets(sheet_id: str = None, tab_name: str = "Cash Flow"
                 # Try to parse date strings in column 1
                 if col_idx == 1 and row_idx > 1 and isinstance(cell, str):
                     parsed_date = None
+                    # Najprej počistimo presledke za slovenski format "1. 4. 2019"
+                    cell_clean = cell.replace(" ", "")
                     for fmt in ("%d.%m.%Y", "%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y"):
                         try:
-                            parsed_date = _dt.strptime(cell, fmt)
+                            parsed_date = _dt.strptime(cell_clean, fmt)
                             break
                         except Exception:
                             continue
