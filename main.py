@@ -745,6 +745,134 @@ STORAGE_KNJ_DIR = DATA_DIR / "storage" / "knjigovodstvo"
 STORAGE_KNJ_DIR.mkdir(parents=True, exist_ok=True)
 
 
+# ─── VRAČILA — SCANNER ───────────────────────────────────────────────────────
+
+VRACILA_DIR = DATA_DIR / "vracila"
+VRACILA_DIR.mkdir(parents=True, exist_ok=True)
+VRACILA_CURRENT = VRACILA_DIR / "current.json"
+VRACILA_ARCHIVE_DIR = VRACILA_DIR / "archive"
+VRACILA_ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+class VracilaSaveRequest(BaseModel):
+    items: list  # [{id, comment, ts}, ...]
+
+
+@app.get("/vracila-current")
+async def vracila_current_get():
+    """Vrne aktivno sejo (current.json)."""
+    try:
+        if VRACILA_CURRENT.exists():
+            data = json.loads(VRACILA_CURRENT.read_text(encoding="utf-8"))
+            return {"ok": True, "items": data.get("items", []), "started_at": data.get("started_at")}
+        return {"ok": True, "items": [], "started_at": None}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/vracila-save")
+async def vracila_save(req: VracilaSaveRequest):
+    """Shrani trenutno sejo — kliče se na vsako spremembo."""
+    try:
+        from datetime import datetime as _dt
+        existing_started = None
+        if VRACILA_CURRENT.exists():
+            try:
+                old = json.loads(VRACILA_CURRENT.read_text(encoding="utf-8"))
+                existing_started = old.get("started_at")
+            except Exception:
+                pass
+        data = {
+            "started_at": existing_started or _dt.now().isoformat(),
+            "updated_at": _dt.now().isoformat(),
+            "items": req.items or [],
+        }
+        VRACILA_CURRENT.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"ok": True, "count": len(data["items"])}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/vracila-archive")
+async def vracila_archive():
+    """Arhivira aktivno sejo in resetira."""
+    try:
+        from datetime import datetime as _dt
+        if not VRACILA_CURRENT.exists():
+            return {"ok": False, "error": "Ni aktivne seje"}
+        data = json.loads(VRACILA_CURRENT.read_text(encoding="utf-8"))
+        items = data.get("items", [])
+        if not items:
+            VRACILA_CURRENT.unlink()
+            return {"ok": True, "message": "Seja je bila prazna, izbrisana"}
+        ts = _dt.now().strftime("%Y%m%d_%H%M%S")
+        archive_name = f"{ts}_{len(items)}items.json"
+        archive_path = VRACILA_ARCHIVE_DIR / archive_name
+        data["archived_at"] = _dt.now().isoformat()
+        archive_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        VRACILA_CURRENT.unlink()
+        return {"ok": True, "archived": archive_name, "items": len(items)}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/vracila-history")
+async def vracila_history():
+    """Seznam arhiviranih sej."""
+    try:
+        from datetime import datetime as _dt
+        items = []
+        for f in sorted(VRACILA_ARCHIVE_DIR.iterdir(), reverse=True):
+            if not f.is_file() or not f.name.endswith(".json"):
+                continue
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                items.append({
+                    "filename": f.name,
+                    "started_at": data.get("started_at"),
+                    "archived_at": data.get("archived_at"),
+                    "count": len(data.get("items", [])),
+                    "size_kb": round(f.stat().st_size / 1024, 1),
+                })
+            except Exception:
+                continue
+        return {"ok": True, "items": items}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/vracila-history/{filename}")
+async def vracila_history_detail(filename: str):
+    """Podrobnosti enega arhiva."""
+    try:
+        safe = filename.replace("/", "").replace("..", "")
+        f = VRACILA_ARCHIVE_DIR / safe
+        if not f.exists():
+            return {"ok": False, "error": "Ne obstaja"}
+        data = json.loads(f.read_text(encoding="utf-8"))
+        return {"ok": True, "data": data}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.delete("/vracila-history/{filename}")
+async def vracila_history_delete(filename: str):
+    """Briše arhiv."""
+    try:
+        safe = filename.replace("/", "").replace("..", "")
+        f = VRACILA_ARCHIVE_DIR / safe
+        if not f.exists():
+            return {"ok": False, "error": "Ne obstaja"}
+        f.unlink()
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 @app.post("/knjigovodstvo-process-emails")
 async def knjigovodstvo_process_emails():
     """Sproži ročno obdelavo neprebranih emailov v parcels@.
