@@ -9976,3 +9976,263 @@ async def prevzemi_update_items(req: UpdateItemsRequest):
         import traceback
         traceback.print_exc()
         return {"ok": False, "error": str(e)}
+
+
+# ─── SHIPPING COSTS ANALYSIS ────────────────────────────────────────────────
+
+SHIPPING_DIR = DATA_DIR / "shipping"
+SHIPPING_DIR.mkdir(exist_ok=True, parents=True)
+
+
+def _parse_shipping_xls(content: bytes) -> dict:
+    """Parse shipping protocol/descr XLS file. Returns structured data with month auto-detected."""
+    import io
+    from collections import Counter
+    from datetime import datetime as _dt
+
+    try:
+        from python_calamine import CalamineWorkbook
+        wb = CalamineWorkbook.from_filelike(io.BytesIO(content))
+    except ImportError:
+        return {"ok": False, "error": "python-calamine ni instaliran v requirements.txt"}
+    except Exception as e:
+        return {"ok": False, "error": f"Cannot read XLS: {e}"}
+
+    sheet_name = wb.sheet_names[0]
+    ws = wb.get_sheet_by_name(sheet_name)
+    data = ws.to_python()
+
+    if len(data) < 4:
+        return {"ok": False, "error": "Fajl je premajhen ali nima podatkov"}
+
+    # Headers v vrstici 2
+    headers = data[2]
+    if not headers or "Date" not in str(headers[1]):
+        return {"ok": False, "error": f"Headers ne najdejo v vrstici 2: {headers[:5]}"}
+
+    # Indeksi stolpcev (od headers)
+    col_map = {}
+    for i, h in enumerate(headers):
+        h_str = str(h).strip()
+        col_map[h_str] = i
+
+    def get(row, key, default=None):
+        idx = col_map.get(key)
+        if idx is None or idx >= len(row):
+            return default
+        return row[idx]
+
+    def num(v):
+        if v is None or v == "":
+            return 0.0
+        try:
+            return float(str(v).replace(",", ".").replace(" ", ""))
+        except (ValueError, TypeError):
+            return 0.0
+
+    # Parse rows
+    rows = []
+    months_seen = Counter()
+    for row in data[3:]:
+        if not row or len(row) < 5:
+            continue
+        date_str = str(get(row, "Date", "") or "")
+        # Skip "Total:" row
+        if str(get(row, "ID", "") or "").lower().startswith("total"):
+            continue
+        if not date_str or "-" not in date_str:
+            continue
+
+        # Parse date
+        try:
+            d = _dt.strptime(date_str[:10], "%Y-%m-%d")
+            month_key = d.strftime("%Y-%m")
+            months_seen[month_key] += 1
+        except Exception:
+            continue
+
+        rows.append({
+            "date": date_str[:10],
+            "waybill": str(get(row, "Waybill number", "") or ""),
+            "order_number": str(get(row, "Order number", "") or ""),
+            "country": str(get(row, "Country", "") or "").upper(),
+            "service_type": str(get(row, "Service Type", "") or ""),
+            "city": str(get(row, "City", "") or ""),
+            "cod_eur": num(get(row, "COD in EUR", 0)),
+            "weight_kg": num(get(row, "Weight in kg", 0)),
+            "sum_before_disc": num(get(row, "Sum before disc EUR", 0)),
+            "disc_pct": num(get(row, "Disc. %", 0)),
+            "disc_sum": num(get(row, "Disc. sum EUR", 0)),
+            "weight_price": num(get(row, "Weight price EUR", 0)),
+            "cod_price": num(get(row, "COD Price EUR", 0)),
+            "sms_price": num(get(row, "SMS Price EUR", 0)),
+            "insurance_price": num(get(row, "Insurance price EUR", 0)),
+            "fuel_tax_pct": num(get(row, "Fuel tax %", 0)),
+            "fuel_tax": num(get(row, "Fuel tax EUR", 0)) or num(get(row, "Fuel tax price EUR", 0)),
+            "extra_cost": num(get(row, "Extra cost EUR", 0)),
+            "total_no_vat": num(get(row, "Total without VAT EUR", 0)),
+            "courier": str(get(row, "Courier", "") or ""),
+        })
+
+    if not rows:
+        return {"ok": False, "error": "Ni veljavnih vrstic s paketi"}
+
+    # Determine month: take most common (>= 50%)
+    if not months_seen:
+        return {"ok": False, "error": "Ni najdenih datumov"}
+    top_month, top_count = months_seen.most_common(1)[0]
+    coverage = top_count / sum(months_seen.values())
+
+    return {
+        "ok": True,
+        "month": top_month,
+        "coverage": round(coverage, 3),
+        "all_months": dict(months_seen),
+        "rows": rows,
+        "count": len(rows),
+    }
+
+
+@app.post("/shipping-upload")
+async def shipping_upload(file: UploadFile = File(...)):
+    """Naloži XLS fajl pošte. Auto-detect mesec, shrani v /data/shipping/YYYY-MM/."""
+    try:
+        content = await file.read()
+        if len(content) > 100 * 1024 * 1024:
+            return {"ok": False, "error": "Fajl prevelik (max 100MB)"}
+
+        parsed = _parse_shipping_xls(content)
+        if not parsed.get("ok"):
+            return parsed
+
+        month = parsed["month"]
+        # Določi tip fajla iz imena
+        fn = (file.filename or "").lower()
+        if fn.startswith("descr"):
+            kind = "descr"
+        elif "inventory" in fn:
+            kind = "inventory"
+        else:
+            kind = "other"
+
+        # Shrani v /data/shipping/YYYY-MM/
+        month_dir = SHIPPING_DIR / month
+        month_dir.mkdir(parents=True, exist_ok=True)
+
+        # Source file
+        safe_name = _safe_filename(file.filename or f"shipping_{month}.xls")
+        (month_dir / safe_name).write_bytes(content)
+
+        # Parsed JSON (lahko se prepiše če uploadaš oba file-a)
+        parsed_file = month_dir / f"parsed_{kind}.json"
+        # Stripping rows je velik, shrani brez rows pa še posebej rows.json
+        meta = {k: v for k, v in parsed.items() if k != "rows"}
+        meta["kind"] = kind
+        meta["original_filename"] = file.filename
+        meta["uploaded_at"] = parsed.get("month", "")
+        from datetime import datetime as _dt2
+        meta["uploaded_ts"] = _dt2.now().isoformat()
+        parsed_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding='utf-8')
+        (month_dir / f"rows_{kind}.json").write_text(json.dumps(parsed["rows"], ensure_ascii=False), encoding='utf-8')
+
+        return {
+            "ok": True,
+            "month": month,
+            "kind": kind,
+            "count": parsed["count"],
+            "coverage": parsed["coverage"],
+            "all_months": parsed["all_months"],
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/shipping-list")
+async def shipping_list():
+    """Vrne seznam vseh mesecev z naloženimi fajli."""
+    try:
+        months = []
+        for month_dir in sorted(SHIPPING_DIR.iterdir(), reverse=True):
+            if not month_dir.is_dir():
+                continue
+            month = month_dir.name
+            # Najdi vse parsed_*.json
+            kinds = []
+            total_count = 0
+            for kind in ["inventory", "descr", "other"]:
+                pf = month_dir / f"parsed_{kind}.json"
+                if pf.exists():
+                    try:
+                        meta = json.loads(pf.read_text(encoding='utf-8'))
+                        kinds.append({
+                            "kind": kind,
+                            "count": meta.get("count", 0),
+                            "filename": meta.get("original_filename", ""),
+                            "uploaded_ts": meta.get("uploaded_ts", ""),
+                        })
+                        total_count += meta.get("count", 0)
+                    except Exception:
+                        continue
+            if kinds:
+                months.append({"month": month, "kinds": kinds, "total_count": total_count})
+        return {"ok": True, "months": months}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/shipping-data")
+async def shipping_data(month: str = "all"):
+    """Vrne paketne podatke za en mesec ali vse. Če sta inventory + descr, preferira inventory (more columns)."""
+    try:
+        result_rows = []
+        months_meta = {}
+
+        target_dirs = []
+        if month == "all":
+            for d in SHIPPING_DIR.iterdir():
+                if d.is_dir():
+                    target_dirs.append(d)
+        else:
+            d = SHIPPING_DIR / month
+            if d.exists():
+                target_dirs.append(d)
+
+        for month_dir in target_dirs:
+            m = month_dir.name
+            # Preferira inventory > descr > other (inventory ima Total without VAT + Courier)
+            for kind in ["inventory", "descr", "other"]:
+                rf = month_dir / f"rows_{kind}.json"
+                if rf.exists():
+                    try:
+                        rows = json.loads(rf.read_text(encoding='utf-8'))
+                        for r in rows:
+                            r["_month"] = m
+                            r["_kind"] = kind
+                        result_rows.extend(rows)
+                        months_meta[m] = {"kind": kind, "count": len(rows)}
+                        break  # samo en kind per mesec
+                    except Exception:
+                        continue
+
+        return {"ok": True, "rows": result_rows, "months": months_meta, "total": len(result_rows)}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.delete("/shipping-month/{month}")
+async def shipping_delete(month: str):
+    """Briše vse fajle za en mesec."""
+    try:
+        month_safe = month.replace("/", "").replace("..", "")
+        d = SHIPPING_DIR / month_safe
+        if not d.exists():
+            return {"ok": False, "error": "Mesec ne obstaja"}
+        import shutil
+        shutil.rmtree(d)
+        return {"ok": True, "deleted": month_safe}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
