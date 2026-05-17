@@ -9533,3 +9533,446 @@ async def _daily_cashflow_sync():
         except Exception as e:
             print(f"[cashflow-sync] Error: {e}")
             await asyncio.sleep(3600)  # počakaj 1h pred ponovnim poskusom
+
+
+# ─── MULTI-SUPPLIER PREVZEMI PARSER ──────────────────────────────────────────
+
+def _detect_supplier(filename: str, content: bytes) -> str:
+    """Auto-detect dobavitelja iz imena fajla in vsebine."""
+    fn = (filename or "").lower()
+
+    # Filename heuristics najprej
+    if fn.startswith("fa_") and fn.endswith(".csv"):
+        return "motoprofil"
+    if fn.startswith("shipment-") and fn.endswith(".xml"):
+        return "intercars"
+    if fn.startswith("spm_wdt") and (fn.endswith(".xlsx") or fn.endswith(".xls")):
+        return "abakus"
+    if fn.startswith("language_eng") and fn.endswith(".pdf"):
+        return "ikonka"
+    # AMiO ima drugačno ime
+    if "fv_kk" in fn or fn.startswith("fv-kk") or fn.startswith("fv_kk"):
+        return "amio"
+
+    # Vsebinske heuristike
+    try:
+        head = content[:5000].decode("utf-8", errors="ignore").lower()
+    except Exception:
+        head = ""
+
+    if "prefiks" in head and "indeks" in head:
+        return "motoprofil"
+    if "despatchadvice" in head or "eslog" in head or "sisshl" in head:
+        return "intercars"
+    if "abakus sp" in head or "spm/wdt" in head:
+        return "abakus"
+    if "kik sp" in head or "kik sp\xf3\u0142ka" in head or "faktura vat ue" in head:
+        return "ikonka"
+    if "amio" in head or "kn\xf3wska" in head or "knurowska" in head:
+        return "amio"
+
+    return "unknown"
+
+
+def _parse_motoprofil_csv(content: bytes, filename: str) -> dict:
+    """Parse MotoProfil CSV. Invoice num + date iz imena fajla."""
+    import csv, io, re
+    from datetime import datetime
+
+    # Invoice number iz imena: FA_155887_05_2026 → FA/155887/05/2026
+    base = re.sub(r"\.[^.]+$", "", filename or "")
+    parts = re.match(r"FA_(\d+)_(\d+)_(\d+)", base, re.IGNORECASE)
+    if parts:
+        invoice_number = f"FA/{parts.group(1)}/{parts.group(2)}/{parts.group(3)}"
+        # date approximation: 1. v mesecu (ne moremo brez konkretnih podatkov)
+        try:
+            invoice_date = f"{parts.group(3)}-{parts.group(2).zfill(2)}-01"
+        except Exception:
+            invoice_date = datetime.now().strftime("%Y-%m-%d")
+    else:
+        invoice_number = base or "MotoProfil"
+        invoice_date = datetime.now().strftime("%Y-%m-%d")
+
+    # Parse CSV
+    text = content.decode("utf-8-sig", errors="replace")
+    reader = csv.DictReader(io.StringIO(text))
+    items = []
+    for row in reader:
+        prefiks = (row.get("Prefiks") or "").strip()
+        indeks = (row.get("Indeks") or "").strip()
+        nazwa = (row.get("Nazwa") or "").strip()
+        ilosc = (row.get("Ilosc") or "1").strip()
+        cena = (row.get("Cena") or "0").strip().replace(",", ".")
+
+        product_code = f"{prefiks}_{indeks}".strip("_") if prefiks else indeks
+        try:
+            qty = float(ilosc)
+            unit_price = float(cena)
+        except ValueError:
+            continue
+
+        items.append({
+            "product_number": product_code,
+            "product_name": nazwa,
+            "qty": int(qty) if qty == int(qty) else qty,
+            "unit_price": unit_price,
+            "value": round(qty * unit_price, 2),
+        })
+
+    return {
+        "invoice_number": invoice_number,
+        "invoice_date": invoice_date,
+        "currency": "EUR",
+        "vendor_name": "MotoProfil",
+        "items": items,
+    }
+
+
+def _parse_intercars_xml(content: bytes) -> dict:
+    """Parse Intercars eSLOG XML (DespatchAdvice).
+    Imena izdelkov niso v dokumentu — pustimo prazno, user vpiše ročno."""
+    import xml.etree.ElementTree as ET
+    from datetime import datetime
+
+    ns = {"e": "urn:eslog:2.00"}
+    root = ET.fromstring(content)
+
+    # Document number
+    doc_num = ""
+    unh = root.find(".//e:S_UNH/e:D_0062", ns)
+    if unh is not None and unh.text:
+        doc_num = unh.text.strip()
+    else:
+        bgm_n = root.find(".//e:S_BGM/e:C_C106/e:D_1004", ns)
+        if bgm_n is not None and bgm_n.text:
+            doc_num = bgm_n.text.strip()
+
+    # Datum (first S_DTM s 2005=137 ali 11)
+    invoice_date = ""
+    for dtm in root.findall(".//e:S_DTM", ns):
+        code = dtm.find("e:C_C507/e:D_2005", ns)
+        date = dtm.find("e:C_C507/e:D_2380", ns)
+        if code is not None and code.text == "137" and date is not None:
+            invoice_date = date.text.strip()
+            break
+    if not invoice_date:
+        invoice_date = datetime.now().strftime("%Y-%m-%d")
+    # Format YYYY-MM-DD
+    if len(invoice_date) == 8 and invoice_date.isdigit():
+        invoice_date = f"{invoice_date[0:4]}-{invoice_date[4:6]}-{invoice_date[6:8]}"
+
+    # Items: iz G_SG10 → G_SG17
+    items = []
+    for sg17 in root.findall(".//e:G_SG10/e:G_SG17", ns):
+        code_el = sg17.find("e:S_LIN/e:C_C212/e:D_7140", ns)
+        if code_el is None:
+            continue
+        product_code = (code_el.text or "").strip()
+
+        # Qty: S_QTY/C_C186/D_6060
+        qty = 1
+        qty_el = sg17.find("e:S_QTY/e:C_C186/e:D_6060", ns)
+        if qty_el is not None and qty_el.text:
+            try:
+                qty = float(qty_el.text)
+            except ValueError:
+                pass
+
+        # Price: S_MOA/C_C516/D_5004 (kjer D_5025=203 = unit price)
+        unit_price = 0.0
+        for moa in sg17.findall("e:S_MOA", ns):
+            code = moa.find("e:C_C516/e:D_5025", ns)
+            val = moa.find("e:C_C516/e:D_5004", ns)
+            if code is not None and code.text == "203" and val is not None and val.text:
+                try:
+                    unit_price = float(val.text)
+                    break
+                except ValueError:
+                    continue
+
+        items.append({
+            "product_number": product_code,
+            "product_name": "",  # Manjka v XML — user vpiše v UI
+            "qty": int(qty) if qty == int(qty) else qty,
+            "unit_price": unit_price,
+            "value": round(qty * unit_price, 2),
+        })
+
+    return {
+        "invoice_number": doc_num,
+        "invoice_date": invoice_date,
+        "currency": "EUR",
+        "vendor_name": "Intercars",
+        "items": items,
+        "_missing_names": True,  # UI flag — kaže prompt za vpis imen
+    }
+
+
+def _parse_abakus_xlsx(content: bytes) -> dict:
+    """Parse Abakus XLSX. Headers v vrstici 1, podatki od vrstice 3.
+    Uporablja python-calamine (zaradi openpyxl 'xxid' bug-a)."""
+    import io
+    from datetime import datetime
+    import re
+
+    # Poskusi calamine
+    try:
+        from python_calamine import CalamineWorkbook
+        wb = CalamineWorkbook.from_filelike(io.BytesIO(content))
+        sheet_name = wb.sheet_names[0]
+        ws = wb.get_sheet_by_name(sheet_name)
+        data = ws.to_python()
+    except ImportError:
+        # Fallback: openpyxl ignoring styles (read_only mode)
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+            sheet_name = wb.sheetnames[0]
+            ws = wb[sheet_name]
+            data = []
+            for row in ws.iter_rows(values_only=True):
+                data.append(list(row))
+        except Exception as e:
+            raise RuntimeError(f"Nemoremo prebrati Abakus XLSX. Manjka python-calamine v requirements? ({e})")
+    except Exception as e:
+        raise RuntimeError(f"Calamine read failed: {e}")
+
+    # Row 1: meta (SPM/WDT/74/202605 je v stolpcu)
+    invoice_number = ""
+    if len(data) > 1:
+        for cell in data[1]:
+            cell_str = str(cell)
+            if "SPM/WDT" in cell_str or "SPM\\WDT" in cell_str:
+                invoice_number = cell_str.strip()
+                break
+
+    invoice_date = datetime.now().strftime("%Y-%m-%d")
+    if "202" in sheet_name:
+        m = re.search(r"_(\d{6})$", sheet_name)
+        if m:
+            ym = m.group(1)
+            try:
+                invoice_date = f"{ym[0:4]}-{ym[4:6]}-01"
+            except Exception:
+                pass
+
+    items = []
+    for row in data[2:]:
+        if not row or len(row) < 5:
+            continue
+        try:
+            lp = row[0]
+            if lp is None or str(lp).strip() == "":
+                continue
+            float(lp)
+        except (ValueError, TypeError):
+            continue
+
+        product_code = str(row[1] or "").strip()
+        description = str(row[2] or "").strip()
+        qty_raw = str(row[3] or "1").replace(",", ".").strip()
+        net_price_raw = str(row[4] or "0").replace(",", ".").strip()
+
+        try:
+            qty = float(qty_raw)
+            unit_price = float(net_price_raw)
+        except ValueError:
+            continue
+
+        items.append({
+            "product_number": product_code,
+            "product_name": description,
+            "qty": int(qty) if qty == int(qty) else qty,
+            "unit_price": unit_price,
+            "value": round(qty * unit_price, 2),
+        })
+
+    return {
+        "invoice_number": invoice_number or sheet_name,
+        "invoice_date": invoice_date,
+        "currency": "EUR",
+        "vendor_name": "Abakus",
+        "items": items,
+    }
+
+
+def _parse_ikonka_pdf(content: bytes) -> dict:
+    """Parse Ikonka/KIK PDF (FAKTURA VAT UE).
+    Uporabimo Claude API ker je PDF struktura kompleksna."""
+    import base64
+    pdf_b64 = base64.standard_b64encode(content).decode('utf-8')
+
+    msg = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=8000,
+        messages=[{
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {"type": "base64", "media_type": "application/pdf", "data": pdf_b64}
+                },
+                {
+                    "type": "text",
+                    "text": """Parse this Ikonka/KIK supplier invoice PDF. Extract structured data.
+
+Return ONLY a valid JSON object — no markdown, no explanation.
+
+CRITICAL: NET PRICE ONLY (cena netto), ignore brutto. We need supplier's net price without VAT.
+
+JSON format:
+{
+  "invoice_number": "10941/HT/05/2026",
+  "invoice_date": "2026-05-13",
+  "items": [
+    {
+      "product_number": "KX3085",
+      "product_name": "Kijki kije trekkingowe składane 2 sztuki czarne",
+      "qty": 1,
+      "unit_price": 3.98
+    }
+  ]
+}
+
+Rules:
+- invoice_number: vzami iz "FAKTURA VAT UE XXXX" linije
+- invoice_date: "Data wystawienia"
+- product_number: kolona "Symbol" (npr. KX3085), NE EAN
+- product_name: kolona "Nazwa"
+- qty: kolona "Ilość szt."
+- unit_price: kolona "Cena netto" (NE brutto)
+- IGNORE "Przelew B2B_PAYMENT" in "kurier" rows — to so plačilo/dostava, ne produkti
+- Return only product items
+"""
+                }
+            ]
+        }]
+    )
+
+    raw = msg.content[0].text.strip()
+    # Strip markdown
+    import re as _re
+    raw = _re.sub(r'^```(?:json)?\s*', '', raw)
+    raw = _re.sub(r'\s*```$', '', raw)
+    parsed = json.loads(raw)
+
+    # Doplnimo value
+    for it in parsed.get("items", []):
+        try:
+            qty = float(it.get("qty", 1))
+            up = float(it.get("unit_price", 0))
+            it["value"] = round(qty * up, 2)
+        except Exception:
+            it["value"] = 0
+
+    parsed["currency"] = "EUR"
+    parsed["vendor_name"] = "Ikonka (KIK)"
+    return parsed
+
+
+# Supplier name lookup
+SUPPLIER_NAMES = {
+    "motoprofil": "MotoProfil",
+    "intercars": "Intercars",
+    "abakus": "Abakus",
+    "ikonka": "Ikonka (KIK)",
+    "amio": "AMiO",
+    "unknown": "Unknown",
+}
+
+
+@app.post("/prevzemi-parse-supplier")
+async def prevzemi_parse_supplier(file: UploadFile = File(...)):
+    """Auto-detect supplier + parse with appropriate parser. Returns same JSON as PDF endpoint."""
+    try:
+        content = await file.read()
+        supplier = _detect_supplier(file.filename or "", content)
+
+        if supplier == "unknown":
+            return {"ok": False, "error": "Dobavitelj ni prepoznan. Podprti: AMiO, MotoProfil, Ikonka, Intercars, Abakus."}
+
+        # Parse glede na dobavitelja
+        if supplier == "motoprofil":
+            parsed = _parse_motoprofil_csv(content, file.filename or "")
+        elif supplier == "intercars":
+            parsed = _parse_intercars_xml(content)
+        elif supplier == "abakus":
+            parsed = _parse_abakus_xlsx(content)
+        elif supplier == "ikonka":
+            parsed = _parse_ikonka_pdf(content)
+        elif supplier == "amio":
+            # Fallback na obstoječi PDF parser (Claude)
+            return {"ok": False, "error": "Za AMiO uporabi /prevzemi-parse-pdf endpoint", "redirect": "amio"}
+        else:
+            return {"ok": False, "error": f"Parser za '{supplier}' še ni implementiran"}
+
+        if not parsed.get("items"):
+            return {"ok": False, "error": "Ni najdenih izdelkov v fajlu"}
+
+        # Shrani na disk (enako kot /prevzemi-parse-pdf)
+        from datetime import datetime
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        invoice_num_safe = _safe_filename(parsed.get('invoice_number', 'unknown'))
+        record_id = f"{ts}_{invoice_num_safe}"
+        target_dir = PREVZEMI_DIR / record_id
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save source file
+        safe_filename = _safe_filename(file.filename or "invoice")
+        (target_dir / f'source_{safe_filename}').write_bytes(content)
+        # Save parsed JSON
+        (target_dir / 'parsed.json').write_text(json.dumps(parsed, indent=2, ensure_ascii=False), encoding='utf-8')
+        # Save metadata
+        meta = {
+            'record_id': record_id,
+            'original_filename': file.filename or 'invoice',
+            'created_ts': ts,
+            'supplier': supplier,
+            'supplier_name': SUPPLIER_NAMES.get(supplier, supplier),
+            'invoice_number': parsed.get('invoice_number', ''),
+            'invoice_date': parsed.get('invoice_date', ''),
+            'vendor_name': parsed.get('vendor_name', ''),
+            'item_count': len(parsed.get('items', [])),
+        }
+        (target_dir / 'meta.json').write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding='utf-8')
+
+        return {
+            "ok": True,
+            "record_id": record_id,
+            "supplier": supplier,
+            "supplier_name": SUPPLIER_NAMES.get(supplier, supplier),
+            "missing_names": parsed.get("_missing_names", False),
+            "parsed": parsed,
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+class UpdateItemsRequest(BaseModel):
+    record_id: str
+    items: list  # list of {product_number, product_name, qty, unit_price, value}
+
+
+@app.post("/prevzemi-update-items")
+async def prevzemi_update_items(req: UpdateItemsRequest):
+    """Update items in a parsed record (npr. po Intercars name vpisu)."""
+    try:
+        rec_safe = _safe_filename(req.record_id)
+        target = PREVZEMI_DIR / rec_safe / 'parsed.json'
+        if not target.exists():
+            return {"ok": False, "error": "Record not found"}
+        parsed = json.loads(target.read_text(encoding='utf-8'))
+
+        # Update items (replace whole array — frontend pošlje vse)
+        parsed["items"] = req.items
+        # Reset missing flag
+        parsed.pop("_missing_names", None)
+
+        target.write_text(json.dumps(parsed, indent=2, ensure_ascii=False), encoding='utf-8')
+        return {"ok": True, "item_count": len(req.items)}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
