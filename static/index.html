@@ -3020,6 +3020,39 @@ input[type="text"].error { border-color: var(--red) !important; }
 
       <!-- DESNO: Rezultat tabela -->
       <div>
+        <!-- ─── EMAIL BATCH HERO ─── -->
+        <div class="card" style="padding:0;overflow:hidden;border:none;margin-bottom:12px">
+          <div style="background:linear-gradient(135deg,#16a34a 0%,#15803d 100%);color:white;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px">
+            <div style="flex:1;min-width:220px">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:0.85;font-weight:600;margin-bottom:4px">📧 Email avtomatizacija</div>
+              <div style="font-size:18px;font-weight:700;letter-spacing:-0.3px">Procesiraj nove e-maile</div>
+              <div style="font-size:11px;opacity:0.85;margin-top:3px">Potegne XML + PDF iz <strong>parcels@maaarket.eu</strong> → razdeli na DU/NU → zazipira</div>
+            </div>
+            <button id="knjBatchHeroBtn" onclick="knjBatchProcess()" style="padding:14px 28px;background:white;color:#15803d;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(0,0,0,0.15);transition:all 0.2s;white-space:nowrap" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 18px rgba(0,0,0,0.2)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 14px rgba(0,0,0,0.15)'">
+              📥 POTEGNI ZDAJ
+            </button>
+          </div>
+
+          <!-- Progress bar (during processing) -->
+          <div id="knjBatchProgress" style="display:none;padding:14px 22px;background:var(--surface);border-top:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <span id="knjBatchProgressLabel" style="font-size:13px;font-weight:600;color:var(--text)">⏳ Povezujem na IMAP...</span>
+              <span id="knjBatchProgressTimer" style="font-size:12px;color:var(--text-secondary);font-family:'DM Mono',monospace">0.0s</span>
+            </div>
+            <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
+              <div id="knjBatchProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#16a34a,#22c55e);border-radius:3px;transition:width 0.3s;animation:knjPulse 1.5s ease-in-out infinite"></div>
+            </div>
+          </div>
+
+          <!-- Result panel (after success) -->
+          <div id="knjBatchResult" style="display:none;padding:18px 22px;background:var(--surface);border-top:1px solid var(--border)">
+            <!-- filled by JS -->
+          </div>
+        </div>
+        <style>
+          @keyframes knjPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        </style>
+
         <div class="card" id="knjResultCard" style="display:none">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
             <div>
@@ -3036,8 +3069,8 @@ input[type="text"].error { border-color: var(--red) !important; }
             <table id="knjTable" style="width:100%;border-collapse:collapse;font-size:11px"></table>
           </div>
         </div>
-        <div id="knjEmpty" style="text-align:center;color:var(--text-tertiary);font-size:13px;padding:60px 20px">
-          📂 Naloži Polcar XML(-je) za pretvorbo v CSV.
+        <div id="knjEmpty" style="text-align:center;color:var(--text-tertiary);font-size:13px;padding:40px 20px;background:var(--surface);border:1px dashed var(--border);border-radius:var(--radius)">
+          📂 Naloži Polcar XML(-je) za pretvorbo, ali klikni gumb zgoraj za batch obdelavo e-mailov.
         </div>
       </div>
     </div>
@@ -16215,32 +16248,168 @@ function switchStorageTab(tab) {
 }
 
 async function knjBatchProcess() {
-  const btn = document.getElementById('knjBatchBtn');
-  const status = document.getElementById('knjBatchStatus');
-  btn.disabled = true;
-  btn.style.opacity = '0.6';
-  btn.innerHTML = '⏳ Procesiranje...';
-  status.innerHTML = '<span style="color:var(--text-secondary)">⏳ IMAP fetch + obdelava emailov... (lahko traja 10-60s)</span>';
+  const btn = document.getElementById('knjBatchBtn');           // pomožni gumb v Storage tabu (lahko ne obstaja)
+  const heroBtn = document.getElementById('knjBatchHeroBtn');   // glavni gumb v Knjigovodstvo
+  const status = document.getElementById('knjBatchStatus');     // pod gumbom v Storage tabu
+  const progBox = document.getElementById('knjBatchProgress');
+  const progLabel = document.getElementById('knjBatchProgressLabel');
+  const progTimer = document.getElementById('knjBatchProgressTimer');
+  const progBar = document.getElementById('knjBatchProgressBar');
+  const resultBox = document.getElementById('knjBatchResult');
+
+  // Disable buttons
+  [btn, heroBtn].forEach(b => { if (b) { b.disabled = true; b.style.opacity = '0.6'; b.style.cursor = 'wait'; } });
+  if (btn) btn.innerHTML = '⏳ Procesiranje...';
+  if (heroBtn) heroBtn.innerHTML = '⏳ POTEGUJEM...';
+
+  if (status) status.innerHTML = '<span style="color:var(--text-secondary)">⏳ IMAP fetch + obdelava... (lahko traja 10-60s)</span>';
+
+  // Pokaži progress box, skrij result box
+  if (progBox) progBox.style.display = 'block';
+  if (resultBox) resultBox.style.display = 'none';
+
+  // Live timer + step animation
+  const startTime = performance.now();
+  const steps = [
+    {at: 0,    label: '⏳ Povezujem na IMAP server...', pct: 8},
+    {at: 1500, label: '📥 Iščem nove (UNSEEN) e-maile...', pct: 22},
+    {at: 4000, label: '📦 Pretovarjam attachmente...', pct: 45},
+    {at: 8000, label: '🔧 Razčlenjujem XML (DU/NU)...', pct: 65},
+    {at: 15000, label: '📑 Generiram CSV-je...', pct: 82},
+    {at: 25000, label: '🗜️ Pakiram v ZIP...', pct: 92},
+    {at: 40000, label: '⏳ Še trenutek...', pct: 96},
+  ];
+  let currentStep = 0;
+  const stepTimer = setInterval(() => {
+    const elapsed = performance.now() - startTime;
+    // Update timer
+    if (progTimer) progTimer.textContent = (elapsed / 1000).toFixed(1) + 's';
+    // Advance step
+    while (currentStep < steps.length - 1 && elapsed >= steps[currentStep + 1].at) {
+      currentStep++;
+    }
+    const step = steps[currentStep];
+    if (progLabel) progLabel.textContent = step.label;
+    if (progBar) progBar.style.width = step.pct + '%';
+  }, 100);
 
   try {
     const r = await fetch('/knjigovodstvo-process-emails', {method: 'POST'});
     const d = await r.json();
+    clearInterval(stepTimer);
+    const elapsedSec = ((performance.now() - startTime) / 1000).toFixed(1);
+
+    if (progBar) progBar.style.width = '100%';
+    if (progLabel) progLabel.textContent = d.ok ? '✓ Končano' : '❌ Napaka';
+    if (progTimer) progTimer.textContent = elapsedSec + 's';
+
+    // Skrij progress čez 500ms, pokaži result
+    setTimeout(() => {
+      if (progBox) progBox.style.display = 'none';
+    }, 500);
+
     if (d.ok) {
       if (d.emails === 0) {
-        status.innerHTML = '<span style="color:var(--text-secondary)">✓ ' + (d.message || 'Ni novih emailov') + '</span>';
+        // Ni novih e-mailov
+        if (resultBox) {
+          resultBox.style.display = 'block';
+          resultBox.innerHTML = `
+            <div style="display:flex;align-items:center;gap:14px">
+              <div style="font-size:32px">📭</div>
+              <div style="flex:1">
+                <div style="font-size:14px;font-weight:700;color:var(--text)">Ni novih e-mailov</div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">
+                  ${d.message || 'V inboxu ni neprebranih sporočil z attachmenti.'} · ${elapsedSec}s
+                </div>
+              </div>
+            </div>
+          `;
+        }
+        if (status) status.innerHTML = '<span style="color:var(--text-secondary)">✓ ' + (d.message || 'Ni novih emailov') + '</span>';
       } else {
-        status.innerHTML = `<span style="color:#16a34a">✓ Obdelano <strong>${d.emails}</strong> emailov · ${d.debit_rows} DU + ${d.credit_rows} NU + ${d.pdf_count} PDF · ZIP: ${d.zip_size_kb} KB</span>`;
-        knjBatchLoadList();
+        // Uspeh — pokaži rezultate
+        if (resultBox) {
+          resultBox.style.display = 'block';
+          const totalRows = (d.debit_rows || 0) + (d.credit_rows || 0);
+          resultBox.innerHTML = `
+            <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--surface2)">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+                <div>
+                  <div style="font-size:18px;font-weight:800;color:#16a34a;letter-spacing:-0.3px">✅ Uspešno obdelano</div>
+                  <div style="font-size:12px;color:var(--text-secondary);margin-top:3px">Čas: <strong style="color:var(--text);font-family:'DM Mono',monospace">${elapsedSec}s</strong> · ZIP: <strong style="color:var(--text)">${d.zip_filename}</strong></div>
+                </div>
+                <a href="/storage-knjigovodstvo/${encodeURIComponent(d.zip_filename || '')}" download style="padding:8px 14px;background:var(--accent);color:white;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;font-family:inherit;display:inline-flex;align-items:center;gap:6px">📥 Prenesi ZIP</a>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">
+              <div style="background:rgba(58,111,255,0.08);padding:12px 14px;border-radius:8px;border-left:3px solid var(--accent)">
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-tertiary);font-weight:700">📧 E-mailov</div>
+                <div style="font-size:24px;font-weight:800;color:var(--accent);margin-top:4px;font-family:'DM Mono',monospace">${d.emails}</div>
+              </div>
+              <div style="background:rgba(239,68,68,0.08);padding:12px 14px;border-radius:8px;border-left:3px solid #ef4444">
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-tertiary);font-weight:700">📕 DU vrstic</div>
+                <div style="font-size:24px;font-weight:800;color:#ef4444;margin-top:4px;font-family:'DM Mono',monospace">${d.debit_rows}</div>
+              </div>
+              <div style="background:rgba(34,197,94,0.08);padding:12px 14px;border-radius:8px;border-left:3px solid #16a34a">
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-tertiary);font-weight:700">📗 NU vrstic</div>
+                <div style="font-size:24px;font-weight:800;color:#16a34a;margin-top:4px;font-family:'DM Mono',monospace">${d.credit_rows}</div>
+              </div>
+              <div style="background:rgba(245,158,11,0.08);padding:12px 14px;border-radius:8px;border-left:3px solid #f59e0b">
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-tertiary);font-weight:700">📄 PDF-jev</div>
+                <div style="font-size:24px;font-weight:800;color:#f59e0b;margin-top:4px;font-family:'DM Mono',monospace">${d.pdf_count}</div>
+              </div>
+              <div style="background:var(--surface2);padding:12px 14px;border-radius:8px;border-left:3px solid var(--text-tertiary)">
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-tertiary);font-weight:700">💾 Velikost</div>
+                <div style="font-size:24px;font-weight:800;color:var(--text);margin-top:4px;font-family:'DM Mono',monospace">${d.zip_size_kb}<span style="font-size:12px;opacity:0.6"> KB</span></div>
+              </div>
+            </div>
+            <div style="margin-top:12px;padding:10px 12px;background:rgba(34,197,94,0.05);border:1px dashed rgba(34,197,94,0.3);border-radius:6px;font-size:11px;color:var(--text-secondary);line-height:1.5">
+              💡 <strong>ZIP shranjen v Storage → Knjigovodstvo.</strong> E-maili so označeni kot prebrani — ne bodo se ponovno procesirali. Skupaj <strong>${totalRows}</strong> računovodskih vrstic.
+            </div>
+          `;
+        }
+        if (status) status.innerHTML = `<span style="color:#16a34a">✓ Obdelano <strong>${d.emails}</strong> emailov · ${d.debit_rows} DU + ${d.credit_rows} NU + ${d.pdf_count} PDF · ZIP: ${d.zip_size_kb} KB · ${elapsedSec}s</span>`;
+        knjBatchLoadList && knjBatchLoadList();
       }
     } else {
-      status.innerHTML = '<span style="color:#ef4444">❌ ' + (d.error || 'napaka') + '</span>';
+      // Napaka
+      if (resultBox) {
+        resultBox.style.display = 'block';
+        resultBox.innerHTML = `
+          <div style="display:flex;align-items:center;gap:14px;padding:6px 0">
+            <div style="font-size:32px">❌</div>
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:700;color:#dc2626">Napaka pri obdelavi</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;font-family:'DM Mono',monospace;background:var(--surface2);padding:6px 10px;border-radius:5px">${d.error || 'neznana napaka'}</div>
+              <div style="font-size:11px;color:var(--text-tertiary);margin-top:6px">Čas: ${elapsedSec}s · Poskusi znova ali preveri Email Avtomatizacija nastavitve</div>
+            </div>
+          </div>
+        `;
+      }
+      if (status) status.innerHTML = '<span style="color:#ef4444">❌ ' + (d.error || 'napaka') + '</span>';
     }
   } catch (e) {
-    status.innerHTML = '<span style="color:#ef4444">❌ ' + e.message + '</span>';
+    clearInterval(stepTimer);
+    const elapsedSec = ((performance.now() - startTime) / 1000).toFixed(1);
+    if (progBox) progBox.style.display = 'none';
+    if (resultBox) {
+      resultBox.style.display = 'block';
+      resultBox.innerHTML = `
+        <div style="display:flex;align-items:center;gap:14px;padding:6px 0">
+          <div style="font-size:32px">❌</div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:700;color:#dc2626">Network napaka</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">${e.message}</div>
+            <div style="font-size:11px;color:var(--text-tertiary);margin-top:6px">Čas: ${elapsedSec}s</div>
+          </div>
+        </div>
+      `;
+    }
+    if (status) status.innerHTML = '<span style="color:#ef4444">❌ ' + e.message + '</span>';
   } finally {
-    btn.disabled = false;
-    btn.style.opacity = '1';
-    btn.innerHTML = '📥 Procesiraj nove emaile';
+    [btn, heroBtn].forEach(b => { if (b) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; } });
+    if (btn) btn.innerHTML = '📥 Procesiraj nove emaile';
+    if (heroBtn) heroBtn.innerHTML = '📥 POTEGNI ZDAJ';
   }
 }
 
