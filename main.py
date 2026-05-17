@@ -10094,14 +10094,14 @@ def _parse_shipping_xls(content: bytes) -> dict:
 
 
 def _aggregate_shipping_rows(rows: list, month: str = None, kind: str = "inventory") -> dict:
-    """Sestavi vse agregate iz seznama rows. Vrne summary objekt."""
-    from collections import defaultdict
+    """Sestavi vse agregate iz seznama rows. Vrne summary objekt.
+    Vključuje fee fingerprints za anomaly detection."""
+    from collections import defaultdict, Counter
 
     def safe_total(r):
         t = r.get("total_no_vat") or 0
         if t > 0:
             return float(t)
-        # Fallback če manjka
         return (r.get("weight_price") or 0) + (r.get("cod_price") or 0) + (r.get("sms_price") or 0) + \
                (r.get("insurance_price") or 0) + (r.get("fuel_tax") or 0) + (r.get("extra_cost") or 0) - \
                (r.get("disc_sum") or 0)
@@ -10112,7 +10112,7 @@ def _aggregate_shipping_rows(rows: list, month: str = None, kind: str = "invento
     def is_successful_cod(r):
         return (r.get("cod_eur") or 0) > 0 and (r.get("total_no_vat") or 0) > 0
 
-    # KPI summary
+    # Standard KPIs
     total_cost = 0.0
     total_weight = 0.0
     by_country = defaultdict(lambda: {"count": 0, "cost": 0.0, "weight": 0.0, "cod_count": 0,
@@ -10129,11 +10129,27 @@ def _aggregate_shipping_rows(rows: list, month: str = None, kind: str = "invento
         {"label": "5 - 10 kg", "min": 5, "max": 10, "count": 0, "cost": 0.0},
         {"label": "> 10 kg", "min": 10, "max": 1e9, "count": 0, "cost": 0.0},
     ]
-    # Heaviest & priciest
     heaviest = None
     priciest = None
-    # COD packages list (for sub-analysis)
-    cod_rows_summary = []  # samo basic info za nadaljnjo agregacijo per country-month
+    cod_rows_summary = []
+
+    # === FEE FINGERPRINTS za anomaly detection (per country) ===
+    fee_fingerprint = defaultdict(lambda: {
+        "extra_cost_values": Counter(),       # {0.08: 1500, 0.12: 200, ...}
+        "extra_cost_count": 0,
+        "extra_cost_sum": 0.0,
+        "fuel_tax_pct_values": Counter(),     # {5.5: 4000, 4.5: 100}
+        "fuel_tax_count": 0,
+        "fuel_tax_sum": 0.0,
+        "sms_count": 0,
+        "sms_sum": 0.0,
+        "insurance_count": 0,
+        "insurance_sum": 0.0,
+        "cod_price_count": 0,
+        "cod_price_sum": 0.0,
+        "weight_price_sum": 0.0,
+        "weight_price_count": 0,
+    })
 
     for r in rows:
         cost = safe_total(r)
@@ -10179,7 +10195,6 @@ def _aggregate_shipping_rows(rows: list, month: str = None, kind: str = "invento
             priciest = {"waybill": r.get("waybill"), "country": country, "city": r.get("city"),
                         "weight_kg": weight, "cost": cost}
 
-        # COD packages — keep minimal info for cross-month aggregation
         if is_successful_cod(r):
             cod_rows_summary.append({
                 "country": country,
@@ -10188,6 +10203,57 @@ def _aggregate_shipping_rows(rows: list, month: str = None, kind: str = "invento
                 "weight": weight,
                 "cod_amount": r.get("cod_eur") or 0,
             })
+
+        # === Update fee fingerprint za to državo ===
+        fp = fee_fingerprint[country]
+        ec = round(r.get("extra_cost") or 0, 4)
+        if ec > 0:
+            fp["extra_cost_values"][ec] += 1
+            fp["extra_cost_count"] += 1
+            fp["extra_cost_sum"] += ec
+        ftp = round(r.get("fuel_tax_pct") or 0, 2)
+        if ftp > 0:
+            fp["fuel_tax_pct_values"][ftp] += 1
+        ft = r.get("fuel_tax") or 0
+        if ft > 0:
+            fp["fuel_tax_count"] += 1
+            fp["fuel_tax_sum"] += ft
+        sms = r.get("sms_price") or 0
+        if sms > 0:
+            fp["sms_count"] += 1
+            fp["sms_sum"] += sms
+        ins = r.get("insurance_price") or 0
+        if ins > 0:
+            fp["insurance_count"] += 1
+            fp["insurance_sum"] += ins
+        cod_p = r.get("cod_price") or 0
+        if cod_p > 0:
+            fp["cod_price_count"] += 1
+            fp["cod_price_sum"] += cod_p
+        wp = r.get("weight_price") or 0
+        if wp > 0:
+            fp["weight_price_sum"] += wp
+            fp["weight_price_count"] += 1
+
+    # Convert Counter to dict for JSON serialization
+    fee_fp_clean = {}
+    for c, fp in fee_fingerprint.items():
+        fee_fp_clean[c] = {
+            "extra_cost_values": dict(fp["extra_cost_values"]),
+            "extra_cost_count": fp["extra_cost_count"],
+            "extra_cost_sum": fp["extra_cost_sum"],
+            "fuel_tax_pct_values": dict(fp["fuel_tax_pct_values"]),
+            "fuel_tax_count": fp["fuel_tax_count"],
+            "fuel_tax_sum": fp["fuel_tax_sum"],
+            "sms_count": fp["sms_count"],
+            "sms_sum": fp["sms_sum"],
+            "insurance_count": fp["insurance_count"],
+            "insurance_sum": fp["insurance_sum"],
+            "cod_price_count": fp["cod_price_count"],
+            "cod_price_sum": fp["cod_price_sum"],
+            "weight_price_sum": fp["weight_price_sum"],
+            "weight_price_count": fp["weight_price_count"],
+        }
 
     cod_count_total = sum(c["cod_count"] for c in by_country.values())
     cod_success_total = sum(c["cod_success"] for c in by_country.values())
@@ -10209,6 +10275,7 @@ def _aggregate_shipping_rows(rows: list, month: str = None, kind: str = "invento
         "cod_success_total": cod_success_total,
         "zero_total": zero_total,
         "cod_rows": cod_rows_summary,
+        "fee_fingerprint": fee_fp_clean,
     }
 
 
@@ -10323,6 +10390,221 @@ async def shipping_rebuild_cache():
             if s:
                 rebuilt.append({"month": month_dir.name, "rows": s.get("row_count", 0)})
         return {"ok": True, "rebuilt": rebuilt}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/shipping-anomalies")
+async def shipping_anomalies():
+    """Mesec-na-mesec anomaly detection. Vrne seznam zaznanih anomalij po državah."""
+    try:
+        # Naloži vse summarije
+        summaries = {}
+        for month_dir in sorted(SHIPPING_DIR.iterdir()):
+            if not month_dir.is_dir():
+                continue
+            sf = month_dir / "summary.json"
+            if not sf.exists():
+                _build_shipping_summary_for_month(month_dir)
+            if sf.exists():
+                try:
+                    summaries[month_dir.name] = json.loads(sf.read_text(encoding='utf-8'))
+                except Exception:
+                    continue
+
+        months = sorted(summaries.keys())
+        if len(months) < 2:
+            return {"ok": False, "error": "Potrebno je vsaj 2 meseca za primerjavo"}
+
+        anomalies = []
+
+        # Za vsako državo primerjaj zadnji mesec z prejšnjim + povprečjem ostalih
+        for i in range(1, len(months)):
+            curr_m = months[i]
+            prev_m = months[i-1]
+            curr = summaries[curr_m].get("fee_fingerprint", {})
+            prev = summaries[prev_m].get("fee_fingerprint", {})
+            curr_by_c = summaries[curr_m].get("by_country", {})
+            prev_by_c = summaries[prev_m].get("by_country", {})
+
+            # Skupek vseh držav v obeh
+            countries = set(list(curr.keys()) + list(prev.keys()))
+
+            for country in countries:
+                cfp = curr.get(country, {})
+                pfp = prev.get(country, {})
+                ccount = curr_by_c.get(country, {}).get("count", 0)
+                pcount = prev_by_c.get(country, {}).get("count", 0)
+
+                # Skip države z malo paketov (premalo signala)
+                if ccount < 20 or pcount < 20:
+                    continue
+
+                # ── ANOMALY 1: Novi extra_cost vrednosti ──
+                curr_ec_vals = set(float(v) for v in cfp.get("extra_cost_values", {}).keys())
+                prev_ec_vals = set(float(v) for v in pfp.get("extra_cost_values", {}).keys())
+                new_ec_vals = curr_ec_vals - prev_ec_vals
+                if new_ec_vals:
+                    for val in sorted(new_ec_vals):
+                        affected = cfp.get("extra_cost_values", {}).get(str(val), 0) or cfp.get("extra_cost_values", {}).get(val, 0)
+                        if affected > 5:  # min 5 paketov da signaliziramo
+                            estimated_impact = val * affected
+                            anomalies.append({
+                                "type": "new_extra_cost",
+                                "severity": "high" if affected > 100 else "medium",
+                                "country": country,
+                                "month": curr_m,
+                                "prev_month": prev_m,
+                                "title": f"Nov 'extra cost' {val:.2f}€ pri {country}",
+                                "details": f"V {curr_m} se je pojavila nova vrednost 'extra cost' = {val:.2f}€ pri {affected} paketih. V {prev_m} te vrednosti ni bilo.",
+                                "value": val,
+                                "affected_packages": affected,
+                                "estimated_monthly_impact": round(estimated_impact, 2),
+                            })
+
+                # ── ANOMALY 2: Extra cost frekvenca skok ──
+                # Delež paketov z extra_cost
+                pec_pct = pfp.get("extra_cost_count", 0) / pcount * 100 if pcount else 0
+                cec_pct = cfp.get("extra_cost_count", 0) / ccount * 100 if ccount else 0
+                # Če je skočil za 20%+ in v abs. več kot 100 paketov
+                if cec_pct - pec_pct > 20 and cfp.get("extra_cost_count", 0) > 100:
+                    new_packages = cfp.get("extra_cost_count", 0) - pfp.get("extra_cost_count", 0)
+                    estimated_impact = cfp.get("extra_cost_sum", 0) - pfp.get("extra_cost_sum", 0)
+                    anomalies.append({
+                        "type": "extra_cost_frequency_jump",
+                        "severity": "high",
+                        "country": country,
+                        "month": curr_m,
+                        "prev_month": prev_m,
+                        "title": f"Eksplozija 'extra cost' pri {country}",
+                        "details": f"Delež paketov z extra cost je skočil iz {pec_pct:.1f}% ({pfp.get('extra_cost_count', 0)} paketov) na {cec_pct:.1f}% ({cfp.get('extra_cost_count', 0)} paketov)",
+                        "value": cec_pct - pec_pct,
+                        "affected_packages": cfp.get("extra_cost_count", 0),
+                        "estimated_monthly_impact": round(estimated_impact, 2),
+                    })
+
+                # ── ANOMALY 3: Fuel tax % sprememba ──
+                curr_ft_pcts = set(float(v) for v in cfp.get("fuel_tax_pct_values", {}).keys())
+                prev_ft_pcts = set(float(v) for v in pfp.get("fuel_tax_pct_values", {}).keys())
+                # Nove vrednosti %
+                new_ft_pcts = curr_ft_pcts - prev_ft_pcts
+                gone_ft_pcts = prev_ft_pcts - curr_ft_pcts
+                # Če je sprememba
+                if new_ft_pcts and prev_ft_pcts:
+                    curr_max = max(curr_ft_pcts) if curr_ft_pcts else 0
+                    prev_max = max(prev_ft_pcts) if prev_ft_pcts else 0
+                    if curr_max > prev_max * 1.05:  # 5%+ povečanje
+                        diff_pct = curr_max - prev_max
+                        prev_fuel_sum = pfp.get("fuel_tax_sum", 0)
+                        curr_fuel_sum = cfp.get("fuel_tax_sum", 0)
+                        impact = curr_fuel_sum - prev_fuel_sum
+                        anomalies.append({
+                            "type": "fuel_tax_pct_increase",
+                            "severity": "high" if (curr_max - prev_max) > 1 else "medium",
+                            "country": country,
+                            "month": curr_m,
+                            "prev_month": prev_m,
+                            "title": f"Povišan fuel tax pri {country}: {prev_max:.1f}% → {curr_max:.1f}%",
+                            "details": f"Najvišji fuel tax procent se je povišal iz {prev_max:.1f}% na {curr_max:.1f}% (+{diff_pct:.1f} odstotne točke). Skupni fuel tax stroški: {prev_fuel_sum:.2f}€ → {curr_fuel_sum:.2f}€",
+                            "value": diff_pct,
+                            "affected_packages": cfp.get("fuel_tax_count", 0),
+                            "estimated_monthly_impact": round(impact, 2),
+                        })
+
+                # ── ANOMALY 4: Povprečna teža-cena sprememba ──
+                # Pov. weight price = total weight_price / count (uporabni za primerjavo)
+                if ccount > 50 and pcount > 50:
+                    p_avg_wp = pfp.get("weight_price_sum", 0) / pcount if pcount else 0
+                    c_avg_wp = cfp.get("weight_price_sum", 0) / ccount if ccount else 0
+                    if p_avg_wp > 0.1:
+                        change_pct = (c_avg_wp - p_avg_wp) / p_avg_wp * 100
+                        if abs(change_pct) > 8:  # 8%+ sprememba pov. cene/paket
+                            impact = (c_avg_wp - p_avg_wp) * ccount
+                            anomalies.append({
+                                "type": "weight_price_change",
+                                "severity": "high" if abs(change_pct) > 15 else "medium",
+                                "country": country,
+                                "month": curr_m,
+                                "prev_month": prev_m,
+                                "title": f"Povp. cena tehtanja {country}: {p_avg_wp:.2f}€ → {c_avg_wp:.2f}€ ({change_pct:+.1f}%)",
+                                "details": f"Povp. weight price/paket se je {'povečal' if change_pct > 0 else 'znižal'} za {abs(change_pct):.1f}%. ({pcount} paketov v {prev_m}, {ccount} paketov v {curr_m})",
+                                "value": change_pct,
+                                "affected_packages": ccount,
+                                "estimated_monthly_impact": round(impact, 2),
+                            })
+
+                # ── ANOMALY 5: SMS / Insurance fee novi ali porasel ──
+                p_sms_pct = pfp.get("sms_count", 0) / pcount * 100 if pcount else 0
+                c_sms_pct = cfp.get("sms_count", 0) / ccount * 100 if ccount else 0
+                if c_sms_pct - p_sms_pct > 15 and cfp.get("sms_count", 0) > 50:
+                    impact = cfp.get("sms_sum", 0) - pfp.get("sms_sum", 0)
+                    anomalies.append({
+                        "type": "sms_fee_increase",
+                        "severity": "medium",
+                        "country": country,
+                        "month": curr_m,
+                        "prev_month": prev_m,
+                        "title": f"SMS fee povečan pri {country}: {p_sms_pct:.1f}% → {c_sms_pct:.1f}%",
+                        "details": f"SMS fee se zdaj zaračuna {c_sms_pct:.1f}% paketov (prej {p_sms_pct:.1f}%)",
+                        "value": c_sms_pct - p_sms_pct,
+                        "affected_packages": cfp.get("sms_count", 0),
+                        "estimated_monthly_impact": round(impact, 2),
+                    })
+
+                p_ins_pct = pfp.get("insurance_count", 0) / pcount * 100 if pcount else 0
+                c_ins_pct = cfp.get("insurance_count", 0) / ccount * 100 if ccount else 0
+                if c_ins_pct - p_ins_pct > 15 and cfp.get("insurance_count", 0) > 50:
+                    impact = cfp.get("insurance_sum", 0) - pfp.get("insurance_sum", 0)
+                    anomalies.append({
+                        "type": "insurance_fee_increase",
+                        "severity": "medium",
+                        "country": country,
+                        "month": curr_m,
+                        "prev_month": prev_m,
+                        "title": f"Insurance fee povečan pri {country}: {p_ins_pct:.1f}% → {c_ins_pct:.1f}%",
+                        "details": f"Insurance se zdaj zaračuna {c_ins_pct:.1f}% paketov (prej {p_ins_pct:.1f}%)",
+                        "value": c_ins_pct - p_ins_pct,
+                        "affected_packages": cfp.get("insurance_count", 0),
+                        "estimated_monthly_impact": round(impact, 2),
+                    })
+
+                # ── ANOMALY 6: Skupna cena/paket sprememba (samo ne-zero paketi) ──
+                p_data = prev_by_c.get(country, {})
+                c_data = curr_by_c.get(country, {})
+                p_nonzero = p_data.get("count", 0) - p_data.get("zero_count", 0)
+                c_nonzero = c_data.get("count", 0) - c_data.get("zero_count", 0)
+                if p_nonzero > 30 and c_nonzero > 30:
+                    p_avg = p_data.get("cost", 0) / p_nonzero if p_nonzero else 0
+                    c_avg = c_data.get("cost", 0) / c_nonzero if c_nonzero else 0
+                    if p_avg > 0.5:
+                        chg_pct = (c_avg - p_avg) / p_avg * 100
+                        if abs(chg_pct) > 7:
+                            impact = (c_avg - p_avg) * c_nonzero
+                            anomalies.append({
+                                "type": "avg_total_change",
+                                "severity": "high" if abs(chg_pct) > 15 else "medium",
+                                "country": country,
+                                "month": curr_m,
+                                "prev_month": prev_m,
+                                "title": f"Povp. skupna cena {country}: {p_avg:.2f}€ → {c_avg:.2f}€ ({chg_pct:+.1f}%)",
+                                "details": f"Povprečna cena/paket (brez neprevzetih) se je spremenila za {chg_pct:+.1f}%",
+                                "value": chg_pct,
+                                "affected_packages": c_nonzero,
+                                "estimated_monthly_impact": round(impact, 2),
+                            })
+
+        # Sortiraj: severity high → medium, znotraj po impact
+        sev_order = {"high": 0, "medium": 1, "low": 2}
+        anomalies.sort(key=lambda a: (sev_order.get(a["severity"], 9), -abs(a.get("estimated_monthly_impact", 0))))
+
+        return {
+            "ok": True,
+            "anomalies": anomalies,
+            "months_analyzed": months,
+            "count": len(anomalies),
+        }
     except Exception as e:
         import traceback
         traceback.print_exc()
