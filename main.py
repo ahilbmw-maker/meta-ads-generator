@@ -299,12 +299,445 @@ async def startup_event():
     await fetch_all_feeds()
     asyncio.create_task(daily_refresh())
     asyncio.create_task(_daily_cashflow_sync())
+    asyncio.create_task(_email_polling_loop())
 
 
 async def daily_refresh():
     while True:
         await asyncio.sleep(CACHE_TTL_HOURS * 3600)
         await fetch_all_feeds()
+
+
+# ─── EMAIL IMAP POLLING ──────────────────────────────────────────────────────
+
+EMAIL_CONFIG_FILE = DATA_DIR / "email_config.json"
+EMAIL_LOG_FILE    = DATA_DIR / "email_log.json"
+EMAIL_POLL_INTERVAL = 300  # 5 minut
+
+
+def _load_email_config() -> dict:
+    if EMAIL_CONFIG_FILE.exists():
+        try:
+            return json.loads(EMAIL_CONFIG_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+
+def _save_email_config(cfg: dict):
+    # Nikoli ne shranjujemo gesla v plaintext če je v env
+    EMAIL_CONFIG_FILE.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _load_email_log() -> list:
+    if EMAIL_LOG_FILE.exists():
+        try:
+            return json.loads(EMAIL_LOG_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return []
+
+
+def _append_email_log(entry: dict):
+    log = _load_email_log()
+    log.insert(0, entry)  # newest first
+    if len(log) > 500:
+        log = log[:500]
+    EMAIL_LOG_FILE.write_text(json.dumps(log, ensure_ascii=False), encoding="utf-8")
+
+
+def _email_get_password(cfg: dict) -> str:
+    """Geslo iz env vara ima prioriteto pred shranjenim."""
+    return os.environ.get("EMAIL_PASSWORD", "") or cfg.get("password", "")
+
+
+async def _email_polling_loop():
+    """Background loop — preveri inbox vsake EMAIL_POLL_INTERVAL sekund."""
+    await asyncio.sleep(30)  # počakaj na startup
+    while True:
+        try:
+            cfg = _load_email_config()
+            if cfg.get("enabled") and cfg.get("imap_host") and cfg.get("email"):
+                password = _email_get_password(cfg)
+                if password:
+                    count = await asyncio.get_event_loop().run_in_executor(
+                        None, _process_inbox, cfg, password
+                    )
+                    if count > 0:
+                        print(f"[email] Processed {count} new invoice(s)")
+        except Exception as e:
+            print(f"[email] Polling error: {e}")
+        await asyncio.sleep(EMAIL_POLL_INTERVAL)
+
+
+def _process_inbox(cfg: dict, password: str) -> int:
+    """Sinhrona IMAP obdelava — teče v executor threadu."""
+    import imaplib
+    import email as email_lib
+    from email.header import decode_header as _dh
+    from datetime import datetime as _dt
+
+    host = cfg["imap_host"]
+    port = int(cfg.get("imap_port", 993))
+    username = cfg["email"]
+    processed_folder = cfg.get("processed_folder", "Processed")
+    count = 0
+
+    try:
+        if port == 993:
+            mail = imaplib.IMAP4_SSL(host, port)
+        else:
+            mail = imaplib.IMAP4(host, port)
+            mail.starttls()
+        mail.login(username, password)
+    except Exception as e:
+        _append_email_log({
+            "ts": _dt.now().isoformat(), "type": "error",
+            "message": f"IMAP login failed: {e}", "from": "", "subject": ""
+        })
+        return 0
+
+    try:
+        mail.select("INBOX")
+        # Išči neprebrane emaile z attachmenti
+        _, msg_nums = mail.search(None, "UNSEEN")
+        if not msg_nums[0]:
+            mail.logout()
+            return 0
+
+        for num in msg_nums[0].split():
+            try:
+                _, msg_data = mail.fetch(num, "(RFC822)")
+                raw = msg_data[0][1]
+                msg = email_lib.message_from_bytes(raw)
+
+                # Decode subject
+                subj_parts = _dh(msg.get("Subject", ""))
+                subject = "".join(
+                    p.decode(enc or "utf-8") if isinstance(p, bytes) else p
+                    for p, enc in subj_parts
+                )
+                sender = msg.get("From", "")
+
+                # Najdi attachmente
+                attachments = []
+                for part in msg.walk():
+                    cd = part.get("Content-Disposition", "")
+                    if "attachment" not in cd and "inline" not in cd:
+                        continue
+                    filename = part.get_filename()
+                    if not filename:
+                        continue
+                    # Decode filename
+                    fn_parts = _dh(filename)
+                    filename = "".join(
+                        p.decode(enc or "utf-8") if isinstance(p, bytes) else p
+                        for p, enc in fn_parts
+                    )
+                    content = part.get_payload(decode=True)
+                    if content:
+                        attachments.append((filename, content))
+
+                if not attachments:
+                    # Ni attachmentov — označi kot prebran brez obdelave
+                    mail.store(num, "+FLAGS", "\\Seen")
+                    continue
+
+                # Obdelaj vsak attachment
+                results = []
+                for filename, content in attachments:
+                    result = _process_email_attachment(filename, content, subject, sender)
+                    results.append(result)
+
+                # Log
+                statuses = [r["status"] for r in results]
+                _append_email_log({
+                    "ts": _dt.now().isoformat(),
+                    "type": "processed",
+                    "from": sender,
+                    "subject": subject,
+                    "attachments": [r["filename"] for r in results],
+                    "suppliers": [r.get("supplier", "?") for r in results],
+                    "statuses": statuses,
+                    "items": [r.get("item_count", 0) for r in results],
+                    "record_ids": [r.get("record_id", "") for r in results],
+                })
+
+                # Označi kot prebran
+                mail.store(num, "+FLAGS", "\\Seen")
+
+                # Prestavi v Processed folder (ustvari če ne obstaja)
+                try:
+                    mail.create(processed_folder)
+                except Exception:
+                    pass
+                try:
+                    mail.copy(num, processed_folder)
+                    mail.store(num, "+FLAGS", "\\Deleted")
+                    mail.expunge()
+                except Exception:
+                    pass  # Folder move ni critical
+
+                count += 1
+
+            except Exception as e:
+                _append_email_log({
+                    "ts": _dt.now().isoformat(), "type": "error",
+                    "message": f"Email processing error: {e}", "from": "", "subject": ""
+                })
+
+    finally:
+        try:
+            mail.logout()
+        except Exception:
+            pass
+
+    return count
+
+
+def _process_email_attachment(filename: str, content: bytes, subject: str, sender: str) -> dict:
+    """Obdela en attachment — zaznaj dobavitelja in parsiraj."""
+    from datetime import datetime as _dt
+
+    ts = _dt.now().strftime("%Y%m%d_%H%M%S")
+    supplier = _detect_supplier(filename, content)
+    result = {
+        "filename": filename,
+        "supplier": supplier,
+        "status": "ok",
+        "record_id": "",
+        "item_count": 0,
+    }
+
+    try:
+        if supplier == "amio":
+            parsed = _parse_amio_pdf_bytes(content)
+        elif supplier == "motoprofil":
+            parsed = _parse_motoprofil_csv(content, filename)
+        elif supplier == "intercars":
+            parsed = _parse_intercars_xml(content)
+        elif supplier == "abakus":
+            parsed = _parse_abakus_xlsx(content)
+        elif supplier == "ikonka":
+            parsed = _parse_ikonka_pdf(content)
+        else:
+            # Neznan dobavitelj — shrani attachment za ročno obdelavo
+            unknown_dir = PREVZEMI_DIR / f"_email_unknown_{ts}"
+            unknown_dir.mkdir(parents=True, exist_ok=True)
+            (unknown_dir / _safe_filename(filename)).write_bytes(content)
+            (unknown_dir / "meta.json").write_text(json.dumps({
+                "source": "email", "from": sender, "subject": subject,
+                "filename": filename, "supplier": "unknown", "ts": ts
+            }, ensure_ascii=False), encoding="utf-8")
+            result["status"] = "unknown_supplier"
+            return result
+
+        if not parsed or not parsed.get("items"):
+            result["status"] = "no_items"
+            return result
+
+        # Shrani enako kot ročni upload
+        invoice_num_safe = _safe_filename(parsed.get("invoice_number", "unknown"))
+        record_id = f"{ts}_{invoice_num_safe}"
+        target_dir = PREVZEMI_DIR / record_id
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        (target_dir / f"source_{_safe_filename(filename)}").write_bytes(content)
+        (target_dir / "parsed.json").write_text(
+            json.dumps(parsed, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        (target_dir / "meta.json").write_text(json.dumps({
+            "record_id": record_id,
+            "source": "email",
+            "original_filename": filename,
+            "from": sender,
+            "subject": subject,
+            "created_ts": ts,
+            "supplier": supplier,
+            "supplier_name": SUPPLIER_NAMES.get(supplier, supplier),
+            "invoice_number": parsed.get("invoice_number", ""),
+            "invoice_date": parsed.get("invoice_date", ""),
+            "vendor_name": parsed.get("vendor_name", ""),
+            "item_count": len(parsed.get("items", [])),
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        result["record_id"] = record_id
+        result["item_count"] = len(parsed.get("items", []))
+
+    except Exception as e:
+        result["status"] = f"error: {e}"
+
+    return result
+
+
+def _parse_amio_pdf_bytes(content: bytes) -> dict:
+    """AMiO PDF parse z Claude — enako kot /prevzemi-parse-pdf endpoint."""
+    import base64
+    pdf_b64 = base64.standard_b64encode(content).decode("utf-8")
+    # Reuse obstoječe Claude prompt logike — pokliči parse endpoint interno
+    # (Tukaj dupliciramo ključno logiko da se izognemo HTTP loop)
+    msg = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=8000,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": pdf_b64}},
+                {"type": "text", "text": """Parse this supplier invoice PDF. Return ONLY valid JSON.
+
+JSON format:
+{
+  "invoice_number": "...",
+  "invoice_date": "YYYY-MM-DD",
+  "vendor_name": "...",
+  "currency": "EUR",
+  "items": [
+    {"product_number": "...", "product_name": "...", "qty": 1, "unit_price": 0.0, "value": 0.0}
+  ]
+}
+
+Rules:
+- Net price only (brez DDV)
+- Skip header/footer rows
+- product_number: kataloška številka
+"""}
+            ]
+        }]
+    )
+    import re as _re
+    raw = msg.content[0].text.strip()
+    raw = _re.sub(r'^```(?:json)?\s*', '', raw)
+    raw = _re.sub(r'\s*```$', '', raw)
+    parsed = json.loads(raw)
+    for it in parsed.get("items", []):
+        try:
+            it["value"] = round(float(it.get("qty", 1)) * float(it.get("unit_price", 0)), 2)
+        except Exception:
+            it["value"] = 0
+    parsed.setdefault("currency", "EUR")
+    return parsed
+
+
+# ─── EMAIL API ENDPOINTS ─────────────────────────────────────────────────────
+
+class EmailConfigRequest(BaseModel):
+    imap_host: str
+    imap_port: int = 993
+    email: str
+    password: str = ""
+    processed_folder: str = "Processed"
+    enabled: bool = True
+
+
+@app.post("/email-config")
+async def email_config_save(req: EmailConfigRequest):
+    """Shrani IMAP konfiguracija."""
+    try:
+        cfg = {
+            "imap_host": req.imap_host.strip(),
+            "imap_port": req.imap_port,
+            "email": req.email.strip(),
+            "processed_folder": req.processed_folder.strip() or "Processed",
+            "enabled": req.enabled,
+        }
+        # Geslo shrani samo če ni v env varu
+        env_pw = os.environ.get("EMAIL_PASSWORD", "")
+        if req.password and not env_pw:
+            cfg["password"] = req.password
+        elif env_pw:
+            cfg["password"] = ""  # Ni treba shraniti — je v env
+        _save_email_config(cfg)
+        return {"ok": True, "config": {k: v for k, v in cfg.items() if k != "password"}}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/email-config")
+async def email_config_get():
+    """Vrne trenutno konfiguracijo (brez gesla)."""
+    cfg = _load_email_config()
+    has_password = bool(_email_get_password(cfg))
+    return {
+        "ok": True,
+        "config": {k: v for k, v in cfg.items() if k != "password"},
+        "has_password": has_password,
+        "password_source": "env_var" if os.environ.get("EMAIL_PASSWORD") else ("saved" if cfg.get("password") else "none"),
+        "poll_interval_sec": EMAIL_POLL_INTERVAL,
+    }
+
+
+@app.post("/email-check-now")
+async def email_check_now():
+    """Ročni trigger — takoj preveri inbox."""
+    try:
+        cfg = _load_email_config()
+        if not cfg.get("enabled"):
+            return {"ok": False, "error": "Email polling ni omogočen"}
+        if not cfg.get("imap_host") or not cfg.get("email"):
+            return {"ok": False, "error": "Email ni konfiguriran"}
+        password = _email_get_password(cfg)
+        if not password:
+            return {"ok": False, "error": "Geslo manjka — nastavi EMAIL_PASSWORD env var ali vnesi v formi"}
+
+        count = await asyncio.get_event_loop().run_in_executor(
+            None, _process_inbox, cfg, password
+        )
+        return {"ok": True, "processed": count, "message": f"Najdenih {count} novih računov"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/email-test-connection")
+async def email_test_connection():
+    """Testira IMAP povezavo brez obdelave emailov."""
+    import imaplib
+    try:
+        cfg = _load_email_config()
+        password = _email_get_password(cfg)
+        if not cfg.get("imap_host") or not cfg.get("email") or not password:
+            return {"ok": False, "error": "Konfiguracija ni popolna"}
+
+        host = cfg["imap_host"]
+        port = int(cfg.get("imap_port", 993))
+
+        if port == 993:
+            mail = imaplib.IMAP4_SSL(host, port)
+        else:
+            mail = imaplib.IMAP4(host, port)
+            mail.starttls()
+
+        mail.login(cfg["email"], password)
+        _, folders = mail.list()
+        mail.select("INBOX")
+        _, unseen = mail.search(None, "UNSEEN")
+        unseen_count = len(unseen[0].split()) if unseen[0] else 0
+        mail.logout()
+
+        return {
+            "ok": True,
+            "message": "Povezava uspešna",
+            "unseen_emails": unseen_count,
+            "folders": [f.decode() for f in (folders or [])[:10]],
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/email-log")
+async def email_log_get(limit: int = 50):
+    """Vrne zadnjih N log zapisov."""
+    log = _load_email_log()
+    return {"ok": True, "log": log[:limit], "total": len(log)}
+
+
+@app.delete("/email-log")
+async def email_log_clear():
+    """Zbriše email log."""
+    EMAIL_LOG_FILE.write_text("[]", encoding="utf-8")
+    return {"ok": True}
+
 
 
 # ─── PROMPT BUILDERS ─────────────────────────────────────────────────────────
