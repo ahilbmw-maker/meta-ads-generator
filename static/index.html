@@ -615,7 +615,7 @@ input[type="text"].error { border-color: var(--red) !important; }
 
   <div class="nav-item nav-zaloga" id="nav-zaloga" onclick="switchPage('zaloga')">
     <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-    Zaloga
+    Zaloga in Vračila
     <span style="margin-left:auto;font-size:13px">📦</span>
   </div>
 
@@ -765,8 +765,12 @@ input[type="text"].error { border-color: var(--red) !important; }
           </div>
           <div class="home-tile" style="border-left-color:#64748b" onclick="switchPage('zaloga')">
             <div class="ht-icon">📦</div>
-            <div class="ht-name">Zaloga</div>
-            <div class="ht-desc">Pregled SKU in zalog</div>
+            <div class="ht-name">Zaloga in Vračila</div>
+            <div class="ht-desc">Pregled SKU · Skener vračil</div>
+            <div class="ht-pills">
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('zaloga');switchZalogaTab('zaloga')">↗ Zaloga</span>
+              <span class="home-pill" onclick="event.stopPropagation();switchPage('zaloga');switchZalogaTab('vracila')">↗ Vračila</span>
+            </div>
           </div>
           <div class="home-tile" style="border-left-color:#64748b" onclick="switchPage('narocilnice')">
             <div class="ht-icon">📋</div>
@@ -3041,6 +3045,15 @@ input[type="text"].error { border-color: var(--red) !important; }
   </div><!-- /page-knjigovodstvo -->
 
   <div class="page" id="page-zaloga">
+
+    <!-- SUB-TAB NAV -->
+    <div style="display:flex;gap:8px;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border)">
+      <button class="zaloga-tab-btn active" id="zalogaTab-zaloga" onclick="switchZalogaTab('zaloga')" style="padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">📦 Zaloga</button>
+      <button class="zaloga-tab-btn" id="zalogaTab-vracila" onclick="switchZalogaTab('vracila')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">↩️ Vračila</button>
+    </div>
+
+    <!-- ── ZALOGA SUBPAGE ── -->
+    <div id="zalogaSubpage-zaloga">
     <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
 
       <!-- XML CACHE STATUS BAR -->
@@ -3100,6 +3113,65 @@ input[type="text"].error { border-color: var(--red) !important; }
       <div id="zalogaEmpty" style="text-align:center;color:var(--text-tertiary);font-size:12px;padding:3rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">Naloži CSV za prikaz zaloge.</div>
 
     </div>
+    </div><!-- /zalogaSubpage-zaloga -->
+
+    <!-- ── VRAČILA SUBPAGE ── -->
+    <div id="zalogaSubpage-vracila" style="display:none;padding:14px;max-width:1100px;margin:0 auto">
+
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap;gap:12px">
+        <div>
+          <h1 style="font-size:22px;font-weight:700;letter-spacing:-0.5px;margin:0">↩️ Vračila skener</h1>
+          <div id="vracilaSessionInfo" style="font-size:11px;color:var(--text-tertiary);margin-top:4px">Pripravljeno za skeniranje</div>
+        </div>
+        <div id="vracilaSavePill" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(34,197,94,0.1);color:#16a34a;border-radius:100px;font-size:11px;font-weight:600">✓ Shranjeno</div>
+      </div>
+
+      <!-- Scanner input -->
+      <div style="background:var(--surface);border:2px solid var(--accent);border-radius:12px;padding:16px 20px;margin-bottom:14px;box-shadow:0 0 0 4px rgba(58,111,255,0.08);display:flex;gap:14px;align-items:center">
+        <label style="font-size:11px;color:var(--text-secondary);font-weight:700;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;line-height:1.3">📸 Skenirajte<br>ID naročila</label>
+        <input id="vracilaScanInput" type="text" autocomplete="off" placeholder="Tukaj se zapiše barkoda..." style="flex:1;border:none;outline:none;font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:var(--text);padding:6px 0;background:transparent">
+        <div id="vracilaCount" style="font-size:28px;font-weight:800;color:var(--accent);font-family:'DM Mono',monospace">0</div>
+      </div>
+
+      <!-- Duplikat alert -->
+      <div id="vracilaAlert" style="display:none;background:rgba(220,38,38,0.08);border:1px solid #fca5a5;color:#991b1b;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:600;margin-bottom:12px;align-items:center;gap:8px"></div>
+
+      <!-- Toolbar -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <button onclick="vracilaCopyAll()" style="padding:8px 14px;background:var(--accent);color:white;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📋 Kopiraj vse ID-je</button>
+        <button onclick="vracilaArchive()" style="padding:8px 14px;background:white;color:var(--text);border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📁 Zapri sejo</button>
+        <button onclick="vracilaClearAll()" style="padding:8px 14px;background:white;color:#dc2626;border:1px solid #fca5a5;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🗑 Briši vse</button>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;color:var(--text-tertiary)">Zgodovina:</span>
+          <button onclick="vracilaToggleHistory()" style="padding:6px 12px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">🗂 Prikaži arhiv</button>
+        </div>
+      </div>
+
+      <!-- Tabela skeniranih ID-jev -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:var(--surface2)">
+              <th style="text-align:left;padding:7px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-tertiary);border-bottom:1px solid var(--border);width:42px">#</th>
+              <th style="text-align:left;padding:7px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-tertiary);border-bottom:1px solid var(--border)">ID naročila</th>
+              <th style="text-align:left;padding:7px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-tertiary);border-bottom:1px solid var(--border)">Komentar</th>
+              <th style="text-align:right;padding:7px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-tertiary);border-bottom:1px solid var(--border);width:120px">Akcije</th>
+            </tr>
+          </thead>
+          <tbody id="vracilaTableBody"></tbody>
+        </table>
+        <div id="vracilaEmptyMsg" style="padding:40px 20px;text-align:center;color:var(--text-tertiary);font-size:13px">📸 Pripravljeno — skener naj pikne prvo barkodo</div>
+      </div>
+
+      <!-- Zgodovina (collapsible) -->
+      <div id="vracilaHistoryWrap" style="display:none;margin-top:18px">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">🗂 Arhivirane seje</div>
+        <div id="vracilaHistoryList" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden"></div>
+      </div>
+
+    </div><!-- /vracila subpage -->
+
   </div><!-- /page-zaloga -->
 
   <!-- ═══ ODPREMA PAGE ═══ -->
@@ -16234,6 +16306,422 @@ async function knjBatchDelete(filename) {
   };
 })();
 // ── /STORAGE KNJ ────────────────────────────────────────
+
+// ─── VRAČILA — Scanner sistem ───────────────────────────────────────────────
+
+let vracilaItems = [];      // [{id, comment, ts, _isDup}]
+let vracilaSaveTimer = null;
+let vracilaSaving = false;
+let vracilaAlertTimer = null;
+
+function switchZalogaTab(tab) {
+  ['zaloga', 'vracila'].forEach(t => {
+    const btn = document.getElementById('zalogaTab-' + t);
+    const sub = document.getElementById('zalogaSubpage-' + t);
+    if (t === tab) {
+      if (btn) { btn.style.background = 'var(--accent)'; btn.style.color = 'white'; btn.style.border = 'none'; btn.classList.add('active'); }
+      if (sub) sub.style.display = '';
+    } else {
+      if (btn) { btn.style.background = 'transparent'; btn.style.color = 'var(--text-secondary)'; btn.style.border = '1px solid var(--border)'; btn.classList.remove('active'); }
+      if (sub) sub.style.display = 'none';
+    }
+  });
+  try { localStorage.setItem('slx_zaloga_tab', tab); } catch(e) {}
+  if (tab === 'vracila') {
+    vracilaInit();
+  }
+}
+
+async function vracilaInit() {
+  // Load current session from server
+  try {
+    const r = await fetch('/vracila-current');
+    const d = await r.json();
+    if (d.ok) {
+      vracilaItems = d.items || [];
+      if (d.started_at) {
+        const dt = new Date(d.started_at);
+        document.getElementById('vracilaSessionInfo').textContent =
+          'Aktivna seja od: ' + dt.toLocaleString('sl-SI', {day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      } else {
+        document.getElementById('vracilaSessionInfo').textContent = 'Pripravljeno za skeniranje';
+      }
+      vracilaRender();
+    }
+  } catch (e) {
+    console.error('vracilaInit:', e);
+  }
+  // Auto-focus input
+  setTimeout(() => {
+    const inp = document.getElementById('vracilaScanInput');
+    if (inp) inp.focus();
+  }, 100);
+}
+
+// Auto-detect "scanner paste" — barcode scanner v HID mode pošlje znake hitro + na koncu \n (Enter)
+(function setupVracilaScanner() {
+  document.addEventListener('DOMContentLoaded', () => {
+    const inp = document.getElementById('vracilaScanInput');
+    if (!inp) return;
+    let inputTimer = null;
+    let lastInputTime = 0;
+
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        vracilaCommitInput();
+      }
+    });
+
+    inp.addEventListener('input', () => {
+      const now = Date.now();
+      const dt = now - lastInputTime;
+      lastInputTime = now;
+      // Če bo input "tih" 150ms, smatrajmo da je skener končal pošiljat — auto-commit
+      if (inputTimer) clearTimeout(inputTimer);
+      const val = inp.value.trim();
+      if (val.length >= 3) {
+        inputTimer = setTimeout(() => {
+          vracilaCommitInput();
+        }, 250);
+      }
+    });
+  });
+})();
+
+function vracilaCommitInput() {
+  const inp = document.getElementById('vracilaScanInput');
+  if (!inp) return;
+  const raw = (inp.value || '').trim();
+  if (!raw) return;
+  // Strip whitespace, newlines
+  const id = raw.replace(/\s+/g, '');
+  if (!id) {
+    inp.value = '';
+    return;
+  }
+  vracilaAddId(id);
+  inp.value = '';
+  inp.focus();
+}
+
+function vracilaAddId(id) {
+  // Check duplicate
+  const isDup = vracilaItems.some(it => it.id === id);
+  const newItem = {
+    id: id,
+    comment: '',
+    ts: new Date().toISOString(),
+    _isDup: isDup,
+  };
+  // Prepend (najnovejši na vrh)
+  vracilaItems.unshift(newItem);
+
+  if (isDup) {
+    vracilaShowAlert(`⚠️ Duplikat: <strong>${id}</strong> je že na seznamu. Po potrebi izbriši ročno.`);
+  } else {
+    vracilaHideAlert();
+  }
+
+  vracilaRender();
+  vracilaSaveDebounced();
+}
+
+function vracilaShowAlert(html) {
+  const a = document.getElementById('vracilaAlert');
+  if (!a) return;
+  a.innerHTML = html;
+  a.style.display = 'flex';
+  if (vracilaAlertTimer) clearTimeout(vracilaAlertTimer);
+  vracilaAlertTimer = setTimeout(() => { a.style.display = 'none'; }, 6000);
+}
+
+function vracilaHideAlert() {
+  const a = document.getElementById('vracilaAlert');
+  if (a) a.style.display = 'none';
+}
+
+function vracilaRender() {
+  const tbody = document.getElementById('vracilaTableBody');
+  const empty = document.getElementById('vracilaEmptyMsg');
+  const count = document.getElementById('vracilaCount');
+  if (count) count.textContent = vracilaItems.length;
+
+  if (vracilaItems.length === 0) {
+    if (tbody) tbody.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  tbody.innerHTML = vracilaItems.map((it, idx) => {
+    const isLatest = idx === 0;
+    const rowBg = it._isDup ? 'background:rgba(220,38,38,0.04)' : (isLatest ? 'background:rgba(58,111,255,0.04)' : '');
+    const dupTag = it._isDup ? ' <span style="color:#dc2626;font-weight:700;font-size:10px;letter-spacing:1px;margin-left:6px">DUPLIKAT</span>' : '';
+    const idColor = it._isDup ? '#dc2626' : 'var(--text)';
+    const latestBadge = isLatest ? '<span style="background:var(--accent);color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:6px;letter-spacing:0.5px">ZADNJI</span>' : '';
+    return `
+      <tr style="border-bottom:1px solid var(--surface2);${rowBg}">
+        <td style="padding:6px 12px;color:var(--text-tertiary);font-family:'DM Mono',monospace;font-size:11px">${vracilaItems.length - idx}</td>
+        <td style="padding:6px 12px">
+          <span style="font-family:'DM Mono',monospace;font-weight:700;font-size:16px;color:${idColor};letter-spacing:0.3px">${it.id}</span>${dupTag}${latestBadge}
+        </td>
+        <td style="padding:6px 12px">
+          <input type="text" value="${(it.comment || '').replace(/"/g, '&quot;')}" oninput="vracilaUpdateComment(${idx}, this.value)" placeholder="komentar..." style="width:100%;border:1px solid transparent;padding:3px 8px;font-size:13px;background:transparent;outline:none;font-family:inherit;border-radius:4px" onfocus="this.style.borderColor='var(--accent)';this.style.background='white'" onblur="this.style.borderColor='transparent';this.style.background='transparent'">
+        </td>
+        <td style="padding:6px 12px;text-align:right;white-space:nowrap">
+          <a href="https://www.siluxar.si/narocilnice/${encodeURIComponent(it.id)}" target="_blank" style="display:inline-flex;align-items:center;gap:3px;padding:3px 9px;background:rgba(58,111,255,0.1);color:var(--accent);border-radius:5px;font-size:11px;font-weight:600;text-decoration:none">🔗 odpri</a>
+          <span onclick="vracilaDelete(${idx})" style="display:inline-block;color:#ef4444;cursor:pointer;padding:3px 7px;border-radius:4px;margin-left:3px;font-size:13px" onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='transparent'">🗑</span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function vracilaUpdateComment(idx, value) {
+  if (idx >= 0 && idx < vracilaItems.length) {
+    vracilaItems[idx].comment = value;
+    vracilaSaveDebounced();
+  }
+}
+
+function vracilaDelete(idx) {
+  if (idx < 0 || idx >= vracilaItems.length) return;
+  vracilaItems.splice(idx, 1);
+  // Re-check duplicates after delete (an earlier item might no longer be a dup of nothing)
+  vracilaRecheckDuplicates();
+  vracilaRender();
+  vracilaSaveDebounced();
+}
+
+function vracilaRecheckDuplicates() {
+  // Re-mark _isDup based on order: earlier in array (recent) = ok; later (older) = dup if id repeats
+  // Actually we want: an ID je dup če se isti ID pojavi NEKJE prej v zgodovini (=> index > 0 means it appeared before — wait, we unshift so newer at idx 0)
+  // Bolj jasno: vsak ID je dup če se isti ID pojavlja kasneje v "starejši" zgodovini ALI prej v "novejši"
+  // Simplest: ID je dup, če se pojavlja > 1x v listi. Označimo vse razen prve pojavitve (po času — najstarejša pojavitev ni dup, vse kasnejše so dup).
+  // Ker je list reverse-chronological (newer first), najstarejša pojavitev je na koncu liste.
+  const seen = new Set();
+  // Iteriraj od najstarejše proti najnovejši (od konca proti začetku)
+  for (let i = vracilaItems.length - 1; i >= 0; i--) {
+    if (seen.has(vracilaItems[i].id)) {
+      vracilaItems[i]._isDup = true;
+    } else {
+      vracilaItems[i]._isDup = false;
+      seen.add(vracilaItems[i].id);
+    }
+  }
+}
+
+function vracilaSaveDebounced() {
+  if (vracilaSaveTimer) clearTimeout(vracilaSaveTimer);
+  vracilaSetSavingState('pending');
+  vracilaSaveTimer = setTimeout(() => vracilaSaveNow(), 350);
+}
+
+async function vracilaSaveNow() {
+  if (vracilaSaving) {
+    vracilaSaveTimer = setTimeout(() => vracilaSaveNow(), 200);
+    return;
+  }
+  vracilaSaving = true;
+  vracilaSetSavingState('saving');
+  try {
+    const r = await fetch('/vracila-save', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({items: vracilaItems})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      vracilaSetSavingState('saved');
+    } else {
+      vracilaSetSavingState('error');
+      console.error('vracilaSave error:', d.error);
+    }
+  } catch (e) {
+    vracilaSetSavingState('error');
+    console.error('vracilaSave network error:', e);
+    // Retry once after 2s
+    setTimeout(() => vracilaSaveNow(), 2000);
+  } finally {
+    vracilaSaving = false;
+  }
+}
+
+function vracilaSetSavingState(state) {
+  const pill = document.getElementById('vracilaSavePill');
+  if (!pill) return;
+  if (state === 'saved') {
+    pill.style.background = 'rgba(34,197,94,0.1)';
+    pill.style.color = '#16a34a';
+    pill.innerHTML = '✓ Shranjeno';
+  } else if (state === 'saving') {
+    pill.style.background = 'rgba(245,158,11,0.1)';
+    pill.style.color = '#d97706';
+    pill.innerHTML = '⏳ Shranjujem...';
+  } else if (state === 'pending') {
+    pill.style.background = 'rgba(245,158,11,0.1)';
+    pill.style.color = '#d97706';
+    pill.innerHTML = '⏳ Neshranjene spremembe';
+  } else if (state === 'error') {
+    pill.style.background = 'rgba(239,68,68,0.1)';
+    pill.style.color = '#dc2626';
+    pill.innerHTML = '❌ Napaka — ponovni poskus';
+  }
+}
+
+function vracilaCopyAll() {
+  if (vracilaItems.length === 0) {
+    alert('Ni ID-jev za kopiranje');
+    return;
+  }
+  // Kopiraj v starostnem vrstnem redu (od najstarejšega proti najnovejšemu — bolj logično za nalepke)
+  const ordered = [...vracilaItems].reverse();
+  const text = ordered.map(it => it.id).join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const pill = document.getElementById('vracilaSavePill');
+    const prev = pill.innerHTML;
+    pill.innerHTML = `📋 Kopirano ${vracilaItems.length} ID-jev`;
+    pill.style.background = 'rgba(58,111,255,0.1)';
+    pill.style.color = 'var(--accent)';
+    setTimeout(() => vracilaSetSavingState('saved'), 2000);
+  }).catch(err => {
+    alert('Napaka pri kopiranju: ' + err.message);
+  });
+}
+
+async function vracilaArchive() {
+  if (vracilaItems.length === 0) {
+    alert('Ni ID-jev za arhiviranje');
+    return;
+  }
+  if (!confirm(`Zapri sejo z ${vracilaItems.length} ID-ji? Seja se shrani v zgodovino.`)) return;
+  try {
+    // Najprej save current state
+    await vracilaSaveNow();
+    // Potem archive
+    const r = await fetch('/vracila-archive', {method: 'POST'});
+    const d = await r.json();
+    if (d.ok) {
+      vracilaItems = [];
+      vracilaRender();
+      document.getElementById('vracilaSessionInfo').textContent = 'Seja arhivirana ✓ · Nova seja pripravljena';
+      vracilaShowAlert(`✓ Arhivirano <strong>${d.items || 0}</strong> ID-jev v ${d.archived}`);
+      // Refresh history if visible
+      const wrap = document.getElementById('vracilaHistoryWrap');
+      if (wrap && wrap.style.display !== 'none') vracilaLoadHistory();
+    } else {
+      alert('Napaka: ' + (d.error || 'neznana'));
+    }
+  } catch (e) {
+    alert('Napaka: ' + e.message);
+  }
+}
+
+function vracilaClearAll() {
+  if (vracilaItems.length === 0) return;
+  if (!confirm(`Izbrisati VSE ${vracilaItems.length} ID-jev? (Niso arhivirani — trajno izgubljeni)`)) return;
+  vracilaItems = [];
+  vracilaRender();
+  vracilaSaveNow();
+}
+
+async function vracilaToggleHistory() {
+  const wrap = document.getElementById('vracilaHistoryWrap');
+  if (!wrap) return;
+  const isOpen = wrap.style.display !== 'none';
+  if (isOpen) {
+    wrap.style.display = 'none';
+  } else {
+    wrap.style.display = 'block';
+    await vracilaLoadHistory();
+  }
+}
+
+async function vracilaLoadHistory() {
+  const list = document.getElementById('vracilaHistoryList');
+  if (!list) return;
+  list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:12px">⏳ Nalagam...</div>';
+  try {
+    const r = await fetch('/vracila-history');
+    const d = await r.json();
+    if (!d.ok) {
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;font-size:12px">❌ ' + (d.error || 'napaka') + '</div>';
+      return;
+    }
+    if (!d.items || d.items.length === 0) {
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:12px">📭 Ni arhivskih sej</div>';
+      return;
+    }
+    list.innerHTML = d.items.map(it => {
+      const startedDt = it.started_at ? new Date(it.started_at).toLocaleString('sl-SI', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+      const archivedDt = it.archived_at ? new Date(it.archived_at).toLocaleString('sl-SI', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
+      return `
+        <div style="padding:10px 14px;border-bottom:1px solid var(--surface2);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="flex:1;min-width:240px">
+            <div style="font-family:'DM Mono',monospace;font-weight:600;font-size:13px;color:var(--text)">${it.filename}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">
+              <span style="background:rgba(58,111,255,0.1);color:var(--accent);padding:2px 7px;border-radius:4px;font-weight:600">${it.count} ID-jev</span>
+              <span style="margin-left:6px">začetek: ${startedDt}</span>
+              <span style="margin-left:6px;color:var(--text-tertiary)">· arhiv: ${archivedDt}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:5px">
+            <button onclick="vracilaHistoryDownload('${it.filename}')" style="padding:5px 10px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">📥 Prenesi</button>
+            <button onclick="vracilaHistoryDelete('${it.filename}')" style="padding:5px 10px;background:transparent;color:#ef4444;border:1px solid #fca5a5;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">🗑</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;font-size:12px">❌ ' + e.message + '</div>';
+  }
+}
+
+async function vracilaHistoryDownload(filename) {
+  try {
+    const r = await fetch('/vracila-history/' + encodeURIComponent(filename));
+    const d = await r.json();
+    if (!d.ok) { alert('Napaka: ' + (d.error || 'neznana')); return; }
+    const items = (d.data && d.data.items) || [];
+    const text = items.map(it => it.id + (it.comment ? '\t' + it.comment : '')).join('\n');
+    const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename.replace('.json', '.txt');
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('Napaka: ' + e.message);
+  }
+}
+
+async function vracilaHistoryDelete(filename) {
+  if (!confirm('Izbriši arhiv "' + filename + '"?')) return;
+  try {
+    const r = await fetch('/vracila-history/' + encodeURIComponent(filename), {method: 'DELETE'});
+    const d = await r.json();
+    if (d.ok) vracilaLoadHistory();
+    else alert('Napaka: ' + (d.error || 'neznana'));
+  } catch (e) {
+    alert('Napaka: ' + e.message);
+  }
+}
+
+// Init on page entry
+(function() {
+  const orig = window.switchPage;
+  window.switchPage = function(page) {
+    orig(page);
+    if (page === 'zaloga') {
+      // Restore saved tab
+      let saved = 'zaloga';
+      try { saved = localStorage.getItem('slx_zaloga_tab') || 'zaloga'; } catch(e) {}
+      setTimeout(() => switchZalogaTab(saved), 100);
+    }
+  };
+})();
+// ── /VRAČILA ────────────────────────────────────────
 </script>
 <div class="k-hover-preview" id="kHoverPreview">
   <img id="kHoverPreviewImg" src="" alt="">
