@@ -3509,11 +3509,20 @@ input[type="text"].error { border-color: var(--red) !important; }
   <div class="page" id="page-storage">
     <div style="padding:14px;display:flex;flex-direction:column;gap:14px">
 
+      <!-- SUB-TAB NAV -->
+      <div style="display:flex;gap:6px;border-bottom:1px solid var(--border);padding-bottom:0;margin-bottom:-14px">
+        <button class="storage-tab-btn active" id="storageTab-kreative" onclick="switchStorageTab('kreative')" style="padding:8px 16px;background:transparent;color:var(--text);border:none;border-bottom:2px solid var(--accent);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🎨 Kreative</button>
+        <button class="storage-tab-btn" id="storageTab-knjigovodstvo" onclick="switchStorageTab('knjigovodstvo')" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:none;border-bottom:2px solid transparent;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">📑 Knjigovodstvo</button>
+      </div>
+
+      <!-- ── KREATIVE TAB ── -->
+      <div id="storageSubpage-kreative" style="display:flex;flex-direction:column;gap:14px">
+
       <!-- Header sa stats -->
       <div id="storage-header" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
           <div>
-            <h1 style="font-size:22px;font-weight:800;letter-spacing:-0.02em;margin:0">💾 Storage</h1>
+            <h1 style="font-size:22px;font-weight:800;letter-spacing:-0.02em;margin:0">💾 Storage — Kreative</h1>
             <div style="font-size:12px;color:var(--text-tertiary);margin-top:3px">Video output mape (/data/video_outputs/)</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -3541,6 +3550,40 @@ input[type="text"].error { border-color: var(--red) !important; }
       <div id="storage-list" style="display:flex;flex-direction:column;gap:8px">
         <div style="text-align:center;padding:3rem;color:var(--text-tertiary);font-size:13px">Nalagam...</div>
       </div>
+
+      </div><!-- /storageSubpage-kreative -->
+
+      <!-- ── KNJIGOVODSTVO TAB ── -->
+      <div id="storageSubpage-knjigovodstvo" style="display:none;flex-direction:column;gap:14px">
+
+        <!-- Header -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+            <div>
+              <h1 style="font-size:22px;font-weight:800;letter-spacing:-0.02em;margin:0">📑 Storage — Knjigovodstvo</h1>
+              <div style="font-size:12px;color:var(--text-tertiary);margin-top:3px">ZIP arhivi obdelanih emailov · /data/storage/knjigovodstvo/</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button id="knjBatchBtn" onclick="knjBatchProcess()" style="padding:9px 16px;background:#16a34a;color:white;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px">
+                📥 Procesiraj nove emaile
+              </button>
+              <button onclick="knjBatchLoadList()" style="padding:7px 14px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🔄 Osveži</button>
+            </div>
+          </div>
+          <div id="knjBatchStatus" style="font-size:12px;color:var(--text-secondary);margin-top:6px;min-height:18px"></div>
+        </div>
+
+        <!-- Info box -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;font-size:12px;color:var(--text-secondary);line-height:1.6">
+          <strong style="color:var(--text)">Kako deluje:</strong> Pritisni <em>Procesiraj nove emaile</em> da sistem potegne vse neprebrane emaile iz <strong>parcels@maaarket.eu</strong>, razdeli XML-je na DU/NU CSV-je, doda vse PDF-je, in vse skupaj zapakira v en ZIP. Vsi obdelani emaili so označeni kot prebrani in se ne procesirajo ponovno. ZIP-i se hranijo dokler jih ročno ne zbrišeš.
+        </div>
+
+        <!-- Batch list -->
+        <div id="knjBatchList" style="display:flex;flex-direction:column;gap:10px">
+          <div style="text-align:center;padding:3rem;color:var(--text-tertiary);font-size:13px">Nalagam...</div>
+        </div>
+
+      </div><!-- /storageSubpage-knjigovodstvo -->
 
     </div>
   </div><!-- /page-storage -->
@@ -16063,6 +16106,134 @@ async function emailClearLog() {
   };
 })();
 // ── /EMAIL ────────────────────────────────────────
+
+// ─── STORAGE KNJIGOVODSTVO ─────────────────────────────────────────────────
+
+function switchStorageTab(tab) {
+  ['kreative', 'knjigovodstvo'].forEach(t => {
+    const btn = document.getElementById('storageTab-' + t);
+    const sub = document.getElementById('storageSubpage-' + t);
+    if (t === tab) {
+      if (btn) { btn.style.color = 'var(--text)'; btn.style.borderBottomColor = 'var(--accent)'; btn.classList.add('active'); }
+      if (sub) sub.style.display = 'flex';
+    } else {
+      if (btn) { btn.style.color = 'var(--text-secondary)'; btn.style.borderBottomColor = 'transparent'; btn.classList.remove('active'); }
+      if (sub) sub.style.display = 'none';
+    }
+  });
+  if (tab === 'knjigovodstvo') knjBatchLoadList();
+  try { localStorage.setItem('slx_storage_tab', tab); } catch(e) {}
+}
+
+async function knjBatchProcess() {
+  const btn = document.getElementById('knjBatchBtn');
+  const status = document.getElementById('knjBatchStatus');
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+  btn.innerHTML = '⏳ Procesiranje...';
+  status.innerHTML = '<span style="color:var(--text-secondary)">⏳ IMAP fetch + obdelava emailov... (lahko traja 10-60s)</span>';
+
+  try {
+    const r = await fetch('/knjigovodstvo-process-emails', {method: 'POST'});
+    const d = await r.json();
+    if (d.ok) {
+      if (d.emails === 0) {
+        status.innerHTML = '<span style="color:var(--text-secondary)">✓ ' + (d.message || 'Ni novih emailov') + '</span>';
+      } else {
+        status.innerHTML = `<span style="color:#16a34a">✓ Obdelano <strong>${d.emails}</strong> emailov · ${d.debit_rows} DU + ${d.credit_rows} NU + ${d.pdf_count} PDF · ZIP: ${d.zip_size_kb} KB</span>`;
+        knjBatchLoadList();
+      }
+    } else {
+      status.innerHTML = '<span style="color:#ef4444">❌ ' + (d.error || 'napaka') + '</span>';
+    }
+  } catch (e) {
+    status.innerHTML = '<span style="color:#ef4444">❌ ' + e.message + '</span>';
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.innerHTML = '📥 Procesiraj nove emaile';
+  }
+}
+
+async function knjBatchLoadList() {
+  const box = document.getElementById('knjBatchList');
+  box.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-tertiary);font-size:13px">⏳ Nalagam...</div>';
+  try {
+    const r = await fetch('/storage-knjigovodstvo');
+    const d = await r.json();
+    if (!d.ok) {
+      box.innerHTML = '<div style="text-align:center;padding:2rem;color:#ef4444;font-size:13px">❌ ' + (d.error || 'napaka') + '</div>';
+      return;
+    }
+    if (!d.items || d.items.length === 0) {
+      box.innerHTML = `
+        <div style="background:var(--surface);border:1px dashed var(--border);border-radius:var(--radius);padding:3rem 2rem;text-align:center;color:var(--text-tertiary);font-size:13px">
+          📭 Ni shranjenih batch-ev.<br>
+          <span style="font-size:11px;color:var(--text-tertiary)">Pritisni "Procesiraj nove emaile" zgoraj.</span>
+        </div>
+      `;
+      return;
+    }
+    box.innerHTML = d.items.map(it => {
+      const m = it.manifest || {};
+      const ts = it.modified ? it.modified.replace('T', ' ').slice(0, 16) : '';
+      const emails = m.emails || [];
+      // Sample first 3 emails
+      const sample = emails.slice(0, 3).map(e => e.from ? e.from.split('<')[0].trim().slice(0, 30) : '?').join(', ');
+      const moreEmails = emails.length > 3 ? ` (+${emails.length - 3})` : '';
+      return `
+        <div class="card" style="padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
+          <div style="flex:1;min-width:280px">
+            <div style="font-size:14px;font-weight:700;color:var(--text);font-family:monospace">${it.filename}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;line-height:1.5">
+              <span style="background:rgba(34,197,94,0.1);color:#16a34a;padding:2px 7px;border-radius:4px;font-weight:600">${m.emails_processed || 0} emailov</span>
+              <span style="background:rgba(239,68,68,0.1);color:#ef4444;padding:2px 7px;border-radius:4px;font-weight:600;margin-left:4px">${m.debit_rows || 0} DU</span>
+              <span style="background:rgba(34,197,94,0.1);color:#16a34a;padding:2px 7px;border-radius:4px;font-weight:600;margin-left:4px">${m.credit_rows || 0} NU</span>
+              <span style="background:rgba(245,158,11,0.1);color:#d97706;padding:2px 7px;border-radius:4px;font-weight:600;margin-left:4px">${m.pdf_count || 0} PDF</span>
+              <span style="background:var(--surface2);padding:2px 7px;border-radius:4px;font-weight:600;margin-left:4px">${it.size_kb} KB</span>
+            </div>
+            <div style="font-size:10px;color:var(--text-tertiary);margin-top:6px">
+              ${ts} ${sample ? '· ' + sample + moreEmails : ''}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <a href="/storage-knjigovodstvo/${encodeURIComponent(it.filename)}" download style="padding:8px 14px;background:var(--accent);color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;font-family:inherit">📥 Download</a>
+            <button onclick="knjBatchDelete('${it.filename}')" style="padding:8px 12px;background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🗑</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    box.innerHTML = '<div style="text-align:center;padding:2rem;color:#ef4444;font-size:13px">❌ ' + e.message + '</div>';
+  }
+}
+
+async function knjBatchDelete(filename) {
+  if (!confirm('Izbriši arhiv "' + filename + '"?')) return;
+  try {
+    const r = await fetch('/storage-knjigovodstvo/' + encodeURIComponent(filename), {method: 'DELETE'});
+    const d = await r.json();
+    if (d.ok) knjBatchLoadList();
+    else alert('Napaka: ' + (d.error || 'neznana'));
+  } catch (e) {
+    alert('Napaka: ' + e.message);
+  }
+}
+
+// Init na obisku Storage page
+(function() {
+  const orig = window.switchPage;
+  window.switchPage = function(page) {
+    orig(page);
+    if (page === 'storage') {
+      // Re-apply saved tab if any
+      let saved = 'kreative';
+      try { saved = localStorage.getItem('slx_storage_tab') || 'kreative'; } catch(e) {}
+      setTimeout(() => switchStorageTab(saved), 100);
+    }
+  };
+})();
+// ── /STORAGE KNJ ────────────────────────────────────────
 </script>
 <div class="k-hover-preview" id="kHoverPreview">
   <img id="kHoverPreviewImg" src="" alt="">
