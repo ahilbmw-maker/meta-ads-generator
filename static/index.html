@@ -3396,6 +3396,70 @@ input[type="text"].error { border-color: var(--red) !important; }
             <div style="font-size:11px;color:var(--text-tertiary);text-align:center;padding:1rem">Brez zgodovine</div>
           </div>
         </div>
+
+        <!-- EMAIL AUTOMATION -->
+        <div class="card" style="border-left:3px solid var(--accent)">
+          <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="emailTogglePanel()">
+            <span class="slabel">📧 EMAIL AVTOMATIZACIJA</span>
+            <span id="emailToggleArrow" style="font-size:14px;color:var(--text-secondary);transition:transform 0.2s">▸</span>
+          </div>
+          <div id="emailStatusBadge" style="margin-top:6px;font-size:11px;color:var(--text-tertiary)">⏳ Nalagam status...</div>
+
+          <div id="emailPanel" style="display:none;margin-top:12px">
+            <!-- Status bar -->
+            <div id="emailStatusBar" style="font-size:11px;margin-bottom:12px;padding:8px 10px;background:var(--surface2);border-radius:6px;line-height:1.5"></div>
+
+            <!-- Config form -->
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+              <div>
+                <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">IMAP Server</label>
+                <input id="emailImapHost" type="text" placeholder="mail.domena.si" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <div>
+                  <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Port</label>
+                  <input id="emailImapPort" type="number" value="993" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
+                </div>
+                <div>
+                  <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">SSL</label>
+                  <div style="margin-top:6px;font-size:11px;color:var(--text-secondary)">Port 993 = SSL ✓</div>
+                </div>
+              </div>
+              <div>
+                <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Email naslov</label>
+                <input id="emailAddress" type="email" placeholder="racuni@domena.si" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
+              </div>
+              <div>
+                <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Geslo <span style="font-weight:400;opacity:0.7">(ali nastavi EMAIL_PASSWORD env var)</span></label>
+                <input id="emailPassword" type="password" placeholder="••••••••" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
+              </div>
+              <div>
+                <label style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Folder za obdelane emaile</label>
+                <input id="emailProcessedFolder" type="text" value="Processed" style="width:100%;margin-top:3px;padding:7px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit">
+              </div>
+            </div>
+
+            <!-- Buttons -->
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <button onclick="emailSaveConfig()" style="padding:8px;background:var(--accent);color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">💾 Shrani nastavitve</button>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <button onclick="emailTestConnection()" style="padding:7px;background:transparent;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">🔌 Test povezave</button>
+                <button onclick="emailCheckNow()" style="padding:7px;background:transparent;border:1px solid #16a34a;color:#16a34a;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">📥 Preveri zdaj</button>
+              </div>
+            </div>
+
+            <div id="emailActionStatus" style="margin-top:8px;font-size:11px;min-height:16px"></div>
+
+            <!-- Log -->
+            <div style="margin-top:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Log (zadnjih 20)</span>
+                <button onclick="emailClearLog()" style="font-size:10px;color:var(--text-tertiary);background:transparent;border:none;cursor:pointer">Zbriši</button>
+              </div>
+              <div id="emailLog" style="max-height:280px;overflow-y:auto;font-size:11px"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- DESNO: preview + export -->
@@ -15825,6 +15889,187 @@ async function shipDeleteMonth(month) {
   }
 }
 // ── /SHIPPING ────────────────────────────────────────
+
+// ─── EMAIL AVTOMATIZACIJA ────────────────────────────────────────────────────
+
+async function emailLoadStatus() {
+  try {
+    const r = await fetch('/email-config');
+    const d = await r.json();
+    const badge = document.getElementById('emailStatusBadge');
+    const statusBar = document.getElementById('emailStatusBar');
+    if (!d.ok) { badge.textContent = '❌ Napaka pri nalaganju'; return; }
+
+    const cfg = d.config || {};
+    if (!cfg.imap_host || !cfg.email) {
+      badge.innerHTML = '⚙️ Ni konfigurirano — klikni za nastavitev';
+      if (statusBar) statusBar.innerHTML = 'Nastavi IMAP podatke za avtomatsko procesiranje računov.';
+      return;
+    }
+
+    const enabledIcon = cfg.enabled ? '🟢' : '🔴';
+    const enabledText = cfg.enabled ? 'Aktivno' : 'Izklopljeno';
+    badge.innerHTML = `${enabledIcon} ${enabledText} · ${cfg.email}`;
+    if (statusBar) {
+      statusBar.innerHTML = `
+        <div><strong>${enabledIcon} ${enabledText}</strong> · Polling vsake 5 minut</div>
+        <div style="margin-top:3px;color:var(--text-secondary)">${cfg.email} · ${cfg.imap_host}:${cfg.imap_port || 993}</div>
+        <div style="margin-top:3px;color:var(--text-secondary)">Geslo: ${d.password_source === 'env_var' ? '🔐 ENV var' : d.has_password ? '💾 Shranjeno' : '❌ Manjka'}</div>
+      `;
+    }
+
+    // Prefill form
+    if (document.getElementById('emailImapHost').value === '') {
+      document.getElementById('emailImapHost').value = cfg.imap_host || '';
+      document.getElementById('emailImapPort').value = cfg.imap_port || 993;
+      document.getElementById('emailAddress').value = cfg.email || '';
+      document.getElementById('emailProcessedFolder').value = cfg.processed_folder || 'Processed';
+    }
+
+    // Load log
+    emailLoadLog();
+  } catch (e) {
+    const badge = document.getElementById('emailStatusBadge');
+    if (badge) badge.textContent = '❌ ' + e.message;
+  }
+}
+
+function emailTogglePanel() {
+  const panel = document.getElementById('emailPanel');
+  const arrow = document.getElementById('emailToggleArrow');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  arrow.style.transform = isOpen ? '' : 'rotate(90deg)';
+  if (!isOpen) emailLoadStatus();
+}
+
+async function emailSaveConfig() {
+  const status = document.getElementById('emailActionStatus');
+  status.textContent = '⏳ Shranjujem...';
+  try {
+    const body = {
+      imap_host: document.getElementById('emailImapHost').value.trim(),
+      imap_port: parseInt(document.getElementById('emailImapPort').value) || 993,
+      email: document.getElementById('emailAddress').value.trim(),
+      password: document.getElementById('emailPassword').value,
+      processed_folder: document.getElementById('emailProcessedFolder').value.trim() || 'Processed',
+      enabled: true,
+    };
+    if (!body.imap_host || !body.email) {
+      status.innerHTML = '<span style="color:#ef4444">❌ IMAP server in email sta obvezna</span>';
+      return;
+    }
+    const r = await fetch('/email-config', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (d.ok) {
+      status.innerHTML = '<span style="color:#22c55e">✓ Shranjeno</span>';
+      document.getElementById('emailPassword').value = '';
+      emailLoadStatus();
+    } else {
+      status.innerHTML = '<span style="color:#ef4444">❌ ' + (d.error || 'napaka') + '</span>';
+    }
+  } catch (e) {
+    status.innerHTML = '<span style="color:#ef4444">❌ ' + e.message + '</span>';
+  }
+}
+
+async function emailTestConnection() {
+  const status = document.getElementById('emailActionStatus');
+  status.textContent = '⏳ Testiram povezavo...';
+  try {
+    const r = await fetch('/email-test-connection', {method: 'POST'});
+    const d = await r.json();
+    if (d.ok) {
+      status.innerHTML = `<span style="color:#22c55e">✓ Povezava OK · ${d.unseen_emails} neprebranih</span>`;
+    } else {
+      status.innerHTML = `<span style="color:#ef4444">❌ ${d.error}</span>`;
+    }
+  } catch (e) {
+    status.innerHTML = '<span style="color:#ef4444">❌ ' + e.message + '</span>';
+  }
+}
+
+async function emailCheckNow() {
+  const status = document.getElementById('emailActionStatus');
+  status.textContent = '⏳ Preverjam inbox...';
+  try {
+    const r = await fetch('/email-check-now', {method: 'POST'});
+    const d = await r.json();
+    if (d.ok) {
+      status.innerHTML = `<span style="color:#22c55e">✓ ${d.message}</span>`;
+      if (d.processed > 0) {
+        prevzemiLoadHistory();
+        emailLoadLog();
+      }
+    } else {
+      status.innerHTML = `<span style="color:#ef4444">❌ ${d.error}</span>`;
+    }
+  } catch (e) {
+    status.innerHTML = '<span style="color:#ef4444">❌ ' + e.message + '</span>';
+  }
+}
+
+async function emailLoadLog() {
+  try {
+    const r = await fetch('/email-log?limit=20');
+    const d = await r.json();
+    const box = document.getElementById('emailLog');
+    if (!box) return;
+    if (!d.ok || !d.log || d.log.length === 0) {
+      box.innerHTML = '<div style="color:var(--text-tertiary);padding:8px;text-align:center">Brez zapisov</div>';
+      return;
+    }
+    box.innerHTML = d.log.map(entry => {
+      const ts = entry.ts ? entry.ts.replace('T', ' ').slice(0, 16) : '';
+      const isError = entry.type === 'error';
+      const isUnknown = (entry.statuses || []).includes('unknown_supplier');
+      const color = isError ? '#ef4444' : isUnknown ? '#f59e0b' : '#22c55e';
+      const icon = isError ? '❌' : isUnknown ? '⚠️' : '✓';
+
+      let detail = '';
+      if (isError) {
+        detail = entry.message || '';
+      } else {
+        const suppliers = (entry.suppliers || []).join(', ');
+        const items = (entry.items || []).reduce((a, b) => a + b, 0);
+        detail = `${suppliers} · ${items} postavk`;
+      }
+
+      return `
+        <div style="padding:6px 8px;border-bottom:1px solid var(--border);line-height:1.4">
+          <div style="display:flex;justify-content:space-between;align-items:start;gap:4px">
+            <span style="color:${color};font-size:11px;font-weight:600">${icon} ${entry.from ? entry.from.split('<')[0].trim().slice(0, 25) : '—'}</span>
+            <span style="color:var(--text-tertiary);font-size:10px;white-space:nowrap">${ts}</span>
+          </div>
+          <div style="font-size:10px;color:var(--text-secondary);margin-top:1px">${detail}</div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    console.error('emailLoadLog:', e);
+  }
+}
+
+async function emailClearLog() {
+  if (!confirm('Zbriši cel email log?')) return;
+  await fetch('/email-log', {method: 'DELETE'});
+  emailLoadLog();
+}
+
+// Init email status on prevzemi page load
+(function() {
+  const orig = window.switchPage;
+  window.switchPage = function(page) {
+    orig(page);
+    if (page === 'prevzemi') {
+      setTimeout(emailLoadStatus, 200);
+    }
+  };
+})();
+// ── /EMAIL ────────────────────────────────────────
 </script>
 <div class="k-hover-preview" id="kHoverPreview">
   <img id="kHoverPreviewImg" src="" alt="">
