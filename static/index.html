@@ -2721,6 +2721,19 @@ input[type="text"].error { border-color: var(--red) !important; }
         <div id="shipCountryTable" style="margin-top:12px;overflow-x:auto"></div>
       </div>
 
+      <!-- Per-country trend chart -->
+      <div class="card" style="margin-bottom:14px">
+        <span class="slabel">📉 POV. CENA/PAKET PO TRGIH SKOZI MESECE</span>
+        <div style="margin-top:6px;font-size:11px;color:var(--text-secondary)">Vsaka država = ena črta. Prikaz top držav po številu paketov.</div>
+        <canvas id="shipChartCountryTrend" style="margin-top:10px;width:100%;max-height:380px"></canvas>
+      </div>
+
+      <!-- Per-country monthly table -->
+      <div class="card" style="margin-bottom:14px">
+        <span class="slabel">📅 TABELA POV. CENE PO DRŽAVAH IN MESECIH</span>
+        <div id="shipCountryMonthlyTable" style="margin-top:12px;overflow-x:auto"></div>
+      </div>
+
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:14px">
         <div class="card">
           <span class="slabel">📦 NAJTEŽJI PAKET</span>
@@ -14529,14 +14542,17 @@ function shipRender() {
   shipRenderWeight(rows);
   shipRenderCouriers(rows);
   shipRenderCountryTable(rows);
+  shipRenderCountryMonthlyTrend();
+  shipRenderCountryMonthlyTable();
   shipRenderInsights(rows);
   shipRenderCostDetails(rows);
   shipRenderMonthsList();
 }
 
 function shipSumTotal(r) {
-  // Total without VAT če imamo, drugače sestavimo
-  if (r.total_no_vat && r.total_no_vat > 0) return r.total_no_vat;
+  // Total without VAT EUR — VEDNO uporabljen, najbolj zanesljiva cena
+  if (r.total_no_vat != null && r.total_no_vat > 0) return r.total_no_vat;
+  // Fallback samo če manjka (npr. Descr file brez te kolone)
   return (r.weight_price || 0) + (r.cod_price || 0) + (r.sms_price || 0) +
          (r.insurance_price || 0) + (r.fuel_tax || 0) + (r.extra_cost || 0) -
          (r.disc_sum || 0);
@@ -14815,6 +14831,209 @@ function shipRenderCountryTable(rows) {
   `;
   document.getElementById('shipCountryTable').innerHTML = html;
 }
+
+function shipBuildCountryMonthlyMatrix() {
+  // Vrne {countries: [...], months: [...], data: {country: {month: {count, totalCost, avg}}}}
+  // VEDNO uporabi vse rows (shipRowsAll), ne filtriranih — graf je multi-mesečen
+  const matrix = {};
+  const monthsSet = new Set();
+  const countryTotals = {};
+
+  shipRowsAll.forEach(r => {
+    const country = r.country;
+    const month = r._month;
+    if (!country || !month) return;
+    monthsSet.add(month);
+    if (!matrix[country]) matrix[country] = {};
+    if (!matrix[country][month]) matrix[country][month] = {count: 0, totalCost: 0};
+    matrix[country][month].count++;
+    matrix[country][month].totalCost += shipSumTotal(r);
+    if (!countryTotals[country]) countryTotals[country] = 0;
+    countryTotals[country]++;
+  });
+
+  // Top 10 držav po skupnem številu paketov
+  const topCountries = Object.entries(countryTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([c]) => c);
+
+  const months = [...monthsSet].sort();
+
+  // Izračunaj povprečja
+  const data = {};
+  topCountries.forEach(c => {
+    data[c] = {};
+    months.forEach(m => {
+      const stats = matrix[c][m];
+      data[c][m] = stats ? {
+        count: stats.count,
+        avg: stats.count > 0 ? stats.totalCost / stats.count : null
+      } : null;
+    });
+  });
+
+  return {countries: topCountries, months, data, matrix, allCountries: Object.keys(countryTotals).sort()};
+}
+
+function shipRenderCountryMonthlyTrend() {
+  shipDestroyChart('countryTrend');
+  const {countries, months, data} = shipBuildCountryMonthlyMatrix();
+
+  if (months.length < 2 || countries.length === 0) {
+    const ctx = document.getElementById('shipChartCountryTrend');
+    if (ctx) ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
+    return;
+  }
+
+  // 10 različnih barv (matched z donut chart paleto)
+  const palette = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#6366f1', '#14b8a6'];
+
+  const datasets = countries.map((country, i) => ({
+    label: shipCountryLabel(country),
+    data: months.map(m => {
+      const cell = data[country][m];
+      return cell ? cell.avg : null;
+    }),
+    borderColor: palette[i % palette.length],
+    backgroundColor: palette[i % palette.length] + '20',
+    borderWidth: 2.5,
+    tension: 0.3,
+    pointRadius: 4,
+    pointHoverRadius: 6,
+    spanGaps: true,
+  }));
+
+  const ctx = document.getElementById('shipChartCountryTrend').getContext('2d');
+  shipCharts.countryTrend = new Chart(ctx, {
+    type: 'line',
+    data: {labels: months, datasets},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: {mode: 'index', intersect: false},
+      scales: {
+        x: {ticks: {font: {size: 11}}},
+        y: {
+          ticks: {callback: v => v.toFixed(2) + ' €', font: {size: 10}},
+          title: {display: true, text: 'Pov. cena/paket (€, brez DDV)', font: {size: 11}}
+        }
+      },
+      plugins: {
+        legend: {position: 'top', labels: {font: {size: 11}, usePointStyle: true, boxWidth: 8}},
+        tooltip: {callbacks: {
+          label: c => c.dataset.label + ': ' + shipFmtEur(c.parsed.y) + (data[Object.keys(data)[c.datasetIndex]]?.[c.label]?.count ? ' (' + data[Object.keys(data)[c.datasetIndex]][c.label].count + ' pak.)' : '')
+        }}
+      }
+    }
+  });
+}
+
+function shipRenderCountryMonthlyTable() {
+  const {months, allCountries, matrix} = shipBuildCountryMonthlyMatrix();
+
+  if (months.length === 0 || allCountries.length === 0) {
+    document.getElementById('shipCountryMonthlyTable').innerHTML = '<div style="color:var(--text-tertiary);font-size:12px;padding:20px;text-align:center">Premalo podatkov</div>';
+    return;
+  }
+
+  // Sortiraj države po totalnem številu paketov (desc)
+  const countrySorted = allCountries.map(c => {
+    let count = 0;
+    months.forEach(m => { if (matrix[c][m]) count += matrix[c][m].count; });
+    return {country: c, count};
+  }).sort((a, b) => b.count - a.count);
+
+  // Funkcija za barvanje celic (heatmap-like): zelena = nižja cena, rdeča = višja
+  function cellColor(val, allVals) {
+    if (val == null || allVals.length === 0) return '';
+    const min = Math.min(...allVals);
+    const max = Math.max(...allVals);
+    if (max === min) return '';
+    const pct = (val - min) / (max - min);
+    // 0% = zelena (cheap), 100% = rdeča (expensive)
+    if (pct < 0.33) return 'background:rgba(34,197,94,0.12)';
+    if (pct < 0.67) return 'background:rgba(245,158,11,0.10)';
+    return 'background:rgba(239,68,68,0.12)';
+  }
+
+  let html = `
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead>
+        <tr style="text-align:left;border-bottom:2px solid var(--border);background:var(--surface2)">
+          <th style="padding:6px 8px;position:sticky;left:0;background:var(--surface2);z-index:1;min-width:140px">Država</th>
+          <th style="padding:6px 8px;text-align:right">Σ paket.</th>
+          ${months.map(m => `<th style="padding:6px 8px;text-align:right;min-width:75px">${m}</th>`).join('')}
+          <th style="padding:6px 8px;text-align:right;border-left:2px solid var(--border);background:rgba(83,74,183,0.06)">Pov.</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  countrySorted.forEach(({country, count}) => {
+    // Per-country values for heatmap (samo za vrstico)
+    const rowVals = months.map(m => matrix[country][m]?.count > 0 ? matrix[country][m].totalCost / matrix[country][m].count : null).filter(v => v != null);
+    // Skupno povprečje za to državo
+    let totalCost = 0, totalCount = 0;
+    months.forEach(m => {
+      if (matrix[country][m]) {
+        totalCost += matrix[country][m].totalCost;
+        totalCount += matrix[country][m].count;
+      }
+    });
+    const avgTotal = totalCount > 0 ? totalCost / totalCount : null;
+
+    html += `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 8px;font-weight:600;position:sticky;left:0;background:var(--surface);z-index:1">${shipCountryLabel(country)}</td>
+      <td style="padding:6px 8px;text-align:right;color:var(--text-secondary);font-size:10px">${shipFmtNum(count)}</td>`;
+    months.forEach(m => {
+      const cell = matrix[country][m];
+      if (!cell || cell.count === 0) {
+        html += `<td style="padding:6px 8px;text-align:right;color:var(--text-tertiary)">—</td>`;
+      } else {
+        const avg = cell.totalCost / cell.count;
+        const color = cellColor(avg, rowVals);
+        html += `<td style="padding:6px 8px;text-align:right;font-family:monospace;${color}" title="${cell.count} paketov">${avg.toFixed(2)}</td>`;
+      }
+    });
+    html += `<td style="padding:6px 8px;text-align:right;font-family:monospace;font-weight:700;color:var(--accent);border-left:2px solid var(--border);background:rgba(83,74,183,0.06)">${avgTotal != null ? avgTotal.toFixed(2) : '—'}</td>`;
+    html += `</tr>`;
+  });
+
+  // Footer row — povprečje vsega
+  let footerVals = [];
+  months.forEach(m => {
+    let totalCost = 0, totalCount = 0;
+    allCountries.forEach(c => {
+      if (matrix[c][m]) {
+        totalCost += matrix[c][m].totalCost;
+        totalCount += matrix[c][m].count;
+      }
+    });
+    footerVals.push(totalCount > 0 ? totalCost / totalCount : null);
+  });
+  const grandTotal = footerVals.reduce((s, v, i) => {
+    if (v == null) return s;
+    return s + v;
+  }, 0);
+  const grandCount = footerVals.filter(v => v != null).length;
+  const grandAvg = grandCount > 0 ? grandTotal / grandCount : null;
+
+  html += `<tr style="border-top:2px solid var(--border);background:var(--surface2);font-weight:700">
+    <td style="padding:8px;position:sticky;left:0;background:var(--surface2)">Σ pov. (vse)</td>
+    <td style="padding:8px"></td>
+    ${footerVals.map(v => `<td style="padding:8px;text-align:right;font-family:monospace">${v != null ? v.toFixed(2) : '—'}</td>`).join('')}
+    <td style="padding:8px;text-align:right;font-family:monospace;color:var(--accent);border-left:2px solid var(--border)">${grandAvg != null ? grandAvg.toFixed(2) : '—'}</td>
+  </tr>`;
+
+  html += `</tbody></table>
+    <div style="margin-top:10px;font-size:10px;color:var(--text-tertiary);display:flex;gap:14px;flex-wrap:wrap">
+      <span><span style="display:inline-block;width:10px;height:10px;background:rgba(34,197,94,0.4);vertical-align:middle;margin-right:4px"></span>Najcenejši mesec</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:rgba(245,158,11,0.4);vertical-align:middle;margin-right:4px"></span>Sredina</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:rgba(239,68,68,0.4);vertical-align:middle;margin-right:4px"></span>Najdražji mesec</span>
+    </div>`;
+
+  document.getElementById('shipCountryMonthlyTable').innerHTML = html;
+}
+
 
 function shipRenderInsights(rows) {
   if (!rows.length) return;
