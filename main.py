@@ -298,6 +298,7 @@ async def startup_event():
 
     await fetch_all_feeds()
     asyncio.create_task(daily_refresh())
+    asyncio.create_task(_daily_cashflow_sync())
 
 
 async def daily_refresh():
@@ -9339,3 +9340,175 @@ async def cashflow_data():
         import traceback
         traceback.print_exc()
         return {"ok": False, "error": str(e)}
+
+
+# ─── GOOGLE SHEETS SYNC za CashFlow ─────────────────────────────────────────
+
+CASHFLOW_SHEET_CONFIG = DATA_DIR / "cashflow_sheet_config.json"
+
+
+def _load_cf_sheet_config():
+    if CASHFLOW_SHEET_CONFIG.exists():
+        try:
+            return json.loads(CASHFLOW_SHEET_CONFIG.read_text(encoding='utf-8'))
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_cf_sheet_config(cfg: dict):
+    CASHFLOW_SHEET_CONFIG.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding='utf-8')
+
+
+def _get_sheets_service():
+    """Inicializira Google Sheets API client s service account."""
+    sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+    if not sa_json:
+        raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON env var ni nastavljen")
+
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+
+    sa_info = json.loads(sa_json)
+    creds = service_account.Credentials.from_service_account_info(
+        sa_info,
+        scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    )
+    service = build('sheets', 'v4', credentials=creds, cache_discovery=False)
+    return service, sa_info.get("client_email", "unknown")
+
+
+def _sync_cashflow_from_sheets(sheet_id: str = None, tab_name: str = "Cash Flow"):
+    """Prenese podatke iz Google Sheets in shrani kot Excel v /data/cashflow.xlsx."""
+    if not sheet_id:
+        cfg = _load_cf_sheet_config()
+        sheet_id = os.environ.get("CASHFLOW_SHEET_ID") or cfg.get("sheet_id")
+    if not sheet_id:
+        return {"ok": False, "error": "Sheet ID ni nastavljen"}
+
+    try:
+        service, sa_email = _get_sheets_service()
+
+        # Vzami vse podatke iz tab-a
+        result = service.spreadsheets().values().get(
+            spreadsheetId=sheet_id,
+            range=f"'{tab_name}'",
+            valueRenderOption="UNFORMATTED_VALUE",
+            dateTimeRenderOption="FORMATTED_STRING"
+        ).execute()
+
+        values = result.get("values", [])
+        if not values:
+            return {"ok": False, "error": f"Tab '{tab_name}' je prazen ali ne obstaja"}
+
+        # Konvertiraj v Excel format in shrani na disk
+        import openpyxl
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Cash Flow"
+
+        from datetime import datetime as _dt
+        for row_idx, row in enumerate(values, start=1):
+            for col_idx, cell in enumerate(row, start=1):
+                # Try to parse date strings in column 1
+                if col_idx == 1 and row_idx > 1 and isinstance(cell, str):
+                    parsed_date = None
+                    for fmt in ("%d.%m.%Y", "%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y"):
+                        try:
+                            parsed_date = _dt.strptime(cell, fmt)
+                            break
+                        except Exception:
+                            continue
+                    if parsed_date:
+                        ws.cell(row=row_idx, column=col_idx).value = parsed_date
+                        continue
+                ws.cell(row=row_idx, column=col_idx).value = cell
+
+        wb.save(CASHFLOW_FILE)
+
+        # Save config
+        cfg = _load_cf_sheet_config()
+        cfg["sheet_id"] = sheet_id
+        cfg["tab_name"] = tab_name
+        cfg["last_sync"] = _dt.now().isoformat()
+        cfg["last_sync_rows"] = len(values)
+        cfg["service_account_email"] = sa_email
+        _save_cf_sheet_config(cfg)
+
+        # Count data rows (with dates)
+        n_data = sum(1 for r in range(2, ws.max_row + 1) if hasattr(ws.cell(row=r, column=1).value, 'year'))
+
+        return {
+            "ok": True,
+            "rows": n_data,
+            "raw_rows": len(values),
+            "sheet_id": sheet_id,
+            "tab_name": tab_name,
+            "last_sync": cfg["last_sync"],
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+
+class CashFlowSyncRequest(BaseModel):
+    sheet_id: str = ""
+    tab_name: str = "Cash Flow"
+
+
+@app.post("/cashflow-sync-sheets")
+async def cashflow_sync_sheets(req: CashFlowSyncRequest):
+    """Manual sync iz Google Sheets."""
+    return _sync_cashflow_from_sheets(
+        sheet_id=req.sheet_id or None,
+        tab_name=req.tab_name or "Cash Flow"
+    )
+
+
+@app.get("/cashflow-sheets-status")
+async def cashflow_sheets_status():
+    """Vrne trenutno konfiguracijo Sheets sync-a."""
+    cfg = _load_cf_sheet_config()
+    env_id = os.environ.get("CASHFLOW_SHEET_ID", "")
+    return {
+        "ok": True,
+        "configured_id": cfg.get("sheet_id") or env_id,
+        "from_env": bool(env_id),
+        "tab_name": cfg.get("tab_name", "Cash Flow"),
+        "last_sync": cfg.get("last_sync"),
+        "last_sync_rows": cfg.get("last_sync_rows"),
+        "service_account_email": cfg.get("service_account_email"),
+        "auto_refresh": "daily at 06:00",
+    }
+
+
+# Auto-refresh ob 6:00 zjutraj
+async def _daily_cashflow_sync():
+    while True:
+        try:
+            from datetime import datetime as _dt, timedelta as _td
+            now = _dt.now()
+            # Naslednji 6:00
+            next_run = now.replace(hour=6, minute=0, second=0, microsecond=0)
+            if next_run <= now:
+                next_run += _td(days=1)
+            sleep_seconds = (next_run - now).total_seconds()
+            print(f"[cashflow-sync] Next sync at {next_run.isoformat()} (in {sleep_seconds:.0f}s)")
+            await asyncio.sleep(sleep_seconds)
+
+            # Sync
+            cfg = _load_cf_sheet_config()
+            sheet_id = os.environ.get("CASHFLOW_SHEET_ID") or cfg.get("sheet_id")
+            if sheet_id:
+                tab = cfg.get("tab_name", "Cash Flow")
+                result = _sync_cashflow_from_sheets(sheet_id, tab)
+                if result.get("ok"):
+                    print(f"[cashflow-sync] OK — {result['rows']} rows synced")
+                else:
+                    print(f"[cashflow-sync] FAIL — {result.get('error')}")
+            else:
+                print("[cashflow-sync] No sheet_id configured, skipping")
+        except Exception as e:
+            print(f"[cashflow-sync] Error: {e}")
+            await asyncio.sleep(3600)  # počakaj 1h pred ponovnim poskusom
