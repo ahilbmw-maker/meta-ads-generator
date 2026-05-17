@@ -2674,125 +2674,249 @@ input[type="text"].error { border-color: var(--red) !important; }
 
 
   <!-- TAB: Shipping -->
-  <div id="analizaSubpage-shipping" style="display:none;padding:14px 0 0 0">
-    <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <div class="k-dropzone" style="flex:0 0 auto;padding:12px 18px;cursor:pointer;display:flex;align-items:center;gap:10px" onclick="document.getElementById('shipUploadInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="shipHandleDrop(event)">
-        <span style="font-size:13px">📤 Naloži XLS (Inventory ali Descr)</span>
-      </div>
-      <input type="file" id="shipUploadInput" accept=".xls,.xlsx" style="display:none" onchange="shipUploadFile(this.files[0])">
-      <div id="shipStatus" style="font-size:12px;color:var(--text-secondary);flex:1"></div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <label style="font-size:11px;color:var(--text-secondary)">Mesec:</label>
-        <select id="shipMonthFilter" onchange="shipRender()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit">
-          <option value="all">Vsi meseci</option>
-        </select>
-      </div>
+  <div id="analizaSubpage-shipping" style="display:none;padding:0">
+
+    <!-- Empty state -->
+    <div id="shipEmpty" style="text-align:center;padding:80px 20px;color:var(--text-tertiary);font-size:14px">
+      <div style="font-size:56px;margin-bottom:14px">🚚</div>
+      <div style="font-size:16px;color:var(--text);font-weight:600;margin-bottom:8px">Stroški pošte</div>
+      <div>Naloži <strong>protocol_inventory_*.xls</strong> ali <strong>Descr-*.xls</strong>.</div>
+      <div style="font-size:11px;margin-top:6px">Mesec se zazna avtomatsko iz datumov v fajlu.</div>
+      <input type="file" id="shipUploadInputEmpty" accept=".xls,.xlsx" style="display:none" onchange="shipUploadFile(this.files[0])">
+      <button onclick="document.getElementById('shipUploadInputEmpty').click()" style="margin-top:20px;padding:10px 22px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">📤 Naloži prvi fajl</button>
     </div>
 
+    <!-- Dashboard (display:block when loaded) -->
     <div id="shipDashboard" style="display:none">
-      <div id="shipKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:14px"></div>
 
-      <div class="card" style="margin-bottom:14px">
-        <span class="slabel">📈 STROŠEK PO MESECIH</span>
-        <canvas id="shipChartTrend" style="margin-top:10px;width:100%;max-height:340px"></canvas>
-      </div>
-
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px;margin-bottom:14px">
-        <div class="card">
-          <span class="slabel">🌍 PAKETI PO DRŽAVAH</span>
-          <canvas id="shipChartCountries" style="margin-top:10px;width:100%;max-height:280px"></canvas>
+      <!-- ─── STICKY FILTER BAR ─── -->
+      <div id="shipFilterBar" style="position:sticky;top:0;z-index:50;background:rgba(255,255,255,0.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:14px 16px;margin:-14px -14px 0 -14px">
+        <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+          <!-- Months -->
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.6px">📅 Mesec</span>
+            <div id="shipFilterMonths" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+          </div>
+          <!-- Countries -->
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.6px">🌍 Države</span>
+            <div id="shipFilterCountries" style="display:flex;gap:4px;flex-wrap:wrap;max-width:600px"></div>
+          </div>
+          <!-- Compare -->
+          <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+            <span style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.6px">Primerjaj</span>
+            <select id="shipCompareMode" onchange="shipRender()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;background:white">
+              <option value="prev">vs prejšnji mesec</option>
+              <option value="avg3">vs povp. (3 mes)</option>
+              <option value="none">brez primerjave</option>
+            </select>
+          </div>
+          <!-- Upload button (compact) -->
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="file" id="shipUploadInput" accept=".xls,.xlsx" style="display:none" onchange="shipUploadFile(this.files[0])">
+            <button onclick="document.getElementById('shipUploadInput').click()" style="padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text-secondary)">📤 Naloži nov</button>
+          </div>
         </div>
-        <div class="card">
-          <span class="slabel">💵 RAZDELITEV STROŠKOV</span>
-          <canvas id="shipChartCostBreakdown" style="margin-top:10px;width:100%;max-height:280px"></canvas>
+        <div id="shipStatus" style="font-size:11px;color:var(--text-secondary);margin-top:6px;display:none"></div>
+      </div>
+
+      <!-- ─── CONTENT ─── -->
+      <div style="padding:24px 14px">
+
+        <!-- Title context -->
+        <div style="margin-bottom:24px">
+          <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:1.2px;font-weight:600">Pregled za</div>
+          <div id="shipContextTitle" style="font-size:26px;font-weight:700;letter-spacing:-0.5px;margin-top:6px;color:var(--text)"></div>
         </div>
-        <div class="card">
-          <span class="slabel">⚖️ DISTRIBUCIJA PO TEŽI</span>
-          <canvas id="shipChartWeight" style="margin-top:10px;width:100%;max-height:280px"></canvas>
+
+        <!-- KPI grid -->
+        <div id="shipKpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px"></div>
+
+        <!-- Main trend chart (always full width) -->
+        <div class="card" style="margin-bottom:14px;padding:20px">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:14px">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">📈 Trend skozi mesece</div>
+              <div id="shipTrendDesc" style="font-size:11px;color:var(--text-secondary);margin-top:3px">Pov. cena/paket + skupna mesečna poraba</div>
+            </div>
+            <div style="display:flex;gap:4px;align-items:center">
+              <button id="shipTrendMetricBtn-avg" onclick="shipSetTrendMetric('avg')" class="ship-trend-metric-btn ship-active" style="padding:4px 10px;font-size:11px;border:1px solid var(--border);background:var(--accent);color:white;border-radius:5px;cursor:pointer;font-family:inherit">Pov. cena</button>
+              <button id="shipTrendMetricBtn-total" onclick="shipSetTrendMetric('total')" class="ship-trend-metric-btn" style="padding:4px 10px;font-size:11px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);border-radius:5px;cursor:pointer;font-family:inherit">Skupaj €</button>
+              <button id="shipTrendMetricBtn-count" onclick="shipSetTrendMetric('count')" class="ship-trend-metric-btn" style="padding:4px 10px;font-size:11px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);border-radius:5px;cursor:pointer;font-family:inherit">Št. paketov</button>
+            </div>
+          </div>
+          <canvas id="shipChartTrend" style="width:100%;max-height:340px"></canvas>
         </div>
-        <div class="card">
-          <span class="slabel">🚚 KURIRJI (delež paketov)</span>
-          <canvas id="shipChartCouriers" style="margin-top:10px;width:100%;max-height:280px"></canvas>
+
+        <!-- 2-col: Breakdown + Anomalies -->
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px">
+          <div class="card" style="padding:20px;margin:0">
+            <div style="font-size:14px;font-weight:700;color:var(--text)">💵 Razdelitev stroškov</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:3px;margin-bottom:14px">Iz česa je sestavljena končna cena paketa.</div>
+            <canvas id="shipChartCostBreakdown" style="width:100%;max-height:280px"></canvas>
+          </div>
+          <div class="card" style="padding:20px;margin:0">
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:14px">
+              <div>
+                <div style="font-size:14px;font-weight:700;color:var(--text)">🚨 Anomalije</div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">Spremembe v cenikih</div>
+              </div>
+              <div id="shipAnomalyImpactBadge" style="font-size:11px;color:#dc2626;font-weight:700"></div>
+            </div>
+            <div id="shipAnomaliesCompact"></div>
+            <button onclick="shipToggleSection('anomalies-detail')" style="margin-top:12px;padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;color:var(--text-secondary);font-family:inherit;width:100%">Razširi vse anomalije →</button>
+          </div>
         </div>
-      </div>
 
-      <div class="card" style="margin-bottom:14px">
-        <span class="slabel">📊 PRIMERJAVA PO DRŽAVAH</span>
-        <div id="shipCountryTable" style="margin-top:12px;overflow-x:auto"></div>
-      </div>
-
-      <!-- Per-country trend chart -->
-      <div class="card" style="margin-bottom:14px">
-        <span class="slabel">📉 POV. CENA/PAKET PO TRGIH SKOZI MESECE</span>
-        <div style="margin-top:6px;font-size:11px;color:var(--text-secondary)">Vsaka država = ena črta. Prikaz top držav po številu paketov.</div>
-        <canvas id="shipChartCountryTrend" style="margin-top:10px;width:100%;max-height:380px"></canvas>
-      </div>
-
-      <!-- Per-country monthly table -->
-      <div class="card" style="margin-bottom:14px">
-        <span class="slabel">📅 TABELA POV. CENE PO DRŽAVAH IN MESECIH</span>
-        <div id="shipCountryMonthlyTable" style="margin-top:12px;overflow-x:auto"></div>
-      </div>
-
-      <!-- COD-only analysis (samo uspešno prevzeti COD paketi) -->
-      <div class="card" style="margin-bottom:14px;border-left:4px solid #8b5cf6">
-        <span class="slabel">💳 SAMO USPEŠNI COD PAKETI (cena > 0)</span>
-        <div style="margin-top:6px;font-size:11px;color:var(--text-secondary)">Izključeni neprevzeti paketi (total = 0). To je pravi vzorec za pravo ceno COD storitev.</div>
-        <div id="shipCodKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px"></div>
-        <canvas id="shipChartCodTrend" style="margin-top:14px;width:100%;max-height:340px"></canvas>
-        <div id="shipCodCountryMonthlyTable" style="margin-top:14px;overflow-x:auto"></div>
-      </div>
-
-      <!-- Refund rate / neprevzeti -->
-      <div class="card" style="margin-bottom:14px;border-left:4px solid #ef4444">
-        <span class="slabel">↩️ NEPREVZETI PAKETI (total = 0)</span>
-        <div style="margin-top:6px;font-size:11px;color:var(--text-secondary)">Refund rate per trg. Visok % = stranke ne prevzemajo COD paketov.</div>
-        <div id="shipRefundTable" style="margin-top:12px;overflow-x:auto"></div>
-      </div>
-
-      <!-- ANOMALIJE -->
-      <div class="card" style="margin-bottom:14px;border-left:4px solid #dc2626;background:linear-gradient(to right, rgba(239,68,68,0.04), transparent)">
-        <span class="slabel">🚨 ZAZNANE ANOMALIJE V FEE-JIH (mesec na mesec)</span>
-        <div style="margin-top:6px;font-size:11px;color:var(--text-secondary)">Avtomatska detekcija novih fee-jev, povišanja procentov in nepričakovanih sprememb v ceniku dostavnih služb.</div>
-        <div id="shipAnomaliesSummary" style="margin-top:12px"></div>
-        <div id="shipAnomaliesList" style="margin-top:12px"></div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:14px">
-        <div class="card">
-          <span class="slabel">📦 NAJTEŽJI PAKET</span>
-          <div id="shipHeaviestBox" style="margin-top:10px;font-size:13px;line-height:1.7"></div>
+        <!-- Monthly summary table (zelo pomembna pri mesečnem pregledovanju) -->
+        <div class="card" style="margin-bottom:14px;padding:20px">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px">📅 Mesečni pregled</div>
+          <div id="shipMonthlyTableDesc" style="font-size:11px;color:var(--text-secondary);margin-bottom:14px">Skupne številke po mesecih za izbrane države</div>
+          <div id="shipMonthlyTable" style="overflow-x:auto"></div>
         </div>
-        <div class="card">
-          <span class="slabel">💰 NAJDRAŽJI PAKET</span>
-          <div id="shipPriciestBox" style="margin-top:10px;font-size:13px;line-height:1.7"></div>
-        </div>
-        <div class="card">
-          <span class="slabel">🎯 COD VS NON-COD</span>
-          <div id="shipCodBox" style="margin-top:10px;font-size:13px;line-height:1.7"></div>
-        </div>
-        <div class="card">
-          <span class="slabel">⛽ DELEŽ FUEL TAX</span>
-          <div id="shipFuelBox" style="margin-top:10px;font-size:13px;line-height:1.7"></div>
-        </div>
-      </div>
 
-      <div class="card" style="margin-bottom:14px">
-        <span class="slabel">💸 PODROBNA RAZDELITEV STROŠKOV</span>
-        <div id="shipCostDetails" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px"></div>
-      </div>
+        <!-- Collapsible: Per-country comparison -->
+        <div class="card ship-section" id="ship-section-countries" style="padding:18px 20px;margin-bottom:10px">
+          <div onclick="shipToggleSection('countries')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">🌍 Primerjava po državah</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">Top trgi po porabi · pov. cena · COD %</div>
+            </div>
+            <span class="ship-section-toggle" data-section="countries" style="font-size:18px;color:var(--text-secondary);transition:transform 0.2s">▸</span>
+          </div>
+          <div class="ship-section-body" data-section="countries" style="display:none;margin-top:16px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+              <canvas id="shipChartCountries" style="width:100%;max-height:340px"></canvas>
+              <canvas id="shipChartCountryTrend" style="width:100%;max-height:340px"></canvas>
+            </div>
+            <div id="shipCountryTable" style="overflow-x:auto;margin-bottom:14px"></div>
+            <div id="shipCountryMonthlyTable" style="overflow-x:auto"></div>
+          </div>
+        </div>
 
-      <div class="card">
-        <span class="slabel">🗂 NALOŽENI MESECI</span>
-        <div id="shipMonthsList" style="margin-top:12px"></div>
-      </div>
-    </div>
+        <!-- Collapsible: COD analysis -->
+        <div class="card ship-section" id="ship-section-cod" style="padding:18px 20px;margin-bottom:10px">
+          <div onclick="shipToggleSection('cod')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">💳 COD analiza</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">Samo uspešno prevzeti COD paketi</div>
+            </div>
+            <span class="ship-section-toggle" data-section="cod" style="font-size:18px;color:var(--text-secondary);transition:transform 0.2s">▸</span>
+          </div>
+          <div class="ship-section-body" data-section="cod" style="display:none;margin-top:16px">
+            <div id="shipCodKpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px"></div>
+            <canvas id="shipChartCodTrend" style="width:100%;max-height:320px;margin-bottom:14px"></canvas>
+            <div id="shipCodCountryMonthlyTable" style="overflow-x:auto"></div>
+          </div>
+        </div>
 
-    <div id="shipEmpty" style="text-align:center;padding:60px 20px;color:var(--text-tertiary);font-size:14px">
-      <div style="font-size:48px;margin-bottom:12px">🚚</div>
-      Naloži <strong>protocol_inventory_*.xls</strong> ali <strong>Descr-*.xls</strong>.<br>
-      <span style="font-size:11px">Mesec se zazna avtomatsko iz datumov v fajlu.</span>
-    </div>
+        <!-- Collapsible: Refund / neprevzeti -->
+        <div class="card ship-section" id="ship-section-refund" style="padding:18px 20px;margin-bottom:10px">
+          <div onclick="shipToggleSection('refund')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">↩️ Neprevzeti paketi</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">Refund rate · COD success per trg</div>
+            </div>
+            <span class="ship-section-toggle" data-section="refund" style="font-size:18px;color:var(--text-secondary);transition:transform 0.2s">▸</span>
+          </div>
+          <div class="ship-section-body" data-section="refund" style="display:none;margin-top:16px">
+            <div id="shipRefundTable" style="overflow-x:auto"></div>
+          </div>
+        </div>
+
+        <!-- Collapsible: Anomalies detailed -->
+        <div class="card ship-section" id="ship-section-anomalies-detail" style="padding:18px 20px;margin-bottom:10px;border-left:3px solid #dc2626">
+          <div onclick="shipToggleSection('anomalies-detail')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">🚨 Vse anomalije (podrobno)</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">Avtomatska detekcija novih fee-jev in cenovnih sprememb</div>
+            </div>
+            <span class="ship-section-toggle" data-section="anomalies-detail" style="font-size:18px;color:var(--text-secondary);transition:transform 0.2s">▸</span>
+          </div>
+          <div class="ship-section-body" data-section="anomalies-detail" style="display:none;margin-top:16px">
+            <div id="shipAnomaliesSummary" style="margin-bottom:14px"></div>
+            <div id="shipAnomaliesList"></div>
+          </div>
+        </div>
+
+        <!-- Collapsible: Distribution charts -->
+        <div class="card ship-section" id="ship-section-distrib" style="padding:18px 20px;margin-bottom:10px">
+          <div onclick="shipToggleSection('distrib')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">📊 Distribucije</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">Po teži · Kuriri · Najtežji/najdražji paket</div>
+            </div>
+            <span class="ship-section-toggle" data-section="distrib" style="font-size:18px;color:var(--text-secondary);transition:transform 0.2s">▸</span>
+          </div>
+          <div class="ship-section-body" data-section="distrib" style="display:none;margin-top:16px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+              <canvas id="shipChartWeight" style="width:100%;max-height:280px"></canvas>
+              <canvas id="shipChartCouriers" style="width:100%;max-height:280px"></canvas>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
+              <div class="card" style="padding:14px;margin:0">
+                <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase">📦 NAJTEŽJI</div>
+                <div id="shipHeaviestBox" style="margin-top:6px;font-size:12px;line-height:1.5"></div>
+              </div>
+              <div class="card" style="padding:14px;margin:0">
+                <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase">💰 NAJDRAŽJI</div>
+                <div id="shipPriciestBox" style="margin-top:6px;font-size:12px;line-height:1.5"></div>
+              </div>
+              <div class="card" style="padding:14px;margin:0">
+                <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase">🎯 COD/NON-COD</div>
+                <div id="shipCodBox" style="margin-top:6px;font-size:12px;line-height:1.5"></div>
+              </div>
+              <div class="card" style="padding:14px;margin:0">
+                <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase">⛽ FUEL TAX</div>
+                <div id="shipFuelBox" style="margin-top:6px;font-size:12px;line-height:1.5"></div>
+              </div>
+            </div>
+            <div style="margin-top:14px">
+              <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px">💸 Podrobno po stroških</div>
+              <div id="shipCostDetails" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Collapsible: Months management -->
+        <div class="card ship-section" id="ship-section-months" style="padding:18px 20px;margin-bottom:10px">
+          <div onclick="shipToggleSection('months')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">🗂 Naloženi meseci</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">Upravljanje shranjenih datotek</div>
+            </div>
+            <span class="ship-section-toggle" data-section="months" style="font-size:18px;color:var(--text-secondary);transition:transform 0.2s">▸</span>
+          </div>
+          <div class="ship-section-body" data-section="months" style="display:none;margin-top:16px">
+            <div id="shipMonthsList"></div>
+          </div>
+        </div>
+
+      </div><!-- /content padding -->
+    </div><!-- /shipDashboard -->
+
+    <!-- Chip CSS -->
+    <style>
+      .ship-chip {
+        padding: 5px 11px;
+        border: 1px solid var(--border);
+        background: white;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.15s;
+        color: var(--text-secondary);
+        white-space: nowrap;
+      }
+      .ship-chip:hover { border-color: var(--text-tertiary); background: var(--surface2); }
+      .ship-chip.active { background: var(--text); color: white; border-color: var(--text); }
+      .ship-chip.preset { background: var(--accent); color: white; border-color: var(--accent); }
+      .ship-section-toggle.open { transform: rotate(90deg); }
+      .ship-trend-metric-btn.ship-active { background: var(--accent); color: white; }
+    </style>
+
   </div>
 
 
@@ -14464,8 +14588,12 @@ function cfRenderMetrics(rows) {
 // ── /CASH FLOW ────────────────────────────────────────
 
 
-// ─── SHIPPING COSTS ANALIZA ──────────────────────────────────────────────
-let shipSummariesByMonth = {};  // {YYYY-MM: summary_object}
+// ─── SHIPPING COSTS ANALIZA — Refined Minimal Layout (A) ───────────────────
+let shipSummariesByMonth = {};
+let shipAnomaliesData = null;
+let shipSelectedMonths = new Set();  // sets of YYYY-MM strings; empty = all months
+let shipSelectedCountries = new Set(); // empty = all countries
+let shipTrendMetric = 'avg';  // 'avg' | 'total' | 'count'
 let shipCharts = {};
 
 const COUNTRY_NAMES = {
@@ -14475,33 +14603,39 @@ const COUNTRY_NAMES = {
   DEU: '🇩🇪 Nemčija', BIH: '🇧🇦 BiH', MKD: '🇲🇰 Sev. Makedonija', MNE: '🇲🇪 Črna Gora',
   ALB: '🇦🇱 Albanija', KOS: '🇽🇰 Kosovo', NLD: '🇳🇱 Nizozemska', BEL: '🇧🇪 Belgija',
 };
+const COUNTRY_FLAG_ONLY = (code) => (COUNTRY_NAMES[code] || code).split(' ')[0];
+const COUNTRY_NAME_ONLY = (code) => {
+  const parts = (COUNTRY_NAMES[code] || code).split(' ');
+  return parts.slice(1).join(' ') || code;
+};
 
-function shipCountryLabel(code) {
-  return COUNTRY_NAMES[code] || code;
-}
-
+function shipCountryLabel(code) { return COUNTRY_NAMES[code] || code; }
 function shipFmtEur(v, dec = 2) {
   if (v == null || isNaN(v)) return '—';
   return new Intl.NumberFormat('sl-SI', {style: 'currency', currency: 'EUR', maximumFractionDigits: dec, minimumFractionDigits: dec}).format(v);
 }
-
 function shipFmtNum(v, dec = 0) {
   if (v == null || isNaN(v)) return '—';
   return new Intl.NumberFormat('sl-SI', {maximumFractionDigits: dec}).format(v);
 }
-
+function shipFmtPct(v, dec = 1) {
+  if (v == null || isNaN(v)) return '—';
+  return v.toFixed(dec) + '%';
+}
 function shipDestroyChart(name) {
   if (shipCharts[name]) { shipCharts[name].destroy(); delete shipCharts[name]; }
 }
 
 function shipHandleDrop(e) {
-  e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+  e.preventDefault();
+  if (e.currentTarget) e.currentTarget.classList.remove('drag-over');
   if (e.dataTransfer.files[0]) shipUploadFile(e.dataTransfer.files[0]);
 }
 
 async function shipUploadFile(file) {
   if (!file) return;
   const status = document.getElementById('shipStatus');
+  status.style.display = 'block';
   status.textContent = '⏳ Razdelujem ' + file.name + '... (lahko traja 10-30s)';
   try {
     const fd = new FormData();
@@ -14523,44 +14657,120 @@ async function shipUploadFile(file) {
 async function shipLoadData() {
   try {
     const t0 = performance.now();
-    // Uporabi cache endpoint (hitri)
     const r = await fetch('/shipping-summary');
     const d = await r.json();
-    console.log('[shipping] summary load: ' + Math.round(performance.now() - t0) + 'ms, months: ' + (d.summaries ? Object.keys(d.summaries).length : 0));
+    console.log('[shipping] summary load:', Math.round(performance.now() - t0) + 'ms');
+
     if (!d.ok || !d.summaries || Object.keys(d.summaries).length === 0) {
       document.getElementById('shipEmpty').style.display = 'block';
       document.getElementById('shipDashboard').style.display = 'none';
-      if (d.error) {
-        document.getElementById('shipStatus').innerHTML = '<span style="color:#ef4444">⚠️ ' + d.error + '</span>';
-      }
       return;
     }
+
     shipSummariesByMonth = d.summaries;
+
+    // Default: select latest month + all countries
+    const months = Object.keys(shipSummariesByMonth).sort();
+    if (shipSelectedMonths.size === 0) {
+      shipSelectedMonths.add(months[months.length - 1]); // latest
+    }
+
     document.getElementById('shipEmpty').style.display = 'none';
     document.getElementById('shipDashboard').style.display = 'block';
-    shipUpdateMonthFilter();
+
+    shipBuildFilters();
+    await shipFetchAnomalies();
     shipRender();
   } catch (e) {
     console.error('shipLoadData:', e);
-    document.getElementById('shipStatus').innerHTML = '<span style="color:#ef4444">❌ ' + e.message + '</span>';
   }
 }
 
-function shipUpdateMonthFilter() {
-  const sel = document.getElementById('shipMonthFilter');
-  const prev = sel.value;
-  const months = Object.keys(shipSummariesByMonth).sort();
-  sel.innerHTML = '<option value="all">Vsi meseci (' + months.length + ')</option>' +
-    months.map(m => `<option value="${m}">${m}</option>`).join('');
-  if (months.includes(prev) || prev === 'all') sel.value = prev;
+async function shipFetchAnomalies() {
+  try {
+    const r = await fetch('/shipping-anomalies');
+    const d = await r.json();
+    shipAnomaliesData = d.ok ? d : null;
+  } catch (e) {
+    shipAnomaliesData = null;
+  }
 }
 
-// Združi summarije iz več mesecev v eno (za "all" pogled)
-function shipMergedSummary() {
-  const sel = document.getElementById('shipMonthFilter').value;
-  const months = sel === 'all' ? Object.keys(shipSummariesByMonth) : [sel];
+function shipBuildFilters() {
+  const months = Object.keys(shipSummariesByMonth).sort();
+  const monthsEl = document.getElementById('shipFilterMonths');
+  monthsEl.innerHTML = months.map(m =>
+    `<button class="ship-chip ${shipSelectedMonths.has(m) ? 'active' : ''}" onclick="shipToggleMonth('${m}')">${m}</button>`
+  ).join('') + `<button class="ship-chip preset" onclick="shipSelectAllMonths()">Vsi (${months.length})</button>`;
 
-  // Inicializiraj prazno
+  // Build country list from all summaries
+  const countriesSet = new Set();
+  for (const s of Object.values(shipSummariesByMonth)) {
+    for (const c of Object.keys(s.by_country || {})) countriesSet.add(c);
+  }
+  // Sort by total packages desc
+  const countryTotals = {};
+  for (const s of Object.values(shipSummariesByMonth)) {
+    for (const [c, st] of Object.entries(s.by_country || {})) {
+      countryTotals[c] = (countryTotals[c] || 0) + (st.count || 0);
+    }
+  }
+  const countries = [...countriesSet].sort((a, b) => (countryTotals[b] || 0) - (countryTotals[a] || 0));
+  const countriesEl = document.getElementById('shipFilterCountries');
+  countriesEl.innerHTML = countries.map(c =>
+    `<button class="ship-chip ${shipSelectedCountries.has(c) ? 'active' : ''}" onclick="shipToggleCountry('${c}')">${shipCountryLabel(c)}</button>`
+  ).join('') + `<button class="ship-chip preset" onclick="shipSelectAllCountries()">Vse</button>`;
+}
+
+function shipToggleMonth(m) {
+  if (shipSelectedMonths.has(m)) shipSelectedMonths.delete(m);
+  else shipSelectedMonths.add(m);
+  shipBuildFilters();
+  shipRender();
+}
+
+function shipSelectAllMonths() {
+  shipSelectedMonths.clear();  // empty = all
+  shipBuildFilters();
+  shipRender();
+}
+
+function shipToggleCountry(c) {
+  if (shipSelectedCountries.has(c)) shipSelectedCountries.delete(c);
+  else shipSelectedCountries.add(c);
+  shipBuildFilters();
+  shipRender();
+}
+
+function shipSelectAllCountries() {
+  shipSelectedCountries.clear();
+  shipBuildFilters();
+  shipRender();
+}
+
+// Returns array of active month keys
+function shipActiveMonths() {
+  const all = Object.keys(shipSummariesByMonth).sort();
+  if (shipSelectedMonths.size === 0) return all;
+  return all.filter(m => shipSelectedMonths.has(m));
+}
+
+// Returns set of active country codes (or all)
+function shipActiveCountries() {
+  if (shipSelectedCountries.size === 0) {
+    const s = new Set();
+    for (const sum of Object.values(shipSummariesByMonth)) {
+      for (const c of Object.keys(sum.by_country || {})) s.add(c);
+    }
+    return s;
+  }
+  return shipSelectedCountries;
+}
+
+// Merge summaries based on filters
+function shipMergedSummary() {
+  const activeMonths = shipActiveMonths();
+  const activeCountries = shipActiveCountries();
   const merged = {
     row_count: 0, total_cost: 0, total_weight: 0,
     by_country: {}, by_courier: {},
@@ -14576,19 +14786,17 @@ function shipMergedSummary() {
     heaviest: null, priciest: null,
     cod_count_total: 0, cod_success_total: 0, zero_total: 0,
   };
-
-  months.forEach(m => {
+  for (const m of activeMonths) {
     const s = shipSummariesByMonth[m];
-    if (!s) return;
-    merged.row_count += s.row_count || 0;
-    merged.total_cost += s.total_cost || 0;
-    merged.total_weight += s.total_weight || 0;
-    merged.cod_count_total += s.cod_count_total || 0;
-    merged.cod_success_total += s.cod_success_total || 0;
-    merged.zero_total += s.zero_total || 0;
-
-    // Merge by_country
+    if (!s) continue;
     for (const [c, stats] of Object.entries(s.by_country || {})) {
+      if (!activeCountries.has(c)) continue;
+      merged.row_count += stats.count || 0;
+      merged.total_cost += stats.cost || 0;
+      merged.total_weight += stats.weight || 0;
+      merged.cod_count_total += stats.cod_count || 0;
+      merged.cod_success_total += stats.cod_success || 0;
+      merged.zero_total += stats.zero_count || 0;
       if (!merged.by_country[c]) merged.by_country[c] = {count: 0, cost: 0, weight: 0, cod_count: 0, cod_success: 0, zero_count: 0, cod_amount_sum: 0, disc_sum: 0};
       const dst = merged.by_country[c];
       dst.count += stats.count || 0;
@@ -14600,55 +14808,162 @@ function shipMergedSummary() {
       dst.cod_amount_sum += stats.cod_amount_sum || 0;
       dst.disc_sum += stats.disc_sum || 0;
     }
-
-    // Merge by_courier
-    for (const [c, count] of Object.entries(s.by_courier || {})) {
-      merged.by_courier[c] = (merged.by_courier[c] || 0) + count;
+    // Couriers (no country filter for these — they're per-package totals)
+    if (activeCountries.size === Object.keys(shipSummariesByMonth[m].by_country || {}).length) {
+      for (const [c, count] of Object.entries(s.by_courier || {})) {
+        merged.by_courier[c] = (merged.by_courier[c] || 0) + count;
+      }
     }
-
-    // Merge cost_breakdown
-    for (const k of Object.keys(merged.cost_breakdown)) {
-      merged.cost_breakdown[k] += (s.cost_breakdown && s.cost_breakdown[k]) || 0;
+    // Cost breakdown — approx: if all countries selected use cost_breakdown directly, else proportional approximation
+    if (shipSelectedCountries.size === 0) {
+      for (const k of Object.keys(merged.cost_breakdown)) {
+        merged.cost_breakdown[k] += (s.cost_breakdown && s.cost_breakdown[k]) || 0;
+      }
+      if (s.weight_buckets) {
+        s.weight_buckets.forEach((b, i) => {
+          merged.weight_buckets[i].count += b.count || 0;
+          merged.weight_buckets[i].cost += b.cost || 0;
+        });
+      }
+      if (s.heaviest && (!merged.heaviest || (s.heaviest.weight_kg || 0) > (merged.heaviest.weight_kg || 0))) merged.heaviest = s.heaviest;
+      if (s.priciest && (!merged.priciest || (s.priciest.cost || 0) > (merged.priciest.cost || 0))) merged.priciest = s.priciest;
     }
-
-    // Merge weight_buckets
-    if (s.weight_buckets) {
-      s.weight_buckets.forEach((b, i) => {
-        merged.weight_buckets[i].count += b.count || 0;
-        merged.weight_buckets[i].cost += b.cost || 0;
-      });
+  }
+  // If country filter active, approximate cost_breakdown proportionally
+  if (shipSelectedCountries.size > 0) {
+    // Use full month cost_breakdown × (filtered cost / total cost) as approximation
+    let fullCost = 0;
+    for (const m of activeMonths) {
+      const s = shipSummariesByMonth[m];
+      if (!s) continue;
+      fullCost += s.total_cost || 0;
+      for (const k of Object.keys(merged.cost_breakdown)) {
+        merged.cost_breakdown[k] += (s.cost_breakdown && s.cost_breakdown[k]) || 0;
+      }
     }
-
-    // Heaviest / priciest
-    if (s.heaviest && (!merged.heaviest || (s.heaviest.weight_kg || 0) > (merged.heaviest.weight_kg || 0))) {
-      merged.heaviest = s.heaviest;
+    if (fullCost > 0) {
+      const ratio = merged.total_cost / fullCost;
+      for (const k of Object.keys(merged.cost_breakdown)) {
+        merged.cost_breakdown[k] *= ratio;
+      }
     }
-    if (s.priciest && (!merged.priciest || (s.priciest.cost || 0) > (merged.priciest.cost || 0))) {
-      merged.priciest = s.priciest;
-    }
-  });
-
+  }
   return merged;
+}
+
+// Compare value: returns {diff, pct, prevValue} comparing active vs comparison baseline
+function shipCompareValue(currVal, currCount, getterFn) {
+  const mode = document.getElementById('shipCompareMode').value;
+  if (mode === 'none') return null;
+
+  const activeMonths = shipActiveMonths();
+  const allMonths = Object.keys(shipSummariesByMonth).sort();
+
+  if (mode === 'prev') {
+    // Najdi prejšnji mesec(e) — z istim številom kot trenutno
+    const minIdx = Math.min(...activeMonths.map(m => allMonths.indexOf(m)));
+    if (minIdx <= 0) return null;
+    const prevMonth = allMonths[minIdx - 1];
+    // Compute baseline from prev month, same country filter
+    const prevVal = getterFn([prevMonth]);
+    if (prevVal == null) return null;
+    return {prev: prevVal, diff: currVal - prevVal, pct: prevVal !== 0 ? (currVal - prevVal) / prevVal * 100 : 0, label: 'vs ' + prevMonth};
+  } else if (mode === 'avg3') {
+    const minIdx = Math.min(...activeMonths.map(m => allMonths.indexOf(m)));
+    if (minIdx <= 0) return null;
+    const baseMonths = allMonths.slice(Math.max(0, minIdx - 3), minIdx);
+    if (baseMonths.length === 0) return null;
+    const prevVal = getterFn(baseMonths);
+    if (prevVal == null) return null;
+    return {prev: prevVal, diff: currVal - prevVal, pct: prevVal !== 0 ? (currVal - prevVal) / prevVal * 100 : 0, label: 'vs povp. ' + baseMonths.length + ' mes.'};
+  }
+  return null;
+}
+
+// Helpers for compare baselines (uses currently-selected countries)
+function shipBaselineTotalCost(months) {
+  const countries = shipActiveCountries();
+  let cost = 0;
+  for (const m of months) {
+    const s = shipSummariesByMonth[m];
+    if (!s) continue;
+    for (const [c, st] of Object.entries(s.by_country || {})) {
+      if (countries.has(c)) cost += st.cost || 0;
+    }
+  }
+  return cost;
+}
+function shipBaselineCount(months) {
+  const countries = shipActiveCountries();
+  let count = 0;
+  for (const m of months) {
+    const s = shipSummariesByMonth[m];
+    if (!s) continue;
+    for (const [c, st] of Object.entries(s.by_country || {})) {
+      if (countries.has(c)) count += st.count || 0;
+    }
+  }
+  return count;
+}
+function shipBaselineAvg(months) {
+  const c = shipBaselineCount(months);
+  if (!c) return null;
+  return shipBaselineTotalCost(months) / c;
+}
+function shipBaselineZeroPct(months) {
+  const countries = shipActiveCountries();
+  let count = 0, zero = 0;
+  for (const m of months) {
+    const s = shipSummariesByMonth[m];
+    if (!s) continue;
+    for (const [c, st] of Object.entries(s.by_country || {})) {
+      if (countries.has(c)) {
+        count += st.count || 0;
+        zero += st.zero_count || 0;
+      }
+    }
+  }
+  return count > 0 ? zero / count * 100 : null;
 }
 
 function shipRender() {
   if (Object.keys(shipSummariesByMonth).length === 0) return;
   const summary = shipMergedSummary();
+  shipRenderTitle();
   shipRenderKpis(summary);
-  shipRenderTrend();  // uses shipSummariesByMonth
-  shipRenderCountries(summary);
+  shipRenderTrend();
   shipRenderCostBreakdown(summary);
-  shipRenderWeight(summary);
-  shipRenderCouriers(summary);
-  shipRenderCountryTable(summary);
-  shipRenderCountryMonthlyTrend();
-  shipRenderCountryMonthlyTable();
+  shipRenderAnomaliesCompact();
+  shipRenderMonthlyTable();
+  shipRenderCountrySection();
   shipRenderCodAnalysis();
   shipRenderRefundAnalysis();
-  shipRenderAnomalies();
-  shipRenderInsights(summary);
-  shipRenderCostDetails(summary);
+  shipRenderAnomaliesFull();
+  shipRenderDistribSection(summary);
   shipRenderMonthsList();
+}
+
+function shipRenderTitle() {
+  const activeMonths = shipActiveMonths();
+  const allMonths = Object.keys(shipSummariesByMonth).sort();
+  const countries = [...shipActiveCountries()];
+
+  let monthLabel;
+  if (activeMonths.length === allMonths.length) monthLabel = 'Vsi meseci · ' + allMonths.length + ' mesecev';
+  else if (activeMonths.length === 1) monthLabel = activeMonths[0];
+  else monthLabel = activeMonths.length + ' izbranih mesecev';
+
+  let countryLabel;
+  const allCountries = new Set();
+  for (const s of Object.values(shipSummariesByMonth)) {
+    for (const c of Object.keys(s.by_country || {})) allCountries.add(c);
+  }
+  if (countries.length === allCountries.size) countryLabel = '🌍 Vse države';
+  else if (countries.length === 1) countryLabel = shipCountryLabel(countries[0]);
+  else countryLabel = countries.length + ' izbranih trgov';
+
+  document.getElementById('shipContextTitle').innerHTML =
+    `${countryLabel} <span style="color:var(--text-tertiary);font-weight:500"> · ${monthLabel}</span>`;
 }
 
 function shipRenderKpis(s) {
@@ -14657,93 +14972,126 @@ function shipRenderKpis(s) {
   const avgCost = totalCount > 0 ? totalCost / totalCount : 0;
   const totalWeight = s.total_weight || 0;
   const avgWeight = totalCount > 0 ? totalWeight / totalCount : 0;
-  const byCountry = s.by_country || {};
-  const topCountry = Object.entries(byCountry).sort((a, b) => b[1].count - a[1].count)[0];
+  const zeroPct = totalCount > 0 ? s.zero_total / totalCount * 100 : 0;
+
+  // Comparison
+  const cmpCost = shipCompareValue(totalCost, totalCount, shipBaselineTotalCost);
+  const cmpAvg = shipCompareValue(avgCost, totalCount, shipBaselineAvg);
+  const cmpCount = shipCompareValue(totalCount, totalCount, shipBaselineCount);
+  const cmpZero = shipCompareValue(zeroPct, totalCount, shipBaselineZeroPct);
+
+  const fmtCmp = (cmp, isMoneyDiff, isPctValue) => {
+    if (!cmp) return '<span style="color:var(--text-tertiary)">—</span>';
+    const isUp = cmp.diff > 0;
+    const color = isUp ? '#dc2626' : (cmp.diff < 0 ? '#16a34a' : 'var(--text-tertiary)');
+    const arrow = isUp ? '↑' : (cmp.diff < 0 ? '↓' : '→');
+    let diffStr;
+    if (isPctValue) diffStr = (cmp.diff >= 0 ? '+' : '') + cmp.diff.toFixed(1) + ' p.t.';
+    else if (isMoneyDiff) diffStr = (cmp.diff >= 0 ? '+' : '') + shipFmtEur(cmp.diff);
+    else diffStr = (cmp.diff >= 0 ? '+' : '') + shipFmtNum(cmp.diff);
+    const pctStr = isFinite(cmp.pct) ? ' (' + (cmp.pct >= 0 ? '+' : '') + cmp.pct.toFixed(1) + '%)' : '';
+    return `<span style="color:${color}">${arrow} ${diffStr}${pctStr} <span style="color:var(--text-tertiary);font-weight:400">${cmp.label}</span></span>`;
+  };
 
   const kpis = [
-    {label: 'Skupna cena (brez DDV)', value: shipFmtEur(totalCost), sub: totalCount + ' paketov', color: '#3b82f6'},
-    {label: 'Povp. cena/paket', value: shipFmtEur(avgCost), sub: 'brez DDV', color: '#8b5cf6'},
-    {label: 'Skupna teža', value: shipFmtNum(totalWeight, 1) + ' kg', sub: 'pov. ' + avgWeight.toFixed(2) + ' kg/paket', color: '#06b6d4'},
-    {label: 'Št. paketov', value: shipFmtNum(totalCount), sub: Object.keys(byCountry).length + ' držav', color: '#10b981'},
-    {label: 'Top država', value: topCountry ? shipCountryLabel(topCountry[0]) : '—', sub: topCountry ? topCountry[1].count + ' paketov' : '', color: '#f59e0b'},
+    {label: 'Skupna cena', value: shipFmtEur(totalCost), trend: fmtCmp(cmpCost, true, false)},
+    {label: 'Pov. cena/paket', value: shipFmtEur(avgCost), trend: fmtCmp(cmpAvg, true, false)},
+    {label: 'Št. paketov', value: shipFmtNum(totalCount), trend: fmtCmp(cmpCount, false, false)},
+    {label: 'Neprevzeti %', value: shipFmtPct(zeroPct), trend: fmtCmp(cmpZero, false, true)},
   ];
 
   document.getElementById('shipKpis').innerHTML = kpis.map(k => `
-    <div class="card" style="border-left:4px solid ${k.color};padding:14px">
-      <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">${k.label}</div>
-      <div style="font-size:20px;font-weight:700;color:var(--text);margin-top:6px">${k.value}</div>
-      <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">${k.sub}</div>
+    <div class="card" style="padding:18px 20px;background:white;border:1px solid var(--border);margin:0">
+      <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.6px;font-weight:600">${k.label}</div>
+      <div style="font-size:26px;font-weight:700;letter-spacing:-0.5px;margin-top:8px;color:var(--text)">${k.value}</div>
+      <div style="font-size:11px;margin-top:5px">${k.trend}</div>
     </div>
   `).join('');
 }
 
+function shipSetTrendMetric(m) {
+  shipTrendMetric = m;
+  document.querySelectorAll('.ship-trend-metric-btn').forEach(b => {
+    b.classList.remove('ship-active');
+    b.style.background = 'transparent';
+    b.style.color = 'var(--text-secondary)';
+  });
+  const btn = document.getElementById('shipTrendMetricBtn-' + m);
+  if (btn) { btn.classList.add('ship-active'); btn.style.background = 'var(--accent)'; btn.style.color = 'white'; }
+  shipRenderTrend();
+}
+
 function shipRenderTrend() {
   shipDestroyChart('trend');
-  const monthly = Object.entries(shipSummariesByMonth)
-    .map(([m, s]) => ({
-      month: m,
-      count: s.row_count || 0,
-      cost: s.total_cost || 0,
-      weight: s.total_weight || 0,
-    }))
-    .sort((a, b) => a.month.localeCompare(b.month));
+  const activeMonths = shipActiveMonths();
+  const allMonths = Object.keys(shipSummariesByMonth).sort();
+  const countries = shipActiveCountries();
+
+  // For trend ALWAYS show ALL months, but apply country filter
+  // Active months will be highlighted
+  const monthly = allMonths.map(m => {
+    const s = shipSummariesByMonth[m];
+    if (!s) return null;
+    let cost = 0, count = 0, weight = 0;
+    for (const [c, st] of Object.entries(s.by_country || {})) {
+      if (countries.has(c)) {
+        cost += st.cost || 0;
+        count += st.count || 0;
+        weight += st.weight || 0;
+      }
+    }
+    return {month: m, count, cost, weight, avg: count > 0 ? cost / count : 0, isActive: shipSelectedMonths.size === 0 || shipSelectedMonths.has(m)};
+  }).filter(x => x);
+
+  let data, label, fmt, color;
+  if (shipTrendMetric === 'avg') {
+    data = monthly.map(m => m.avg);
+    label = 'Pov. cena/paket (€)'; color = '#3b82f6';
+    fmt = v => shipFmtEur(v);
+  } else if (shipTrendMetric === 'total') {
+    data = monthly.map(m => m.cost);
+    label = 'Skupaj (€)'; color = '#8b5cf6';
+    fmt = v => shipFmtEur(v);
+  } else {
+    data = monthly.map(m => m.count);
+    label = 'Št. paketov'; color = '#10b981';
+    fmt = v => shipFmtNum(v);
+  }
+
+  // Highlight inactive months with lighter color
+  const pointBg = monthly.map(m => m.isActive ? color : color + '40');
+  const pointBorder = monthly.map(m => m.isActive ? color : color + '40');
+  const pointRadius = monthly.map(m => m.isActive ? 6 : 3);
 
   const ctx = document.getElementById('shipChartTrend').getContext('2d');
   shipCharts.trend = new Chart(ctx, {
-    type: 'bar',
+    type: 'line',
     data: {
       labels: monthly.map(m => m.month),
-      datasets: [
-        {label: 'Strošek (€)', data: monthly.map(m => m.cost), backgroundColor: '#3b82f6', yAxisID: 'y', borderRadius: 6},
-        {label: 'Št. paketov', type: 'line', data: monthly.map(m => m.count), borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.3, yAxisID: 'y1', borderWidth: 2},
-        {label: 'Pov. cena/paket', type: 'line', data: monthly.map(m => m.count > 0 ? m.cost / m.count : 0), borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.3, yAxisID: 'y2', borderWidth: 2, borderDash: [4,4]},
-      ]
+      datasets: [{
+        label: label, data: data,
+        borderColor: color, backgroundColor: color + '15',
+        borderWidth: 2.5, tension: 0.3, fill: true,
+        pointRadius: pointRadius, pointBackgroundColor: pointBg, pointBorderColor: pointBorder, pointBorderWidth: 2,
+        pointHoverRadius: 8,
+      }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      interaction: {mode: 'index', intersect: false},
       scales: {
-        x: {ticks: {font: {size: 10}}},
-        y: {position: 'left', ticks: {callback: v => (v/1000).toFixed(1) + 'k €', font: {size: 10}}, title: {display: true, text: 'Strošek (€)', font: {size: 10}}},
-        y1: {position: 'right', grid: {display: false}, ticks: {font: {size: 10}}, title: {display: true, text: 'Št. paketov', font: {size: 10}}},
-        y2: {display: false}
+        x: {ticks: {font: {size: 11}}, grid: {display: false}},
+        y: {ticks: {callback: v => shipTrendMetric === 'count' ? shipFmtNum(v) : shipFmtEur(v), font: {size: 10}}, grid: {color: 'rgba(0,0,0,0.04)'}}
       },
       plugins: {
-        legend: {position: 'top', labels: {font: {size: 11}, usePointStyle: true}},
+        legend: {display: false},
         tooltip: {callbacks: {
-          label: c => {
-            if (c.dataset.label === 'Pov. cena/paket') return c.dataset.label + ': ' + shipFmtEur(c.parsed.y);
-            if (c.dataset.label === 'Strošek (€)') return c.dataset.label + ': ' + shipFmtEur(c.parsed.y);
-            return c.dataset.label + ': ' + shipFmtNum(c.parsed.y);
+          label: c => label + ': ' + fmt(c.parsed.y),
+          afterLabel: c => {
+            const m = monthly[c.dataIndex];
+            return ['Pov./paket: ' + shipFmtEur(m.avg), 'Paketov: ' + shipFmtNum(m.count), 'Skupaj: ' + shipFmtEur(m.cost)];
           }
         }}
-      }
-    }
-  });
-}
-
-function shipRenderCountries(s) {
-  shipDestroyChart('countries');
-  const sorted = Object.entries(s.by_country || {})
-    .map(([code, st]) => ({code, count: st.count, cost: st.cost}))
-    .sort((a, b) => b.cost - a.cost)
-    .slice(0, 15);
-
-  const ctx = document.getElementById('shipChartCountries').getContext('2d');
-  shipCharts.countries = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: sorted.map(s => shipCountryLabel(s.code).replace(/^[^\w]*\s/, '')),
-      datasets: [{label: 'Strošek (€)', data: sorted.map(s => s.cost), backgroundColor: '#3b82f6', borderRadius: 4}]
-    },
-    options: {
-      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-      scales: {x: {ticks: {callback: v => (v/1000).toFixed(1) + 'k €', font: {size: 10}}}, y: {ticks: {font: {size: 10}}}},
-      plugins: {
-        legend: {display: false},
-        tooltip: {callbacks: {label: c => {
-          const idx = c.dataIndex;
-          return [shipFmtEur(sorted[idx].cost), sorted[idx].count + ' paketov', 'pov. ' + shipFmtEur(sorted[idx].cost / sorted[idx].count)];
-        }}}
       }
     }
   });
@@ -14756,220 +15104,287 @@ function shipRenderCostBreakdown(s) {
   shipCharts.breakdown = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Teža', 'COD', 'SMS', 'Zavarovanje', 'Fuel tax', 'Extra cost'],
+      labels: ['Teža', 'COD', 'Extra cost', 'Fuel tax', 'SMS', 'Zavarovanje'],
       datasets: [{
-        data: [cb.weight || 0, cb.cod || 0, cb.sms || 0, cb.insurance || 0, cb.fuel || 0, cb.extra || 0],
-        backgroundColor: ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'],
+        data: [cb.weight || 0, cb.cod || 0, cb.extra || 0, cb.fuel || 0, cb.sms || 0, cb.insurance || 0],
+        backgroundColor: ['#3b82f6', '#8b5cf6', '#ef4444', '#f59e0b', '#06b6d4', '#10b981'],
         borderWidth: 2, borderColor: '#fff'
       }]
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false, cutout: '60%',
       plugins: {
-        legend: {position: 'right', labels: {font: {size: 11}, usePointStyle: true}},
+        legend: {position: 'right', labels: {font: {size: 11}, usePointStyle: true, boxWidth: 8, padding: 10}},
         tooltip: {callbacks: {label: c => c.label + ': ' + shipFmtEur(c.parsed)}}
       }
     }
   });
 }
 
-function shipRenderWeight(s) {
-  shipDestroyChart('weight');
-  const buckets = s.weight_buckets || [];
-  const ctx = document.getElementById('shipChartWeight').getContext('2d');
-  shipCharts.weight = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: buckets.map(b => b.label),
-      datasets: [
-        {label: 'Št. paketov', data: buckets.map(b => b.count), backgroundColor: '#06b6d4', yAxisID: 'y', borderRadius: 4},
-        {label: 'Pov. cena/paket', type: 'line', data: buckets.map(b => b.count > 0 ? b.cost / b.count : 0), borderColor: '#f59e0b', tension: 0.3, yAxisID: 'y1', borderWidth: 2, pointRadius: 4}
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      scales: {
-        x: {ticks: {font: {size: 10}}},
-        y: {position: 'left', ticks: {font: {size: 10}}, title: {display: true, text: 'Št. paketov', font: {size: 10}}},
-        y1: {position: 'right', grid: {display: false}, ticks: {callback: v => v.toFixed(2) + ' €', font: {size: 10}}, title: {display: true, text: 'Pov. €', font: {size: 10}}}
-      },
-      plugins: {legend: {position: 'top', labels: {font: {size: 10}, usePointStyle: true}}}
-    }
-  });
+function shipRenderAnomaliesCompact() {
+  const box = document.getElementById('shipAnomaliesCompact');
+  const badge = document.getElementById('shipAnomalyImpactBadge');
+  if (!shipAnomaliesData || !shipAnomaliesData.anomalies) {
+    box.innerHTML = '<div style="color:var(--text-tertiary);font-size:12px">⏳ Iščem...</div>';
+    badge.innerHTML = '';
+    return;
+  }
+  // Filter anomalije po aktivnih državah in mesecih
+  const activeMonths = shipActiveMonths();
+  const activeCountries = shipActiveCountries();
+  const filtered = (shipAnomaliesData.anomalies || []).filter(a => activeMonths.includes(a.month) && activeCountries.has(a.country));
+
+  if (filtered.length === 0) {
+    box.innerHTML = '<div style="font-size:12px;color:#16a34a;font-weight:600;padding:14px 0">✅ Ni anomalij za izbrane mesece in države.</div>';
+    badge.innerHTML = '';
+    return;
+  }
+  const totalImpact = filtered.reduce((sum, a) => sum + Math.abs(a.estimated_monthly_impact || 0), 0);
+  badge.innerHTML = `+${shipFmtEur(totalImpact)}/mes`;
+
+  // Pokaži samo top 3 v compact view
+  const top = filtered.slice(0, 3);
+  box.innerHTML = top.map(a => {
+    const color = a.severity === 'high' ? '#dc2626' : '#f59e0b';
+    return `
+      <div style="border-left:3px solid ${color};padding-left:12px;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;color:${color}">${a.title}</div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">${shipFmtNum(a.affected_packages)} paketov · <strong>+${shipFmtEur(a.estimated_monthly_impact)}/mes</strong></div>
+      </div>
+    `;
+  }).join('') + (filtered.length > 3 ? `<div style="font-size:11px;color:var(--text-tertiary);text-align:center;margin-top:8px">+ ${filtered.length - 3} več…</div>` : '');
 }
 
-function shipRenderCouriers(s) {
-  shipDestroyChart('couriers');
-  const sorted = Object.entries(s.by_courier || {}).sort((a, b) => b[1] - a[1]);
-  const ctx = document.getElementById('shipChartCouriers').getContext('2d');
-  shipCharts.couriers = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: sorted.map(([k]) => k),
-      datasets: [{
-        data: sorted.map(([_, v]) => v),
-        backgroundColor: ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#84cc16', '#6366f1', '#14b8a6'],
-        borderWidth: 2, borderColor: '#fff'
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: {position: 'right', labels: {font: {size: 10}, usePointStyle: true}},
-        tooltip: {callbacks: {label: c => c.label + ': ' + c.parsed + ' paketov'}}
+function shipRenderMonthlyTable() {
+  const allMonths = Object.keys(shipSummariesByMonth).sort();
+  const countries = shipActiveCountries();
+  const activeMonths = new Set(shipActiveMonths());
+
+  const rows = allMonths.map(m => {
+    const s = shipSummariesByMonth[m];
+    if (!s) return null;
+    let cost = 0, count = 0, codSucc = 0, codTotal = 0, zero = 0;
+    for (const [c, st] of Object.entries(s.by_country || {})) {
+      if (countries.has(c)) {
+        cost += st.cost || 0;
+        count += st.count || 0;
+        codSucc += st.cod_success || 0;
+        codTotal += st.cod_count || 0;
+        zero += st.zero_count || 0;
       }
     }
-  });
+    return {month: m, count, cost, avg: count > 0 ? cost / count : 0, codPct: codTotal > 0 ? codSucc / codTotal * 100 : 0, zeroPct: count > 0 ? zero / count * 100 : 0, isActive: activeMonths.has(m)};
+  }).filter(x => x);
+
+  const html = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid var(--border)">
+          <th style="padding:10px 8px;font-weight:600;color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Mesec</th>
+          <th style="padding:10px 8px;text-align:right;font-weight:600;color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Paketov</th>
+          <th style="padding:10px 8px;text-align:right;font-weight:600;color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Pov. €</th>
+          <th style="padding:10px 8px;text-align:right;font-weight:600;color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Skupaj €</th>
+          <th style="padding:10px 8px;text-align:right;font-weight:600;color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:0.5px">COD success</th>
+          <th style="padding:10px 8px;text-align:right;font-weight:600;color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Neprevzeti %</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr style="border-bottom:1px solid var(--border);${r.isActive ? 'background:rgba(83,74,183,0.04);font-weight:700' : ''};cursor:pointer" onclick="shipToggleMonth('${r.month}')">
+            <td style="padding:10px 8px">${r.isActive ? '<span style="color:var(--accent)">←</span> ' : ''}${r.month}</td>
+            <td style="padding:10px 8px;text-align:right">${shipFmtNum(r.count)}</td>
+            <td style="padding:10px 8px;text-align:right;font-family:monospace">${r.avg.toFixed(2)}</td>
+            <td style="padding:10px 8px;text-align:right;font-family:monospace">${shipFmtEur(r.cost)}</td>
+            <td style="padding:10px 8px;text-align:right">${r.codPct.toFixed(1)}%</td>
+            <td style="padding:10px 8px;text-align:right">${r.zeroPct.toFixed(1)}%</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <div style="font-size:10px;color:var(--text-tertiary);margin-top:8px">💡 Klikni vrstico da preklopiš filter na ta mesec.</div>
+  `;
+  document.getElementById('shipMonthlyTable').innerHTML = html;
+
+  // Update desc with country filter info
+  const desc = document.getElementById('shipMonthlyTableDesc');
+  const countriesList = [...countries];
+  if (countriesList.length < 5) {
+    desc.textContent = 'Skupne številke po mesecih za: ' + countriesList.map(c => shipCountryLabel(c)).join(', ');
+  } else {
+    desc.textContent = 'Skupne številke po mesecih za vse izbrane države (' + countriesList.length + ')';
+  }
 }
 
-function shipRenderCountryTable(s) {
-  const byCountry = s.by_country || {};
-  const sorted = Object.entries(byCountry).map(([code, st]) => ({
+function shipToggleSection(name) {
+  const body = document.querySelector(`.ship-section-body[data-section="${name}"]`);
+  const toggle = document.querySelector(`.ship-section-toggle[data-section="${name}"]`);
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if (toggle) toggle.classList.toggle('open', !isOpen);
+  // Render content lazily when opening
+  if (!isOpen) {
+    if (name === 'countries') shipRenderCountrySectionContent();
+    else if (name === 'cod') shipRenderCodSectionContent();
+    else if (name === 'refund') shipRenderRefundSectionContent();
+    else if (name === 'anomalies-detail') shipRenderAnomaliesFullContent();
+    else if (name === 'distrib') shipRenderDistribSectionContent();
+    else if (name === 'months') shipRenderMonthsList();
+  }
+}
+
+function shipRenderCountrySection() {
+  // Just ensure body exists; content rendered on toggle
+  const body = document.querySelector('.ship-section-body[data-section="countries"]');
+  if (body && body.style.display !== 'none') shipRenderCountrySectionContent();
+}
+
+function shipRenderCountrySectionContent() {
+  const s = shipMergedSummary();
+  const byC = s.by_country || {};
+  const sorted = Object.entries(byC).map(([code, st]) => ({
     code, ...st,
     avgCost: st.count > 0 ? st.cost / st.count : 0,
     avgWeight: st.count > 0 ? st.weight / st.count : 0,
     codPct: st.count > 0 ? st.cod_count / st.count * 100 : 0,
+    zeroPct: st.count > 0 ? st.zero_count / st.count * 100 : 0,
   })).sort((a, b) => b.count - a.count);
 
+  // Country trend chart — top 10 countries × all months
+  shipDestroyChart('countryTrend');
+  const allMonths = Object.keys(shipSummariesByMonth).sort();
+  const countries = shipActiveCountries();
+  const matrix = {};
+  for (const m of allMonths) {
+    const s2 = shipSummariesByMonth[m];
+    if (!s2) continue;
+    for (const [c, st] of Object.entries(s2.by_country || {})) {
+      if (!countries.has(c)) continue;
+      if (!matrix[c]) matrix[c] = {};
+      matrix[c][m] = {count: st.count || 0, totalCost: st.cost || 0};
+    }
+  }
+  const topCountries = Object.keys(matrix).sort((a, b) => {
+    let aCount = 0, bCount = 0;
+    for (const m of allMonths) {
+      if (matrix[a] && matrix[a][m]) aCount += matrix[a][m].count;
+      if (matrix[b] && matrix[b][m]) bCount += matrix[b][m].count;
+    }
+    return bCount - aCount;
+  }).slice(0, 10);
+
+  if (topCountries.length > 0 && allMonths.length >= 2) {
+    const palette = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#6366f1', '#14b8a6'];
+    const datasets = topCountries.map((country, i) => ({
+      label: shipCountryLabel(country),
+      data: allMonths.map(m => matrix[country][m] && matrix[country][m].count > 0 ? matrix[country][m].totalCost / matrix[country][m].count : null),
+      borderColor: palette[i % palette.length],
+      backgroundColor: palette[i % palette.length] + '20',
+      borderWidth: 2, tension: 0.3, pointRadius: 4, spanGaps: true,
+    }));
+    const ctx = document.getElementById('shipChartCountryTrend').getContext('2d');
+    shipCharts.countryTrend = new Chart(ctx, {
+      type: 'line', data: {labels: allMonths, datasets},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: {mode: 'index', intersect: false},
+        scales: {x: {ticks: {font: {size: 11}}}, y: {ticks: {callback: v => v.toFixed(2) + ' €', font: {size: 10}}}},
+        plugins: {
+          legend: {position: 'top', labels: {font: {size: 10}, usePointStyle: true, boxWidth: 8}},
+          tooltip: {callbacks: {label: c => c.dataset.label + ': ' + shipFmtEur(c.parsed.y)}}
+        }
+      }
+    });
+  }
+
+  // Country table
   const html = `
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px">
       <thead>
-        <tr style="text-align:left;border-bottom:2px solid var(--border)">
-          <th style="padding:8px 10px">Država</th>
-          <th style="padding:8px 10px;text-align:right">Paketov</th>
-          <th style="padding:8px 10px;text-align:right">Pov. teža</th>
-          <th style="padding:8px 10px;text-align:right">Skupaj €</th>
-          <th style="padding:8px 10px;text-align:right">Pov. cena</th>
-          <th style="padding:8px 10px;text-align:right">COD %</th>
-          <th style="padding:8px 10px;text-align:right">Popust €</th>
+        <tr style="text-align:left;border-bottom:1px solid var(--border)">
+          <th style="padding:8px 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Država</th>
+          <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Paketov</th>
+          <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Pov. teža</th>
+          <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Skupaj €</th>
+          <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Pov. cena</th>
+          <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">COD %</th>
+          <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Neprevzeti %</th>
         </tr>
       </thead>
       <tbody>
         ${sorted.map(s => `
           <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:8px 10px;font-weight:600">${shipCountryLabel(s.code)}</td>
-            <td style="padding:8px 10px;text-align:right">${shipFmtNum(s.count)}</td>
-            <td style="padding:8px 10px;text-align:right">${s.avgWeight.toFixed(2)} kg</td>
-            <td style="padding:8px 10px;text-align:right;font-weight:600">${shipFmtEur(s.cost)}</td>
-            <td style="padding:8px 10px;text-align:right;color:var(--accent);font-weight:600">${shipFmtEur(s.avgCost)}</td>
-            <td style="padding:8px 10px;text-align:right">${s.codPct.toFixed(0)}%</td>
-            <td style="padding:8px 10px;text-align:right;color:${s.disc_sum > 0 ? '#22c55e' : 'var(--text-tertiary)'}">${s.disc_sum > 0 ? '-' + shipFmtEur(s.disc_sum) : '—'}</td>
+            <td style="padding:8px;font-weight:600">${shipCountryLabel(s.code)}</td>
+            <td style="padding:8px;text-align:right">${shipFmtNum(s.count)}</td>
+            <td style="padding:8px;text-align:right">${s.avgWeight.toFixed(2)} kg</td>
+            <td style="padding:8px;text-align:right;font-family:monospace;font-weight:600">${shipFmtEur(s.cost)}</td>
+            <td style="padding:8px;text-align:right;color:var(--accent);font-weight:600">${shipFmtEur(s.avgCost)}</td>
+            <td style="padding:8px;text-align:right">${s.codPct.toFixed(0)}%</td>
+            <td style="padding:8px;text-align:right;color:${s.zeroPct > 15 ? '#dc2626' : s.zeroPct > 7 ? '#f59e0b' : '#16a34a'}">${s.zeroPct.toFixed(1)}%</td>
           </tr>
         `).join('')}
       </tbody>
     </table>
   `;
   document.getElementById('shipCountryTable').innerHTML = html;
-}
 
-function shipBuildCountryMonthlyMatrix() {
-  // Iz shipSummariesByMonth — vsak summary ima by_country
-  const matrix = {};
-  const monthsSet = new Set();
-  const countryTotals = {};
-
-  for (const [m, s] of Object.entries(shipSummariesByMonth)) {
-    monthsSet.add(m);
-    for (const [c, stats] of Object.entries(s.by_country || {})) {
-      if (!matrix[c]) matrix[c] = {};
-      matrix[c][m] = {count: stats.count, totalCost: stats.cost};
-      if (!countryTotals[c]) countryTotals[c] = 0;
-      countryTotals[c] += stats.count;
-    }
-  }
-
-  const topCountries = Object.entries(countryTotals)
-    .sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c]) => c);
-
-  const months = [...monthsSet].sort();
-  const data = {};
-  topCountries.forEach(c => {
-    data[c] = {};
-    months.forEach(m => {
-      const stats = matrix[c][m];
-      data[c][m] = stats ? {count: stats.count, avg: stats.count > 0 ? stats.totalCost / stats.count : null} : null;
-    });
-  });
-
-  return {countries: topCountries, months, data, matrix, allCountries: Object.keys(countryTotals).sort()};
-}
-
-function shipRenderCountryMonthlyTrend() {
-  shipDestroyChart('countryTrend');
-  const {countries, months, data} = shipBuildCountryMonthlyMatrix();
-  if (months.length < 2 || countries.length === 0) {
-    const ctx = document.getElementById('shipChartCountryTrend');
-    if (ctx) ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
-    return;
-  }
-  const palette = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#6366f1', '#14b8a6'];
-  const datasets = countries.map((country, i) => ({
-    label: shipCountryLabel(country),
-    data: months.map(m => data[country][m] ? data[country][m].avg : null),
-    borderColor: palette[i % palette.length],
-    backgroundColor: palette[i % palette.length] + '20',
-    borderWidth: 2.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6, spanGaps: true,
-  }));
-  const ctx = document.getElementById('shipChartCountryTrend').getContext('2d');
-  shipCharts.countryTrend = new Chart(ctx, {
-    type: 'line', data: {labels: months, datasets},
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: {mode: 'index', intersect: false},
-      scales: {x: {ticks: {font: {size: 11}}}, y: {ticks: {callback: v => v.toFixed(2) + ' €', font: {size: 10}}, title: {display: true, text: 'Pov. cena/paket (€, brez DDV)', font: {size: 11}}}},
-      plugins: {
-        legend: {position: 'top', labels: {font: {size: 11}, usePointStyle: true, boxWidth: 8}},
-        tooltip: {callbacks: {
-          label: c => c.dataset.label + ': ' + shipFmtEur(c.parsed.y) + (data[Object.keys(data)[c.datasetIndex]]?.[c.label]?.count ? ' (' + data[Object.keys(data)[c.datasetIndex]][c.label].count + ' pak.)' : '')
-        }}
-      }
-    }
-  });
+  // Country × Month pivot
+  shipRenderCountryMonthlyTable();
 }
 
 function shipRenderCountryMonthlyTable() {
-  const {months, allCountries, matrix} = shipBuildCountryMonthlyMatrix();
-  if (months.length === 0 || allCountries.length === 0) {
-    document.getElementById('shipCountryMonthlyTable').innerHTML = '<div style="color:var(--text-tertiary);font-size:12px;padding:20px;text-align:center">Premalo podatkov</div>';
+  const allMonths = Object.keys(shipSummariesByMonth).sort();
+  const countries = shipActiveCountries();
+  const matrix = {};
+  for (const m of allMonths) {
+    const s2 = shipSummariesByMonth[m];
+    if (!s2) continue;
+    for (const [c, st] of Object.entries(s2.by_country || {})) {
+      if (!countries.has(c)) continue;
+      if (!matrix[c]) matrix[c] = {};
+      matrix[c][m] = {count: st.count || 0, totalCost: st.cost || 0};
+    }
+  }
+  const countryOrder = Object.keys(matrix).sort((a, b) => {
+    let aC = 0, bC = 0;
+    for (const m of allMonths) {
+      if (matrix[a] && matrix[a][m]) aC += matrix[a][m].count;
+      if (matrix[b] && matrix[b][m]) bC += matrix[b][m].count;
+    }
+    return bC - aC;
+  });
+  if (countryOrder.length === 0 || allMonths.length === 0) {
+    document.getElementById('shipCountryMonthlyTable').innerHTML = '';
     return;
   }
-  const countrySorted = allCountries.map(c => {
-    let count = 0;
-    months.forEach(m => { if (matrix[c][m]) count += matrix[c][m].count; });
-    return {country: c, count};
-  }).sort((a, b) => b.count - a.count);
-
   function cellColor(val, allVals) {
     if (val == null || allVals.length === 0) return '';
-    const min = Math.min(...allVals);
-    const max = Math.max(...allVals);
+    const min = Math.min(...allVals); const max = Math.max(...allVals);
     if (max === min) return '';
     const pct = (val - min) / (max - min);
-    if (pct < 0.33) return 'background:rgba(34,197,94,0.12)';
-    if (pct < 0.67) return 'background:rgba(245,158,11,0.10)';
-    return 'background:rgba(239,68,68,0.12)';
+    if (pct < 0.33) return 'background:rgba(34,197,94,0.10)';
+    if (pct < 0.67) return 'background:rgba(245,158,11,0.08)';
+    return 'background:rgba(239,68,68,0.10)';
   }
-
   let html = `
+    <div style="margin-top:14px;font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">Pov. cena/paket po državah × mesecih</div>
     <table style="width:100%;border-collapse:collapse;font-size:11px">
-      <thead>
-        <tr style="text-align:left;border-bottom:2px solid var(--border);background:var(--surface2)">
-          <th style="padding:6px 8px;position:sticky;left:0;background:var(--surface2);z-index:1;min-width:140px">Država</th>
-          <th style="padding:6px 8px;text-align:right">Σ paket.</th>
-          ${months.map(m => `<th style="padding:6px 8px;text-align:right;min-width:75px">${m}</th>`).join('')}
-          <th style="padding:6px 8px;text-align:right;border-left:2px solid var(--border);background:rgba(83,74,183,0.06)">Pov.</th>
-        </tr>
-      </thead>
+      <thead><tr style="text-align:left;border-bottom:1px solid var(--border);background:var(--surface2)">
+        <th style="padding:6px 8px;min-width:130px">Država</th>
+        ${allMonths.map(m => `<th style="padding:6px 8px;text-align:right">${m}</th>`).join('')}
+        <th style="padding:6px 8px;text-align:right;background:rgba(83,74,183,0.06);border-left:1px solid var(--border)">Pov.</th>
+      </tr></thead>
       <tbody>`;
-  countrySorted.forEach(({country, count}) => {
-    const rowVals = months.map(m => matrix[country][m]?.count > 0 ? matrix[country][m].totalCost / matrix[country][m].count : null).filter(v => v != null);
-    let totalCost = 0, totalCount = 0;
-    months.forEach(m => { if (matrix[country][m]) { totalCost += matrix[country][m].totalCost; totalCount += matrix[country][m].count; } });
-    const avgTotal = totalCount > 0 ? totalCost / totalCount : null;
+  countryOrder.forEach(country => {
+    const rowVals = allMonths.map(m => matrix[country][m] && matrix[country][m].count > 0 ? matrix[country][m].totalCost / matrix[country][m].count : null).filter(v => v != null);
+    let totalC = 0, totalN = 0;
+    for (const m of allMonths) {
+      if (matrix[country][m]) { totalC += matrix[country][m].totalCost; totalN += matrix[country][m].count; }
+    }
+    const avgTotal = totalN > 0 ? totalC / totalN : null;
     html += `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:6px 8px;font-weight:600;position:sticky;left:0;background:var(--surface);z-index:1">${shipCountryLabel(country)}</td>
-      <td style="padding:6px 8px;text-align:right;color:var(--text-secondary);font-size:10px">${shipFmtNum(count)}</td>`;
-    months.forEach(m => {
+      <td style="padding:6px 8px;font-weight:600">${shipCountryLabel(country)}</td>`;
+    allMonths.forEach(m => {
       const cell = matrix[country][m];
       if (!cell || cell.count === 0) html += `<td style="padding:6px 8px;text-align:right;color:var(--text-tertiary)">—</td>`;
       else {
@@ -14977,58 +15392,54 @@ function shipRenderCountryMonthlyTable() {
         html += `<td style="padding:6px 8px;text-align:right;font-family:monospace;${cellColor(avg, rowVals)}" title="${cell.count} paketov">${avg.toFixed(2)}</td>`;
       }
     });
-    html += `<td style="padding:6px 8px;text-align:right;font-family:monospace;font-weight:700;color:var(--accent);border-left:2px solid var(--border);background:rgba(83,74,183,0.06)">${avgTotal != null ? avgTotal.toFixed(2) : '—'}</td></tr>`;
+    html += `<td style="padding:6px 8px;text-align:right;font-family:monospace;font-weight:700;color:var(--accent);border-left:1px solid var(--border);background:rgba(83,74,183,0.05)">${avgTotal != null ? avgTotal.toFixed(2) : '—'}</td></tr>`;
   });
-  html += `</tbody></table>
-    <div style="margin-top:10px;font-size:10px;color:var(--text-tertiary);display:flex;gap:14px;flex-wrap:wrap">
-      <span><span style="display:inline-block;width:10px;height:10px;background:rgba(34,197,94,0.4);vertical-align:middle;margin-right:4px"></span>Najcenejši mesec</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:rgba(245,158,11,0.4);vertical-align:middle;margin-right:4px"></span>Sredina</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:rgba(239,68,68,0.4);vertical-align:middle;margin-right:4px"></span>Najdražji mesec</span>
-    </div>`;
+  html += `</tbody></table>`;
   document.getElementById('shipCountryMonthlyTable').innerHTML = html;
 }
 
+// Stub functions — render only when section opened
 function shipRenderCodAnalysis() {
-  // Zbiraj samo cod_rows iz vseh summary objektov
-  let allCodRows = [];
-  for (const s of Object.values(shipSummariesByMonth)) {
-    if (s.cod_rows) allCodRows = allCodRows.concat(s.cod_rows);
-  }
+  const body = document.querySelector('.ship-section-body[data-section="cod"]');
+  if (body && body.style.display !== 'none') shipRenderCodSectionContent();
+}
 
+function shipRenderCodSectionContent() {
+  let allCodRows = [];
+  const activeMonths = new Set(shipActiveMonths());
+  const activeCountries = shipActiveCountries();
+  for (const [m, s] of Object.entries(shipSummariesByMonth)) {
+    if (!activeMonths.has(m)) continue;
+    if (s.cod_rows) {
+      allCodRows = allCodRows.concat(s.cod_rows.filter(r => activeCountries.has(r.country)));
+    }
+  }
   if (allCodRows.length === 0) {
-    document.getElementById('shipCodKpis').innerHTML = '<div style="color:var(--text-tertiary);font-size:12px">Ni uspešnih COD paketov</div>';
+    document.getElementById('shipCodKpis').innerHTML = '<div style="color:var(--text-tertiary);font-size:12px">Ni uspešnih COD paketov za filter.</div>';
     document.getElementById('shipCodCountryMonthlyTable').innerHTML = '';
+    shipDestroyChart('codTrend');
     return;
   }
-
   const totalCost = allCodRows.reduce((s, r) => s + (r.cost || 0), 0);
+  const avgCost = totalCost / allCodRows.length;
   const totalWeight = allCodRows.reduce((s, r) => s + (r.weight || 0), 0);
-  const avgCost = allCodRows.length > 0 ? totalCost / allCodRows.length : 0;
-  const avgWeight = allCodRows.length > 0 ? totalWeight / allCodRows.length : 0;
+  const avgWeight = totalWeight / allCodRows.length;
   const totalCodAmount = allCodRows.reduce((s, r) => s + (r.cod_amount || 0), 0);
-  const avgCodAmount = allCodRows.length > 0 ? totalCodAmount / allCodRows.length : 0;
-
-  // Splošen avg (za primerjavo) — vse summary, izključi zero pakete
-  const merged = shipMergedSummary();
-  const nonZeroCount = merged.row_count - merged.zero_total;
-  const allAvg = nonZeroCount > 0 ? merged.total_cost / nonZeroCount : 0;
-  const diff = avgCost - allAvg;
-
+  const avgCodAmount = totalCodAmount / allCodRows.length;
   const kpis = [
-    {label: 'Uspešni COD paketi', value: shipFmtNum(allCodRows.length), sub: 'od skupno ' + shipFmtNum(merged.row_count), color: '#8b5cf6'},
-    {label: 'Pov. cena COD paketa', value: shipFmtEur(avgCost), sub: (diff >= 0 ? '+' : '') + shipFmtEur(diff) + ' vs splošno', color: '#3b82f6'},
-    {label: 'Skupna cena (samo COD)', value: shipFmtEur(totalCost), sub: 'brez DDV', color: '#06b6d4'},
-    {label: 'Pov. teža', value: avgWeight.toFixed(2) + ' kg', sub: 'pov. COD znesek: ' + shipFmtEur(avgCodAmount), color: '#10b981'},
+    {label: 'Uspešni COD', value: shipFmtNum(allCodRows.length), color: '#8b5cf6'},
+    {label: 'Pov. cena/paket', value: shipFmtEur(avgCost), color: '#3b82f6'},
+    {label: 'Skupna cena', value: shipFmtEur(totalCost), color: '#06b6d4'},
+    {label: 'Pov. COD znesek', value: shipFmtEur(avgCodAmount), color: '#10b981'},
   ];
   document.getElementById('shipCodKpis').innerHTML = kpis.map(k => `
-    <div class="card" style="border-left:4px solid ${k.color};padding:12px;background:var(--surface)">
-      <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">${k.label}</div>
-      <div style="font-size:18px;font-weight:700;color:var(--text);margin-top:5px">${k.value}</div>
-      <div style="font-size:10px;color:var(--text-secondary);margin-top:2px">${k.sub}</div>
+    <div class="card" style="padding:12px 14px;border-left:3px solid ${k.color};background:white;margin:0">
+      <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">${k.label}</div>
+      <div style="font-size:18px;font-weight:700;margin-top:5px;color:var(--text)">${k.value}</div>
     </div>
   `).join('');
 
-  // Line chart + table iz cod_rows
+  // Line chart + table from cod_rows
   shipDestroyChart('codTrend');
   const matrix = {};
   const monthsSet = new Set();
@@ -15045,19 +15456,15 @@ function shipRenderCodAnalysis() {
     countryTotals[c]++;
   });
   const months = [...monthsSet].sort();
-  const topCountries = Object.entries(countryTotals).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c]) => c);
-
-  if (months.length >= 1 && topCountries.length > 0) {
+  const topC = Object.entries(countryTotals).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c]) => c);
+  if (months.length > 0 && topC.length > 0) {
     const palette = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#84cc16', '#6366f1', '#14b8a6'];
-    const datasets = topCountries.map((country, i) => ({
+    const datasets = topC.map((country, i) => ({
       label: shipCountryLabel(country),
-      data: months.map(m => {
-        const cell = matrix[country][m];
-        return cell && cell.count > 0 ? cell.totalCost / cell.count : null;
-      }),
+      data: months.map(m => matrix[country][m] && matrix[country][m].count > 0 ? matrix[country][m].totalCost / matrix[country][m].count : null),
       borderColor: palette[i % palette.length],
       backgroundColor: palette[i % palette.length] + '20',
-      borderWidth: 2.5, tension: 0.3, pointRadius: 4, pointHoverRadius: 6, spanGaps: true,
+      borderWidth: 2, tension: 0.3, pointRadius: 4, spanGaps: true,
     }));
     const ctx = document.getElementById('shipChartCodTrend').getContext('2d');
     shipCharts.codTrend = new Chart(ctx, {
@@ -15065,299 +15472,288 @@ function shipRenderCodAnalysis() {
       options: {
         responsive: true, maintainAspectRatio: false,
         interaction: {mode: 'index', intersect: false},
-        scales: {x: {ticks: {font: {size: 11}}}, y: {ticks: {callback: v => v.toFixed(2) + ' €', font: {size: 10}}, title: {display: true, text: 'Pov. cena/uspešen COD paket (€)', font: {size: 11}}}},
-        plugins: {
-          legend: {position: 'top', labels: {font: {size: 11}, usePointStyle: true, boxWidth: 8}},
-          tooltip: {callbacks: {
-            label: c => {
-              const country = topCountries[c.datasetIndex];
-              const month = c.label;
-              const cell = matrix[country]?.[month];
-              return c.dataset.label + ': ' + shipFmtEur(c.parsed.y) + (cell ? ' (' + cell.count + ' pak.)' : '');
-            }
-          }}
-        }
+        scales: {x: {ticks: {font: {size: 11}}}, y: {ticks: {callback: v => v.toFixed(2) + ' €', font: {size: 10}}}},
+        plugins: {legend: {position: 'top', labels: {font: {size: 10}, usePointStyle: true, boxWidth: 8}}}
       }
     });
   }
 
   // Tabela
-  const allCountriesCod = Object.keys(countryTotals).sort();
-  const countrySorted = allCountriesCod.map(c => ({country: c, count: countryTotals[c]})).sort((a, b) => b.count - a.count);
   function cellColor(val, allVals) {
     if (val == null || allVals.length === 0) return '';
-    const min = Math.min(...allVals), max = Math.max(...allVals);
+    const min = Math.min(...allVals); const max = Math.max(...allVals);
     if (max === min) return '';
     const pct = (val - min) / (max - min);
-    if (pct < 0.33) return 'background:rgba(34,197,94,0.12)';
-    if (pct < 0.67) return 'background:rgba(245,158,11,0.10)';
-    return 'background:rgba(239,68,68,0.12)';
+    if (pct < 0.33) return 'background:rgba(34,197,94,0.10)';
+    if (pct < 0.67) return 'background:rgba(245,158,11,0.08)';
+    return 'background:rgba(239,68,68,0.10)';
   }
-  let html = `
+  const allCSorted = Object.keys(countryTotals).sort((a, b) => countryTotals[b] - countryTotals[a]);
+  let html = `<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">Pov. cena/uspešen COD paket po državah × mesecih</div>
     <table style="width:100%;border-collapse:collapse;font-size:11px">
-      <thead>
-        <tr style="text-align:left;border-bottom:2px solid var(--border);background:var(--surface2)">
-          <th style="padding:6px 8px;position:sticky;left:0;background:var(--surface2);z-index:1;min-width:140px">Država</th>
-          <th style="padding:6px 8px;text-align:right">Σ COD</th>
-          ${months.map(m => `<th style="padding:6px 8px;text-align:right;min-width:75px">${m}</th>`).join('')}
-          <th style="padding:6px 8px;text-align:right;border-left:2px solid var(--border);background:rgba(139,92,246,0.10)">Pov. COD</th>
-        </tr>
-      </thead>
+      <thead><tr style="text-align:left;border-bottom:1px solid var(--border);background:var(--surface2)">
+        <th style="padding:6px 8px;min-width:130px">Država</th>
+        <th style="padding:6px 8px;text-align:right">Σ COD</th>
+        ${months.map(m => `<th style="padding:6px 8px;text-align:right">${m}</th>`).join('')}
+        <th style="padding:6px 8px;text-align:right;background:rgba(139,92,246,0.08);border-left:1px solid var(--border)">Pov.</th>
+      </tr></thead>
       <tbody>`;
-  countrySorted.forEach(({country, count}) => {
-    const rowVals = months.map(m => matrix[country][m]?.count > 0 ? matrix[country][m].totalCost / matrix[country][m].count : null).filter(v => v != null);
+  allCSorted.forEach(country => {
+    const rowVals = months.map(m => matrix[country][m] && matrix[country][m].count > 0 ? matrix[country][m].totalCost / matrix[country][m].count : null).filter(v => v != null);
     let totalC = 0, totalN = 0;
-    months.forEach(m => { if (matrix[country][m]) { totalC += matrix[country][m].totalCost; totalN += matrix[country][m].count; } });
+    for (const m of months) {
+      if (matrix[country][m]) { totalC += matrix[country][m].totalCost; totalN += matrix[country][m].count; }
+    }
     const avgTotal = totalN > 0 ? totalC / totalN : null;
     html += `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:6px 8px;font-weight:600;position:sticky;left:0;background:var(--surface);z-index:1">${shipCountryLabel(country)}</td>
-      <td style="padding:6px 8px;text-align:right;color:var(--text-secondary);font-size:10px">${shipFmtNum(count)}</td>`;
+      <td style="padding:6px 8px;font-weight:600">${shipCountryLabel(country)}</td>
+      <td style="padding:6px 8px;text-align:right;color:var(--text-secondary);font-size:10px">${shipFmtNum(countryTotals[country])}</td>`;
     months.forEach(m => {
       const cell = matrix[country][m];
       if (!cell || cell.count === 0) html += `<td style="padding:6px 8px;text-align:right;color:var(--text-tertiary)">—</td>`;
       else {
         const avg = cell.totalCost / cell.count;
-        html += `<td style="padding:6px 8px;text-align:right;font-family:monospace;${cellColor(avg, rowVals)}" title="${cell.count} COD paketov">${avg.toFixed(2)}</td>`;
+        html += `<td style="padding:6px 8px;text-align:right;font-family:monospace;${cellColor(avg, rowVals)}">${avg.toFixed(2)}</td>`;
       }
     });
-    html += `<td style="padding:6px 8px;text-align:right;font-family:monospace;font-weight:700;color:#8b5cf6;border-left:2px solid var(--border);background:rgba(139,92,246,0.08)">${avgTotal != null ? avgTotal.toFixed(2) : '—'}</td></tr>`;
+    html += `<td style="padding:6px 8px;text-align:right;font-family:monospace;font-weight:700;color:#8b5cf6;border-left:1px solid var(--border);background:rgba(139,92,246,0.05)">${avgTotal != null ? avgTotal.toFixed(2) : '—'}</td></tr>`;
   });
   html += `</tbody></table>`;
   document.getElementById('shipCodCountryMonthlyTable').innerHTML = html;
 }
 
 function shipRenderRefundAnalysis() {
+  const body = document.querySelector('.ship-section-body[data-section="refund"]');
+  if (body && body.style.display !== 'none') shipRenderRefundSectionContent();
+}
+
+function shipRenderRefundSectionContent() {
   const merged = shipMergedSummary();
   const stats = merged.by_country || {};
   const sorted = Object.entries(stats).map(([country, s]) => ({
     country, ...s,
     zeroPct: s.count > 0 ? s.zero_count / s.count * 100 : 0,
   })).sort((a, b) => b.zero_count - a.zero_count);
-
   if (sorted.length === 0) {
     document.getElementById('shipRefundTable').innerHTML = '<div style="color:var(--text-tertiary);font-size:12px">Ni podatkov</div>';
     return;
   }
-
   const grandTotal = merged.row_count;
   const grandZero = merged.zero_total;
   const grandCodSucc = merged.cod_success_total;
   const grandCodAll = merged.cod_count_total;
   const overallRefundRate = grandTotal > 0 ? grandZero / grandTotal * 100 : 0;
-
   let html = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px">
-      <div style="background:var(--surface2);padding:10px;border-radius:6px;border-left:3px solid #ef4444">
-        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;font-weight:600">Neprevzeti skupaj</div>
-        <div style="font-size:18px;font-weight:700;margin-top:4px;color:#ef4444">${shipFmtNum(grandZero)}</div>
-        <div style="font-size:10px;color:var(--text-secondary)">${overallRefundRate.toFixed(1)}% vseh paketov</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
+      <div style="background:white;padding:12px 14px;border-radius:6px;border:1px solid var(--border);border-left:3px solid #ef4444">
+        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px">Neprevzeti skupaj</div>
+        <div style="font-size:20px;font-weight:700;margin-top:5px;color:#ef4444">${shipFmtNum(grandZero)}</div>
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px">${overallRefundRate.toFixed(1)}% vseh paketov</div>
       </div>
-      <div style="background:var(--surface2);padding:10px;border-radius:6px;border-left:3px solid #8b5cf6">
-        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;font-weight:600">Uspešni COD</div>
-        <div style="font-size:18px;font-weight:700;margin-top:4px;color:#8b5cf6">${shipFmtNum(grandCodSucc)}</div>
-        <div style="font-size:10px;color:var(--text-secondary)">od ${shipFmtNum(grandCodAll)} poskusov COD</div>
-      </div>
-      <div style="background:var(--surface2);padding:10px;border-radius:6px;border-left:3px solid #f59e0b">
-        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;font-weight:600">Skupaj analizirano</div>
-        <div style="font-size:18px;font-weight:700;margin-top:4px">${shipFmtNum(grandTotal)}</div>
-        <div style="font-size:10px;color:var(--text-secondary)">v vseh mesecih</div>
+      <div style="background:white;padding:12px 14px;border-radius:6px;border:1px solid var(--border);border-left:3px solid #8b5cf6">
+        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px">Uspešni COD</div>
+        <div style="font-size:20px;font-weight:700;margin-top:5px;color:#8b5cf6">${shipFmtNum(grandCodSucc)}</div>
+        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px">od ${shipFmtNum(grandCodAll)} poskusov</div>
       </div>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead>
-        <tr style="text-align:left;border-bottom:2px solid var(--border)">
-          <th style="padding:8px 10px">Država</th>
-          <th style="padding:8px 10px;text-align:right">Σ paketov</th>
-          <th style="padding:8px 10px;text-align:right;color:#ef4444">Neprevzeti</th>
-          <th style="padding:8px 10px;text-align:right">% neprevzetih</th>
-          <th style="padding:8px 10px;text-align:right;color:#8b5cf6">Uspešni COD</th>
-          <th style="padding:8px 10px;text-align:right">COD poskusi</th>
-          <th style="padding:8px 10px;text-align:right">COD success %</th>
-        </tr>
-      </thead>
+      <thead><tr style="text-align:left;border-bottom:1px solid var(--border)">
+        <th style="padding:8px 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Država</th>
+        <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Σ paketov</th>
+        <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#ef4444">Neprevzeti</th>
+        <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">% neprev.</th>
+        <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#8b5cf6">Uspešni COD</th>
+        <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">COD success %</th>
+      </tr></thead>
       <tbody>
         ${sorted.map(s => {
-          const zeroPctColor = s.zeroPct > 15 ? '#ef4444' : s.zeroPct > 7 ? '#f59e0b' : '#22c55e';
+          const zeroPctColor = s.zeroPct > 15 ? '#dc2626' : s.zeroPct > 7 ? '#f59e0b' : '#16a34a';
           const codSuccessPct = s.cod_count > 0 ? (s.cod_success / s.cod_count * 100) : 0;
-          const codColor = codSuccessPct < 70 ? '#ef4444' : codSuccessPct < 85 ? '#f59e0b' : '#22c55e';
-          return `
-            <tr style="border-bottom:1px solid var(--border)">
-              <td style="padding:8px 10px;font-weight:600">${shipCountryLabel(s.country)}</td>
-              <td style="padding:8px 10px;text-align:right">${shipFmtNum(s.count)}</td>
-              <td style="padding:8px 10px;text-align:right;color:#ef4444;font-weight:600">${shipFmtNum(s.zero_count)}</td>
-              <td style="padding:8px 10px;text-align:right;color:${zeroPctColor};font-weight:600">${s.zeroPct.toFixed(1)}%</td>
-              <td style="padding:8px 10px;text-align:right;color:#8b5cf6;font-weight:600">${shipFmtNum(s.cod_success)}</td>
-              <td style="padding:8px 10px;text-align:right">${shipFmtNum(s.cod_count)}</td>
-              <td style="padding:8px 10px;text-align:right;color:${codColor};font-weight:600">${s.cod_count > 0 ? codSuccessPct.toFixed(1) + '%' : '—'}</td>
-            </tr>`;
+          const codColor = codSuccessPct < 70 ? '#dc2626' : codSuccessPct < 85 ? '#f59e0b' : '#16a34a';
+          return `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px 8px;font-weight:600">${shipCountryLabel(s.country)}</td>
+            <td style="padding:8px 8px;text-align:right">${shipFmtNum(s.count)}</td>
+            <td style="padding:8px 8px;text-align:right;color:#ef4444;font-weight:600">${shipFmtNum(s.zero_count)}</td>
+            <td style="padding:8px 8px;text-align:right;color:${zeroPctColor};font-weight:600">${s.zeroPct.toFixed(1)}%</td>
+            <td style="padding:8px 8px;text-align:right;color:#8b5cf6;font-weight:600">${shipFmtNum(s.cod_success)}</td>
+            <td style="padding:8px 8px;text-align:right;color:${codColor};font-weight:600">${s.cod_count > 0 ? codSuccessPct.toFixed(1) + '%' : '—'}</td>
+          </tr>`;
         }).join('')}
       </tbody>
     </table>
-    <div style="margin-top:10px;font-size:10px;color:var(--text-tertiary);display:flex;gap:14px;flex-wrap:wrap">
-      <span><strong>Neprevzeti %</strong>: <span style="color:#22c55e">&lt;7% OK</span> · <span style="color:#f59e0b">7-15%</span> · <span style="color:#ef4444">&gt;15% slabo</span></span>
-      <span><strong>COD success %</strong>: <span style="color:#22c55e">&gt;85% OK</span> · <span style="color:#f59e0b">70-85%</span> · <span style="color:#ef4444">&lt;70% slabo</span></span>
+    <div style="margin-top:10px;font-size:10px;color:var(--text-tertiary)">
+      <strong>Neprevzeti %</strong>: <span style="color:#16a34a">&lt;7% OK</span> · <span style="color:#f59e0b">7-15%</span> · <span style="color:#dc2626">&gt;15% slabo</span> &nbsp; · &nbsp;
+      <strong>COD success %</strong>: <span style="color:#16a34a">&gt;85% OK</span> · <span style="color:#f59e0b">70-85%</span> · <span style="color:#dc2626">&lt;70% slabo</span>
     </div>`;
   document.getElementById('shipRefundTable').innerHTML = html;
 }
 
-async function shipRenderAnomalies() {
-  const container = document.getElementById('shipAnomaliesList');
-  const summaryBox = document.getElementById('shipAnomaliesSummary');
-  if (!container) return;
-
-  container.innerHTML = '<div style="color:var(--text-tertiary);font-size:12px;padding:14px;text-align:center">⏳ Iščem anomalije...</div>';
-  summaryBox.innerHTML = '';
-
-  try {
-    const r = await fetch('/shipping-anomalies');
-    const d = await r.json();
-    if (!d.ok) {
-      container.innerHTML = '<div style="color:#ef4444;font-size:12px">' + (d.error || 'napaka') + '</div>';
-      return;
-    }
-    const anomalies = d.anomalies || [];
-
-    if (anomalies.length === 0) {
-      summaryBox.innerHTML = '<div style="padding:12px;background:rgba(34,197,94,0.1);border-radius:6px;color:#16a34a;font-size:13px;font-weight:600">✅ Ni zaznanih anomalij med mesci. Vse cene so v okviru pričakovanega.</div>';
-      container.innerHTML = '';
-      return;
-    }
-
-    // Total monthly impact
-    const totalImpact = anomalies.reduce((s, a) => s + Math.abs(a.estimated_monthly_impact || 0), 0);
-    const highCount = anomalies.filter(a => a.severity === 'high').length;
-    const mediumCount = anomalies.filter(a => a.severity === 'medium').length;
-
-    summaryBox.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
-        <div style="background:rgba(220,38,38,0.08);border-left:3px solid #dc2626;padding:10px;border-radius:6px">
-          <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase">Skupno mesečno zvišanje</div>
-          <div style="font-size:22px;font-weight:700;color:#dc2626;margin-top:4px">+${shipFmtEur(totalImpact)}</div>
-          <div style="font-size:10px;color:var(--text-secondary);margin-top:2px">na podlagi zaznanih anomalij</div>
-        </div>
-        <div style="background:var(--surface2);padding:10px;border-radius:6px;border-left:3px solid #ef4444">
-          <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase">Resne anomalije</div>
-          <div style="font-size:22px;font-weight:700;margin-top:4px;color:#ef4444">${highCount}</div>
-          <div style="font-size:10px;color:var(--text-secondary)">Potrebujejo pozornost</div>
-        </div>
-        <div style="background:var(--surface2);padding:10px;border-radius:6px;border-left:3px solid #f59e0b">
-          <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase">Srednje anomalije</div>
-          <div style="font-size:22px;font-weight:700;margin-top:4px;color:#f59e0b">${mediumCount}</div>
-          <div style="font-size:10px;color:var(--text-secondary)">Za preveriti</div>
-        </div>
-        <div style="background:var(--surface2);padding:10px;border-radius:6px;border-left:3px solid #6366f1">
-          <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase">Mesecev analiziranih</div>
-          <div style="font-size:22px;font-weight:700;margin-top:4px;color:#6366f1">${(d.months_analyzed || []).length}</div>
-          <div style="font-size:10px;color:var(--text-secondary)">${(d.months_analyzed || []).join(' → ')}</div>
-        </div>
-      </div>
-    `;
-
-    // Anomaly type icons
-    const typeIcons = {
-      'new_extra_cost': '💰',
-      'extra_cost_frequency_jump': '📈',
-      'fuel_tax_pct_increase': '⛽',
-      'weight_price_change': '⚖️',
-      'sms_fee_increase': '📱',
-      'insurance_fee_increase': '🛡️',
-      'avg_total_change': '💸',
-    };
-
-    const typeLabels = {
-      'new_extra_cost': 'Nov "extra cost" fee',
-      'extra_cost_frequency_jump': 'Skok frekvence extra cost',
-      'fuel_tax_pct_increase': 'Povišan fuel tax %',
-      'weight_price_change': 'Sprememba weight price',
-      'sms_fee_increase': 'SMS fee porasel',
-      'insurance_fee_increase': 'Insurance fee porasel',
-      'avg_total_change': 'Sprememba povp. cene/paket',
-    };
-
-    let html = `<table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead>
-        <tr style="text-align:left;border-bottom:2px solid var(--border);background:var(--surface2)">
-          <th style="padding:8px 10px;width:80px">Stopnja</th>
-          <th style="padding:8px 10px;width:140px">Tip</th>
-          <th style="padding:8px 10px;width:90px">Država</th>
-          <th style="padding:8px 10px;width:160px">Obdobje</th>
-          <th style="padding:8px 10px">Opis</th>
-          <th style="padding:8px 10px;text-align:right;width:120px">Št. paketov</th>
-          <th style="padding:8px 10px;text-align:right;width:130px">Mesečni vpliv</th>
-        </tr>
-      </thead>
-      <tbody>`;
-
-    anomalies.forEach(a => {
-      const sevColor = a.severity === 'high' ? '#dc2626' : a.severity === 'medium' ? '#f59e0b' : '#6b7280';
-      const sevBg = a.severity === 'high' ? 'rgba(220,38,38,0.1)' : a.severity === 'medium' ? 'rgba(245,158,11,0.1)' : 'rgba(107,114,128,0.1)';
-      const sevLabel = a.severity === 'high' ? '🔴 HIGH' : a.severity === 'medium' ? '🟡 MED' : '⚪ LOW';
-      const icon = typeIcons[a.type] || '⚠️';
-      const typeLabel = typeLabels[a.type] || a.type;
-      const impact = a.estimated_monthly_impact || 0;
-      const impactColor = impact > 0 ? '#dc2626' : impact < 0 ? '#22c55e' : 'var(--text-tertiary)';
-      const impactStr = impact !== 0 ? (impact > 0 ? '+' : '') + shipFmtEur(impact) : '—';
-
-      html += `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:8px 10px"><span style="background:${sevBg};color:${sevColor};padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">${sevLabel}</span></td>
-        <td style="padding:8px 10px"><span style="font-size:14px">${icon}</span> <span style="font-size:11px;color:var(--text-secondary)">${typeLabel}</span></td>
-        <td style="padding:8px 10px;font-weight:600">${shipCountryLabel(a.country)}</td>
-        <td style="padding:8px 10px;color:var(--text-secondary);font-size:11px">${a.prev_month} → <strong>${a.month}</strong></td>
-        <td style="padding:8px 10px;line-height:1.4"><div style="font-weight:600">${a.title}</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px">${a.details}</div></td>
-        <td style="padding:8px 10px;text-align:right">${shipFmtNum(a.affected_packages)}</td>
-        <td style="padding:8px 10px;text-align:right;color:${impactColor};font-weight:700;font-family:monospace">${impactStr}</td>
-      </tr>`;
-    });
-
-    html += '</tbody></table>';
-    container.innerHTML = html;
-  } catch (e) {
-    container.innerHTML = '<div style="color:#ef4444;font-size:12px">❌ ' + e.message + '</div>';
-  }
+function shipRenderAnomaliesFull() {
+  const body = document.querySelector('.ship-section-body[data-section="anomalies-detail"]');
+  if (body && body.style.display !== 'none') shipRenderAnomaliesFullContent();
 }
 
+function shipRenderAnomaliesFullContent() {
+  const container = document.getElementById('shipAnomaliesList');
+  const summaryBox = document.getElementById('shipAnomaliesSummary');
+  if (!shipAnomaliesData) {
+    container.innerHTML = '<div style="color:var(--text-tertiary);font-size:12px">⏳ Iščem anomalije...</div>';
+    return;
+  }
+  const activeMonths = shipActiveMonths();
+  const activeCountries = shipActiveCountries();
+  const anomalies = (shipAnomaliesData.anomalies || []).filter(a => activeMonths.includes(a.month) && activeCountries.has(a.country));
 
-function shipRenderInsights(s) {
-  // Heaviest (iz merged summary)
+  if (anomalies.length === 0) {
+    summaryBox.innerHTML = '<div style="padding:12px;background:rgba(34,197,94,0.08);border-radius:6px;color:#16a34a;font-size:13px;font-weight:600">✅ Ni zaznanih anomalij za izbrane mesece in države.</div>';
+    container.innerHTML = '';
+    return;
+  }
+  const totalImpact = anomalies.reduce((s, a) => s + Math.abs(a.estimated_monthly_impact || 0), 0);
+  const highCount = anomalies.filter(a => a.severity === 'high').length;
+  const mediumCount = anomalies.filter(a => a.severity === 'medium').length;
+
+  summaryBox.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+      <div style="background:white;padding:12px 14px;border-radius:6px;border:1px solid var(--border);border-left:3px solid #dc2626">
+        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px">Mesečni vpliv</div>
+        <div style="font-size:22px;font-weight:700;color:#dc2626;margin-top:5px">+${shipFmtEur(totalImpact)}</div>
+      </div>
+      <div style="background:white;padding:12px 14px;border-radius:6px;border:1px solid var(--border);border-left:3px solid #ef4444">
+        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px">Resnih</div>
+        <div style="font-size:22px;font-weight:700;color:#ef4444;margin-top:5px">${highCount}</div>
+      </div>
+      <div style="background:white;padding:12px 14px;border-radius:6px;border:1px solid var(--border);border-left:3px solid #f59e0b">
+        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;font-weight:600;letter-spacing:0.5px">Srednjih</div>
+        <div style="font-size:22px;font-weight:700;color:#f59e0b;margin-top:5px">${mediumCount}</div>
+      </div>
+    </div>`;
+
+  const typeIcons = {
+    'new_extra_cost': '💰', 'extra_cost_frequency_jump': '📈', 'fuel_tax_pct_increase': '⛽',
+    'weight_price_change': '⚖️', 'sms_fee_increase': '📱', 'insurance_fee_increase': '🛡️', 'avg_total_change': '💸',
+  };
+  const typeLabels = {
+    'new_extra_cost': 'Nov "extra cost" fee', 'extra_cost_frequency_jump': 'Skok frekvence extra cost',
+    'fuel_tax_pct_increase': 'Povišan fuel tax %', 'weight_price_change': 'Sprememba weight price',
+    'sms_fee_increase': 'SMS fee porasel', 'insurance_fee_increase': 'Insurance fee porasel', 'avg_total_change': 'Sprememba povp. cene/paket',
+  };
+
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:14px">
+    <thead><tr style="text-align:left;border-bottom:1px solid var(--border)">
+      <th style="padding:8px 8px;width:70px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Stopnja</th>
+      <th style="padding:8px 8px;width:130px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Tip</th>
+      <th style="padding:8px 8px;width:80px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Trg</th>
+      <th style="padding:8px 8px;width:140px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Obdobje</th>
+      <th style="padding:8px 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Opis</th>
+      <th style="padding:8px 8px;text-align:right;width:120px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Mesečni vpliv</th>
+    </tr></thead><tbody>`;
+  anomalies.forEach(a => {
+    const sevColor = a.severity === 'high' ? '#dc2626' : '#f59e0b';
+    const sevBg = a.severity === 'high' ? 'rgba(220,38,38,0.1)' : 'rgba(245,158,11,0.1)';
+    const sevLabel = a.severity === 'high' ? '🔴 high' : '🟡 med';
+    const icon = typeIcons[a.type] || '⚠️';
+    const typeLabel = typeLabels[a.type] || a.type;
+    const impact = a.estimated_monthly_impact || 0;
+    const impactStr = impact > 0 ? '+' + shipFmtEur(impact) : shipFmtEur(impact);
+    html += `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 8px"><span style="background:${sevBg};color:${sevColor};padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">${sevLabel}</span></td>
+      <td style="padding:8px 8px"><span>${icon}</span> <span style="font-size:11px;color:var(--text-secondary)">${typeLabel}</span></td>
+      <td style="padding:8px 8px;font-weight:600">${shipCountryLabel(a.country)}</td>
+      <td style="padding:8px 8px;color:var(--text-secondary);font-size:11px">${a.prev_month} → <strong>${a.month}</strong></td>
+      <td style="padding:8px 8px;line-height:1.4"><div style="font-weight:600;font-size:12px">${a.title}</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px">${a.details}</div></td>
+      <td style="padding:8px 8px;text-align:right;color:#dc2626;font-weight:700;font-family:monospace">${impactStr}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function shipRenderDistribSection(s) {
+  const body = document.querySelector('.ship-section-body[data-section="distrib"]');
+  if (body && body.style.display !== 'none') shipRenderDistribSectionContent();
+}
+
+function shipRenderDistribSectionContent() {
+  const s = shipMergedSummary();
+  shipDestroyChart('weight'); shipDestroyChart('couriers');
+
+  // Weight buckets
+  const buckets = s.weight_buckets || [];
+  const ctxW = document.getElementById('shipChartWeight').getContext('2d');
+  shipCharts.weight = new Chart(ctxW, {
+    type: 'bar',
+    data: {
+      labels: buckets.map(b => b.label),
+      datasets: [
+        {label: 'Št. paketov', data: buckets.map(b => b.count), backgroundColor: '#06b6d4', yAxisID: 'y', borderRadius: 4},
+        {label: 'Pov. cena/paket', type: 'line', data: buckets.map(b => b.count > 0 ? b.cost / b.count : 0), borderColor: '#f59e0b', tension: 0.3, yAxisID: 'y1', borderWidth: 2, pointRadius: 4}
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: {ticks: {font: {size: 10}}},
+        y: {position: 'left', ticks: {font: {size: 10}}, title: {display: true, text: 'Št. paketov', font: {size: 10}}},
+        y1: {position: 'right', grid: {display: false}, ticks: {callback: v => v.toFixed(2) + ' €', font: {size: 10}}, title: {display: true, text: 'Pov. €', font: {size: 10}}}
+      },
+      plugins: {legend: {position: 'top', labels: {font: {size: 10}, usePointStyle: true}}, title: {display: true, text: '⚖️ Po teži', font: {size: 13}}}
+    }
+  });
+
+  // Couriers
+  const sorted = Object.entries(s.by_courier || {}).sort((a, b) => b[1] - a[1]);
+  const ctxC = document.getElementById('shipChartCouriers').getContext('2d');
+  shipCharts.couriers = new Chart(ctxC, {
+    type: 'doughnut',
+    data: {
+      labels: sorted.map(([k]) => k),
+      datasets: [{
+        data: sorted.map(([_, v]) => v),
+        backgroundColor: ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#84cc16', '#6366f1', '#14b8a6'],
+        borderWidth: 2, borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '60%',
+      plugins: {legend: {position: 'right', labels: {font: {size: 10}, usePointStyle: true}}, title: {display: true, text: '🚚 Kuriri', font: {size: 13}}}
+    }
+  });
+
+  // Heaviest / priciest
   const heaviest = s.heaviest;
   document.getElementById('shipHeaviestBox').innerHTML = heaviest ? `
-    <div style="font-size:18px;font-weight:700;color:#06b6d4">${(heaviest.weight_kg || 0).toFixed(2)} kg</div>
-    <div style="margin-top:4px;font-size:11px">${shipCountryLabel(heaviest.country)} · ${heaviest.city || '—'}</div>
-    <div style="color:var(--text-secondary);font-size:11px">Cena: ${shipFmtEur(heaviest.cost)}</div>
-    <div style="font-family:monospace;font-size:10px;color:var(--text-tertiary);margin-top:3px">${heaviest.waybill || ''}</div>
+    <div style="font-size:16px;font-weight:700;color:#06b6d4">${(heaviest.weight_kg || 0).toFixed(2)} kg</div>
+    <div style="font-size:11px;margin-top:3px">${shipCountryLabel(heaviest.country)} · ${heaviest.city || '—'}</div>
+    <div style="color:var(--text-secondary);font-size:11px">${shipFmtEur(heaviest.cost)}</div>
   ` : '—';
-
   const priciest = s.priciest;
   document.getElementById('shipPriciestBox').innerHTML = priciest ? `
-    <div style="font-size:18px;font-weight:700;color:#ef4444">${shipFmtEur(priciest.cost)}</div>
-    <div style="margin-top:4px;font-size:11px">${shipCountryLabel(priciest.country)} · ${priciest.city || '—'}</div>
-    <div style="color:var(--text-secondary);font-size:11px">Teža: ${(priciest.weight_kg || 0).toFixed(2)} kg</div>
-    <div style="font-family:monospace;font-size:10px;color:var(--text-tertiary);margin-top:3px">${priciest.waybill || ''}</div>
+    <div style="font-size:16px;font-weight:700;color:#ef4444">${shipFmtEur(priciest.cost)}</div>
+    <div style="font-size:11px;margin-top:3px">${shipCountryLabel(priciest.country)} · ${priciest.city || '—'}</div>
+    <div style="color:var(--text-secondary);font-size:11px">${(priciest.weight_kg || 0).toFixed(2)} kg</div>
   ` : '—';
 
-  // COD vs non-COD iz country aggregation
+  // COD / fuel
   const byCountry = s.by_country || {};
   let codCount = 0;
   for (const v of Object.values(byCountry)) codCount += v.cod_count || 0;
   const codPct = s.row_count > 0 ? codCount / s.row_count * 100 : 0;
   const codCost = (s.cost_breakdown && s.cost_breakdown.cod) || 0;
   document.getElementById('shipCodBox').innerHTML = `
-    <div style="font-size:18px;font-weight:700;color:#8b5cf6">${codPct.toFixed(0)}%</div>
-    <div style="margin-top:4px;font-size:11px">${shipFmtNum(codCount)} COD paketov od ${shipFmtNum(s.row_count)}</div>
-    <div style="color:var(--text-secondary);font-size:11px">COD strošek skupaj: ${shipFmtEur(codCost)}</div>
+    <div style="font-size:16px;font-weight:700;color:#8b5cf6">${codPct.toFixed(0)}%</div>
+    <div style="font-size:11px;margin-top:3px">${shipFmtNum(codCount)} / ${shipFmtNum(s.row_count)}</div>
+    <div style="color:var(--text-secondary);font-size:11px">${shipFmtEur(codCost)}</div>
   `;
-
-  const totalCost = s.total_cost || 0;
   const fuelSum = (s.cost_breakdown && s.cost_breakdown.fuel) || 0;
-  const fuelPct = totalCost > 0 ? fuelSum / totalCost * 100 : 0;
+  const fuelPct = s.total_cost > 0 ? fuelSum / s.total_cost * 100 : 0;
   document.getElementById('shipFuelBox').innerHTML = `
-    <div style="font-size:18px;font-weight:700;color:#f59e0b">${fuelPct.toFixed(1)}%</div>
-    <div style="margin-top:4px;font-size:11px">Fuel tax: ${shipFmtEur(fuelSum)}</div>
-    <div style="color:var(--text-secondary);font-size:11px">od skupne ${shipFmtEur(totalCost)}</div>
+    <div style="font-size:16px;font-weight:700;color:#f59e0b">${fuelPct.toFixed(1)}%</div>
+    <div style="font-size:11px;margin-top:3px">${shipFmtEur(fuelSum)}</div>
+    <div style="color:var(--text-secondary);font-size:11px">od ${shipFmtEur(s.total_cost)}</div>
   `;
-}
 
-function shipRenderCostDetails(s) {
+  // Cost details
   const cb = s.cost_breakdown || {};
   const grand = (cb.weight || 0) + (cb.cod || 0) + (cb.sms || 0) + (cb.insurance || 0) + (cb.fuel || 0) + (cb.extra || 0) - (cb.disc || 0);
   const items = [
@@ -15367,22 +15763,22 @@ function shipRenderCostDetails(s) {
     {label: 'Zavarovanje', value: cb.insurance || 0, color: '#10b981'},
     {label: 'Fuel tax', value: cb.fuel || 0, color: '#f59e0b'},
     {label: 'Extra cost', value: cb.extra || 0, color: '#ef4444'},
-    {label: 'Popust', value: -(cb.disc || 0), color: '#22c55e'},
+    {label: 'Popust', value: -(cb.disc || 0), color: '#16a34a'},
     {label: 'SKUPAJ', value: grand, color: '#0f172a'},
   ];
   document.getElementById('shipCostDetails').innerHTML = items.map(m => {
     const pct = grand > 0 ? Math.abs(m.value) / grand * 100 : 0;
-    return `
-      <div style="background:var(--surface2);padding:10px;border-radius:6px;border:1px solid var(--border);border-top:3px solid ${m.color}">
-        <div style="font-size:10px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase">${m.label}</div>
-        <div style="font-size:18px;font-weight:700;color:var(--text);margin-top:4px">${shipFmtEur(m.value)}</div>
-        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px">${pct.toFixed(1)}% celote</div>
-      </div>
-    `;
+    return `<div style="background:white;padding:10px 12px;border-radius:6px;border:1px solid var(--border);border-left:3px solid ${m.color}">
+      <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">${m.label}</div>
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-top:4px">${shipFmtEur(m.value)}</div>
+      <div style="font-size:10px;color:var(--text-secondary);margin-top:1px">${pct.toFixed(1)}%</div>
+    </div>`;
   }).join('');
 }
 
 function shipRenderMonthsList() {
+  const body = document.querySelector('.ship-section-body[data-section="months"]');
+  if (!body || body.style.display === 'none') return;
   const months = Object.entries(shipSummariesByMonth).sort((a, b) => b[0].localeCompare(a[0]));
   if (months.length === 0) {
     document.getElementById('shipMonthsList').innerHTML = '<div style="color:var(--text-tertiary);font-size:12px">Ni naloženih mesecev</div>';
@@ -15390,24 +15786,22 @@ function shipRenderMonthsList() {
   }
   const html = `
     <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead>
-        <tr style="text-align:left;border-bottom:2px solid var(--border)">
-          <th style="padding:8px 10px">Mesec</th>
-          <th style="padding:8px 10px">Tip</th>
-          <th style="padding:8px 10px;text-align:right">Št. paketov</th>
-          <th style="padding:8px 10px;text-align:right">Skupaj €</th>
-          <th style="padding:8px 10px;text-align:right">Akcije</th>
-        </tr>
-      </thead>
+      <thead><tr style="text-align:left;border-bottom:1px solid var(--border)">
+        <th style="padding:8px 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Mesec</th>
+        <th style="padding:8px 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Tip</th>
+        <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Št. paketov</th>
+        <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Skupaj €</th>
+        <th style="padding:8px 8px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-tertiary)">Akcije</th>
+      </tr></thead>
       <tbody>
         ${months.map(([m, s]) => `
           <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:8px 10px;font-weight:600">${m}</td>
-            <td style="padding:8px 10px">${s.kind === 'inventory' ? '📋 Inventory' : s.kind === 'descr' ? '📝 Descr' : '📄 Other'}</td>
-            <td style="padding:8px 10px;text-align:right">${shipFmtNum(s.row_count)}</td>
-            <td style="padding:8px 10px;text-align:right;font-weight:600">${shipFmtEur(s.total_cost)}</td>
-            <td style="padding:8px 10px;text-align:right">
-              <button onclick="shipDeleteMonth('${m}')" style="padding:4px 10px;background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:4px;font-size:11px;cursor:pointer">🗑 Izbriši</button>
+            <td style="padding:8px 8px;font-weight:600">${m}</td>
+            <td style="padding:8px 8px;color:var(--text-secondary);font-size:11px">${s.kind === 'inventory' ? '📋 Inventory' : s.kind === 'descr' ? '📝 Descr' : '📄 Other'}</td>
+            <td style="padding:8px 8px;text-align:right">${shipFmtNum(s.row_count)}</td>
+            <td style="padding:8px 8px;text-align:right;font-weight:600">${shipFmtEur(s.total_cost)}</td>
+            <td style="padding:8px 8px;text-align:right">
+              <button onclick="shipDeleteMonth('${m}')" style="padding:4px 10px;background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit">🗑 Izbriši</button>
             </td>
           </tr>
         `).join('')}
@@ -15423,11 +15817,9 @@ async function shipDeleteMonth(month) {
     const r = await fetch('/shipping-month/' + month, {method: 'DELETE'});
     const d = await r.json();
     if (d.ok) {
-      document.getElementById('shipStatus').innerHTML = '<span style="color:#22c55e">✓ Izbrisan ' + month + '</span>';
+      shipSelectedMonths.delete(month);
       shipLoadData();
-    } else {
-      alert('Napaka: ' + (d.error || 'neznana'));
-    }
+    } else alert('Napaka: ' + (d.error || 'neznana'));
   } catch (e) {
     alert('Napaka: ' + e.message);
   }
